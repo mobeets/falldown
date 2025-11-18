@@ -2,14 +2,19 @@
 // Global settings
 // ======================
 let scrollSpeed = 2.5;    // upward speed of world
-let gravity = 0.4;
+let gravity = 0.5;
 let ballAccel = 0.4;      // acceleration added by pressing key
 let K = 8;                // number of segments per level
 let levelWidth;           // total width in pixels
-let levelSpacing = 120;   // vertical distance between levels
+let levelSpacing;   // vertical distance between levels
+let nLevelsVisible = 7;
 let levelHeight = 10;
 let cameraY = 0;
 let cameraMode = 0; // options: 0 = 'follow', 1 = 'drift'
+let FPS = 60;
+
+// todos:
+// - give all objects absolute y values, and instead use cameraY to either drift or follow ball
 
 let ball;
 let levels = [];
@@ -21,10 +26,20 @@ let gameIndex = 0;
 let startTime;
 
 function setup() {
-  createCanvas(600, 600);
+  let windowSize = min(windowWidth, windowHeight);
+  let cnv = createCanvas(windowSize, windowSize);
+  cnv.parent('canvas-container'); // attach to the centered div
   levelWidth = width;
 
-  ball = new Ball(width/2, 100, 18);
+  // adjust gravity and ballAccel relative to 600x600 window
+  gravity *= (width / 600);
+  ballAccel *= (height / 600);
+
+  // set level spacing so that the same number of levels are visible
+  levelSpacing = width / nLevelsVisible;
+
+  let gapSize = windowSize / K;
+  ball = new Ball(width/2, 100, 0.2*gapSize);
   initGame();
 }
 
@@ -49,10 +64,12 @@ function initGame() {
 }
 
 function draw() {
+  frameRate(FPS);
   background(40);
   
   if (keyIsDown(LEFT_ARROW)) ball.vx -= ballAccel;
   if (keyIsDown(RIGHT_ARROW)) ball.vx += ballAccel;
+  ball.vx = constrain(ball.vx, -15*ballAccel, 15*ballAccel);
 
   // Update ball
   let doUpdate = !isPaused && !isGameOver;
@@ -105,6 +122,7 @@ function draw() {
 function keyPressed() {
   if (key === 'p') isPaused = !isPaused;
   if (key === 'n' && (isPaused || isGameOver)) initGame();
+  if (key === 'm' && (isPaused || isGameOver)) cameraMode = int(!cameraMode); // toggle
   if (key === 's' && (isPaused || isGameOver)) saveTrials();
 }
 
@@ -262,9 +280,8 @@ class Level {
     for (let seg of this.segments) {
       seg.render();
     }
-    
-    textSize(12);
-    text(this.holeUsed.toString(), width/2, this.y - cameraY);
+    // textSize(12);
+    // text(this.holeUsed.toString(), width/2, this.y - cameraY);
   }
 
   collidesWith(ball) {
@@ -317,11 +334,28 @@ function updateTrials(level) {
   let trial = level.toJSON();
   trial.time = millis() - startTime;
   trial.gameIndex = gameIndex;
+  trial.cameraMode = cameraMode;
+  trial.ballX = ball.x;
+  trial.ballY = ball.y;
   trials.push(trial);
 }
 
 function saveTrials() {
-  let jsonString = JSON.stringify(trials, null, 2); // Pretty-print with 2-space indent
+  let gameInfo = {
+    width: width,
+    height: height,
+    ballRadius: ball.r,
+    ballAccel: ballAccel,
+    gravity: gravity,
+    levelHeight: levelHeight,
+    levelSpacing: levelSpacing,
+    segmentsPerLevel: K,
+    scrollSpeed: scrollSpeed,
+    FPS: FPS,
+  };
+
+  let jsonString = JSON.stringify({gameInfo: gameInfo,
+    trials: trials}, null, 2); // Pretty-print with 2-space indent
 
   // Create a Blob from the JSON string
   let blob = new Blob([jsonString], { type: 'application/json' });
