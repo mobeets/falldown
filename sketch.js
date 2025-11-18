@@ -13,9 +13,6 @@ let cameraY = 0;
 let cameraMode = 0; // options: 0 = 'follow', 1 = 'drift'
 let FPS = 60;
 
-// todos:
-// - give all objects absolute y values, and instead use cameraY to either drift or follow ball
-
 let ball;
 let levels = [];
 let isPaused = false;
@@ -47,6 +44,7 @@ function initGame() {
   // Set ball position
   ball.x = width/2;
   ball.y = 100;
+  cameraY = 0;
   
   // Create initial levels
   levels = [];
@@ -78,8 +76,8 @@ function draw() {
   // Set y offset based on camera mode
   if (cameraMode === 0) {
     cameraY = ball.y - height/2;  // keep ball halfway up screen
-  } else {
-    cameraY = 0;
+  } else if (doUpdate) {
+    cameraY += scrollSpeed;
   }
   
   // Update and render levels
@@ -103,12 +101,14 @@ function draw() {
   ball.render();
 
   // Game over condition
-  if (ball.y < 0) {
+  if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
     isGameOver = true;
   }
   
   if (!doUpdate) {
     textAlign(CENTER, CENTER);
+    fill(color(50, 50, 50, 200));
+    rect(0, 0, width, height);
     fill(255);
     textSize(48);
     if (isGameOver) {
@@ -188,7 +188,7 @@ class RectSegment {
   }
 
   update() {
-    if (cameraMode === 1) this.y -= scrollSpeed;
+    // if (cameraMode === 1) this.y -= scrollSpeed;
   }
 
   render() {
@@ -270,7 +270,7 @@ class Level {
   }
 
   update() {
-    if (cameraMode === 1) this.y -= scrollSpeed;
+    // if (cameraMode === 1) this.y -= scrollSpeed;
     for (let seg of this.segments) {
       seg.update();
     }
@@ -314,6 +314,7 @@ class Level {
   toJSON() {
     return {
       index: this.index,
+      levelY: this.y,
       // represent level as a K-bit integer
       levelInt: bitsToByte(this.segmentExists, this.K), 
       holeUsed: this.holeUsed,
@@ -337,6 +338,7 @@ function updateTrials(level) {
   trial.cameraMode = cameraMode;
   trial.ballX = ball.x;
   trial.ballY = ball.y;
+  trial.cameraY = cameraY;
   trials.push(trial);
 }
 
