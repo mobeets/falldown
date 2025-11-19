@@ -144,6 +144,10 @@ function draw() {
     } else if (isPaused) {
       text("PAUSED", width/2, height/2);
     }
+    if (cameraMode === 1) {
+      textSize(24);
+      text("Scroll speed: " + scrollSpeed.toFixed(2), width/2, height/2 + 60);
+    }
   }
 }
 
@@ -152,8 +156,8 @@ function keyPressed() {
   if (key === 'n' && (isPaused || isGameOver)) initGame();
   if (key === 'm' && (isPaused || isGameOver)) cameraMode = int(!cameraMode); // toggle
   if (key === 's' && (isPaused || isGameOver)) saveTrials();
-  if (key === '+' && (isPaused || isGameOver)) scrollSpeed += 0.1;
-  if (key === '-' && (isPaused || isGameOver)) scrollSpeed -= 0.1;
+  if (keyCode === UP_ARROW && (isPaused || isGameOver)) scrollSpeed += 0.1;
+  if (keyCode === DOWN_ARROW && (isPaused || isGameOver)) scrollSpeed -= 0.1;
 }
 
 function randomHoles(K) {
@@ -367,7 +371,7 @@ function bitsToByte(bits, K) {
 
 function updateTrials(level) {
   let trial = level.toJSON();
-  trial.time = millis() - startTime;
+  trial.timePassedThru = millis() - startTime;
   trial.gameIndex = gameIndex;
   trial.cameraMode = cameraMode;
   trial.ballX = ball.x;
