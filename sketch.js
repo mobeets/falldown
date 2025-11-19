@@ -1,7 +1,8 @@
 // ======================
 // Global settings
 // ======================
-let scrollSpeed = 2.5;    // upward speed of world
+// let scrollSpeed = 1.5;    // upward speed of world
+let scrollSpeed = 1.5;    // upward speed of world
 let gravity = 0.5;
 let ballAccel = 0.4;      // acceleration added by pressing key
 let K = 8;                // number of segments per level
@@ -12,6 +13,11 @@ let levelHeight = 10;
 let cameraY = 0;
 let cameraMode = 0; // options: 0 = 'follow', 1 = 'drift'
 let FPS = 60;
+// let modeSwitchRates = [0.05, 0.1];
+let modeSwitchRates = [0.5, 0.5];
+let minLevelsPerMode = 5;
+let modeSwitchCooldown = 0;
+let modeRectColors = ['gray', 'red'];
 
 let ball;
 let levels = [];
@@ -53,7 +59,9 @@ function initGame() {
     let holes = randomHoles(K);
     let y = height + i * levelSpacing;
     levelIndex++;
-    levels.push(new Level(levelIndex, K, levelWidth, holes, y));
+
+    let color = modeRectColors[cameraMode];
+    levels.push(new Level(levelIndex, K, levelWidth, holes, y, color, false));
   }  
   
   isGameOver = false;
@@ -65,17 +73,20 @@ function draw() {
   frameRate(FPS);
   background(40);
   
-  if (keyIsDown(LEFT_ARROW)) ball.vx -= ballAccel;
-  if (keyIsDown(RIGHT_ARROW)) ball.vx += ballAccel;
-  ball.vx = constrain(ball.vx, -15*ballAccel, 15*ballAccel);
-
   // Update ball
   let doUpdate = !isPaused && !isGameOver;
-  if (doUpdate) ball.update();
+
+  if (doUpdate) {
+    if (keyIsDown(LEFT_ARROW)) ball.vx -= ballAccel;
+    if (keyIsDown(RIGHT_ARROW)) ball.vx += ballAccel;
+    ball.vx = constrain(ball.vx, -15*ballAccel, 15*ballAccel);
+    ball.update();
+  }
   
   // Set y offset based on camera mode
   if (cameraMode === 0) {
-    cameraY = ball.y - height/2;  // keep ball halfway up screen
+    // keep ball halfway up screen, but smooth movements
+    cameraY = 0.25*(ball.y - height/2) + 0.75*cameraY;
   } else if (doUpdate) {
     cameraY += scrollSpeed;
   }
@@ -85,16 +96,33 @@ function draw() {
     if (doUpdate) lvl.update();
     lvl.render();
     lvl.collidesWith(ball);
-    if (lvl.passedThrough(ball)) updateTrials(lvl);
+    if (lvl.passedThrough(ball)) {
+      updateTrials(lvl);
+      // toggle mode when we pass through
+      if (lvl.isModeSwitch) cameraMode = int(!cameraMode);
+    }
   }
 
   // Remove levels that went off top and add new ones at bottom
   if (levels[0].y - cameraY < -50) {
     levels.shift();
+    
+    // Check for mode switch on this level
+    let doModeSwitch = false;
+    if (modeSwitchCooldown > 0) {
+      modeSwitchCooldown--;
+    } else {
+      let modeSwitchRate = modeSwitchRates[cameraMode];
+      doModeSwitch = random() < modeSwitchRate;
+      if (doModeSwitch) modeSwitchCooldown = minLevelsPerMode;
+    }
+
     let holes = randomHoles(K);
     let newY = levels[levels.length - 1].y + levelSpacing;
+    let color = 'gray'; //levels[levels.length - 1].color;
+    if (doModeSwitch) color = 'red'; //modeRectColors[int(!cameraMode)];
     levelIndex++;
-    levels.push(new Level(levelIndex, K, levelWidth, holes, newY));
+    levels.push(new Level(levelIndex, K, levelWidth, holes, newY, color, doModeSwitch));
   }
   
   // Render ball
@@ -124,6 +152,8 @@ function keyPressed() {
   if (key === 'n' && (isPaused || isGameOver)) initGame();
   if (key === 'm' && (isPaused || isGameOver)) cameraMode = int(!cameraMode); // toggle
   if (key === 's' && (isPaused || isGameOver)) saveTrials();
+  if (key === '+' && (isPaused || isGameOver)) scrollSpeed += 0.1;
+  if (key === '-' && (isPaused || isGameOver)) scrollSpeed -= 0.1;
 }
 
 function randomHoles(K) {
@@ -179,12 +209,13 @@ class Ball {
 // RectSegment class
 // ======================
 class RectSegment {
-  constructor(index, x, y, w) {
+  constructor(index, x, y, w, color) {
     this.index = index;
     this.x = x;
     this.y = y;
     this.w = w;
     this.h = levelHeight;
+    this.color = color;
   }
 
   update() {
@@ -192,7 +223,7 @@ class RectSegment {
   }
 
   render() {
-    fill(180);
+    fill(this.color);
     rect(this.x, this.y - cameraY, this.w, this.h);
   }
 
@@ -246,7 +277,7 @@ collideRectCircle = function (rx, ry, rw, rh, cx, cy, diameter) {
 // Level class
 // ======================
 class Level {
-  constructor(index, K, width, holes, y) {
+  constructor(index, K, width, holes, y, color, isModeSwitch) {
     this.index = index;
     this.K = K;
     this.width = width;
@@ -254,6 +285,8 @@ class Level {
     this.y = y;
     this.holeUsed = -1;
     this.ballTouched = false;
+    this.color = color;
+    this.isModeSwitch = isModeSwitch;
     
     this.segments = [];
     let segW = width / K;
@@ -262,7 +295,7 @@ class Level {
     for (let i = 0; i < K; i++) {
       if (!holes.includes(i)) {
         this.segmentExists.push(1);
-        this.segments.push(new RectSegment(i, i * segW, y, segW));
+        this.segments.push(new RectSegment(i, i * segW, y, segW, this.color));
       } else {
         this.segmentExists.push(0);
       }
@@ -319,6 +352,7 @@ class Level {
       levelInt: bitsToByte(this.segmentExists, this.K), 
       holeUsed: this.holeUsed,
       ballTouched: this.ballTouched,
+      isModeSwitch: this.isModeSwitch,
     };
   }
 }
