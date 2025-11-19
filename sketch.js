@@ -60,8 +60,7 @@ function initGame() {
     let y = height + i * levelSpacing;
     levelIndex++;
 
-    let color = modeRectColors[cameraMode];
-    levels.push(new Level(levelIndex, K, levelWidth, holes, y, color, false));
+    levels.push(new Level(levelIndex, K, levelWidth, holes, y, cameraMode, false));
   }  
   
   isGameOver = false;
@@ -107,6 +106,12 @@ function draw() {
   if (levels[0].y - cameraY < -50) {
     levels.shift();
     
+    // Set params for new level
+    levelIndex++;
+    let holes = randomHoles(K);
+    let newY = levels[levels.length - 1].y + levelSpacing;
+    let modeIndex = levels[levels.length - 1].modeIndex;
+
     // Check for mode switch on this level
     let doModeSwitch = false;
     if (modeSwitchCooldown > 0) {
@@ -116,13 +121,10 @@ function draw() {
       doModeSwitch = random() < modeSwitchRate;
       if (doModeSwitch) modeSwitchCooldown = minLevelsPerMode;
     }
-
-    let holes = randomHoles(K);
-    let newY = levels[levels.length - 1].y + levelSpacing;
-    let color = 'gray'; //levels[levels.length - 1].color;
-    if (doModeSwitch) color = 'red'; //modeRectColors[int(!cameraMode)];
-    levelIndex++;
-    levels.push(new Level(levelIndex, K, levelWidth, holes, newY, color, doModeSwitch));
+    if (doModeSwitch) modeIndex = int(!modeIndex);
+    
+    // Create new level
+    levels.push(new Level(levelIndex, K, levelWidth, holes, newY, modeIndex, doModeSwitch));
   }
   
   // Render ball
@@ -281,7 +283,7 @@ collideRectCircle = function (rx, ry, rw, rh, cx, cy, diameter) {
 // Level class
 // ======================
 class Level {
-  constructor(index, K, width, holes, y, color, isModeSwitch) {
+  constructor(index, K, width, holes, y, modeIndex, isModeSwitch) {
     this.index = index;
     this.K = K;
     this.width = width;
@@ -289,7 +291,8 @@ class Level {
     this.y = y;
     this.holeUsed = -1;
     this.ballTouched = false;
-    this.color = color;
+    this.modeIndex = modeIndex;
+    this.color = modeRectColors[this.modeIndex];
     this.isModeSwitch = isModeSwitch;
     
     this.segments = [];
@@ -356,6 +359,7 @@ class Level {
       levelInt: bitsToByte(this.segmentExists, this.K), 
       holeUsed: this.holeUsed,
       ballTouched: this.ballTouched,
+      modeIndex: this.modeIndex,
       isModeSwitch: this.isModeSwitch,
     };
   }
@@ -389,6 +393,8 @@ function saveTrials() {
     gravity: gravity,
     levelHeight: levelHeight,
     levelSpacing: levelSpacing,
+    modeSwitchRates: modeSwitchRates,
+    minLevelsPerMode: minLevelsPerMode,
     segmentsPerLevel: K,
     scrollSpeed: scrollSpeed,
     FPS: FPS,
