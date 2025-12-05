@@ -42,8 +42,10 @@ class HolePlanner {
     // adds to holes_queued
     // where each entry is {plan_index, layer_index, hole_locations}
     this.plan_index++;
+    let isSuccess = false;
     let all_hole_locations;
     let curPlanningDepth = floor(random(0,this.planningDepth))+1;
+
     if (curPlanningDepth === 1) {
       // 1-hole, 2-hole, 1-hole
       // where greedy solution is optimal (b/c 1st and 3rd layers are identical)
@@ -51,18 +53,19 @@ class HolePlanner {
       let holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
       let holeC = [...holeA];
       all_hole_locations = [holeA, holeB, holeC];
+      isSuccess = true;
     } else if (curPlanningDepth === 2) {
       // 1-hole, 2-hole, 1-hole
       // where 2-step solution is better than greedy solution
-      let isSuccess = false;
       let nTries = 0;
       let holeA, holeB, holeC;
       let pathL1, pathR1, pathL2, pathR2;
-      while (!isSuccess && nTries < 5) {
+      while (!isSuccess && nTries < 10) {
         nTries++;
         holeA = this.random_hole_locations(this.nSegments, 1, true);
         holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
         holeC = this.random_hole_locations(this.nSegments, 1, false, holeB);
+        all_hole_locations = [holeA, holeB, holeC];
         pathL1 = Math.abs(holeA[0]-holeB[0]);
         pathR1 = Math.abs(holeA[0]-holeB[1]);
         pathL2 = pathL1 + Math.abs(holeB[0]-holeC[0]);
@@ -74,17 +77,35 @@ class HolePlanner {
         } else {
           isSuccess = pathL2 < pathR2;
         }
-        all_hole_locations = [holeA, holeB, holeC];
       }
     } else if (curPlanningDepth === 3) {
       // 1-hole, 2-hole, 2-hole, 1-hole
       // where greedy/2-step solution are the same, 3-step solution is different
       // and 3-step solution is better than greedy/2-step
-      let holeA = this.random_hole_locations(this.nSegments, 1, true);
-      let holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
-      let holeC = this.random_hole_locations(this.nSegments, 2, false, holeB);
-      let holeD = this.random_hole_locations(this.nSegments, 1, false, holeC);
-      all_hole_locations = [holeA, holeB, holeC, holeD];
+      let nTries = 0;
+      let holeA, holeB, holeC, holeD;
+      let pathL1, pathR1, pathL2, pathR2, pathL3, pathR3;
+      while (!isSuccess && nTries < 10) {
+        nTries++;
+        holeA = this.random_hole_locations(this.nSegments, 1, true);
+        holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
+        holeC = this.random_hole_locations(this.nSegments, 2, false, holeB);
+        holeD = this.random_hole_locations(this.nSegments, 1, false, holeC);
+        all_hole_locations = [holeA, holeB, holeC, holeD];
+
+        pathL1 = Math.abs(holeA[0]-holeB[0]);
+        pathR1 = Math.abs(holeA[0]-holeB[1]);
+        pathL2 = pathL1 + Math.min(Math.abs(holeB[0]-holeC[0]), Math.abs(holeB[0]-holeC[1]));
+        pathR2 = pathR1 + Math.min(Math.abs(holeB[1]-holeC[0]), Math.abs(holeB[1]-holeC[1]));
+        pathL3 = pathL1 + Math.min(Math.abs(holeB[0]-holeC[0]) + Math.abs(holeC[0]-holeD[0]), Math.abs(holeB[0]-holeC[1]) + Math.abs(holeC[1]-holeD[0]));
+        // we want greedy and level-2 planning to have same solution,
+        // but level-3 to be different
+        if (pathL1 < pathR1) {
+          isSuccess = (pathL2 < pathR2) && (pathL3 > pathR3);
+        } else {
+          isSuccess = (pathL2 > pathR2) && (pathL3 < pathR3);
+        }
+      }
     } else {
       // not implemented
       return;
@@ -99,6 +120,7 @@ class HolePlanner {
       };
       this.holes_queued.push(curHole);
     }
+    console.log('planning: ', isSuccess, curPlanningDepth);
   }
 
   plan_random_layer() {
