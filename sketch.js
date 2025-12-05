@@ -19,6 +19,8 @@ let minLevelsPerMode = 5;
 let modeSwitchCooldown = 0;
 let modeRectColors = ['gray', 'red'];
 
+// todo: track pause times
+
 let ball;
 let levels = [];
 let isPaused = false;
@@ -384,8 +386,8 @@ function updateTrials(level) {
   trials.push(trial);
 }
 
-function saveTrials() {
-  let gameInfo = {
+function getGameInfo() {
+  return {
     width: width,
     height: height,
     ballRadius: ball.r,
@@ -399,7 +401,10 @@ function saveTrials() {
     scrollSpeed: scrollSpeed,
     FPS: FPS,
   };
+}
 
+function saveTrials() {
+  let gameInfo = getGameInfo();
   let jsonString = JSON.stringify({gameInfo: gameInfo,
     trials: trials}, null, 2); // Pretty-print with 2-space indent
 
