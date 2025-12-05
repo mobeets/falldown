@@ -54,16 +54,28 @@ class HolePlanner {
     } else if (curPlanningDepth === 2) {
       // 1-hole, 2-hole, 1-hole
       // where 2-step solution is better than greedy solution
-      let holeA = this.random_hole_locations(this.nSegments, 1, true);
-      let holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
-      let holeC = this.random_hole_locations(this.nSegments, 1, false, holeB);
-      let pathL1 = Math.abs(holeA[0]-holeB[0]);
-      let pathR1 = Math.abs(holeA[0]-holeB[1]);
-      let pathL2 = pathL1 + Math.abs(holeB[0]-holeC[0]);
-      let pathR2 = pathR1 + Math.abs(holeB[1]-holeC[0]);
-      // if pathL1 < pathR1, then we want pathL2 > pathR2
-      // else, we want pathL2 < pathR2
-      all_hole_locations = [holeA, holeB, holeC];
+      let isSuccess = false;
+      let nTries = 0;
+      let holeA, holeB, holeC;
+      let pathL1, pathR1, pathL2, pathR2;
+      while (!isSuccess && nTries < 5) {
+        nTries++;
+        holeA = this.random_hole_locations(this.nSegments, 1, true);
+        holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
+        holeC = this.random_hole_locations(this.nSegments, 1, false, holeB);
+        pathL1 = Math.abs(holeA[0]-holeB[0]);
+        pathR1 = Math.abs(holeA[0]-holeB[1]);
+        pathL2 = pathL1 + Math.abs(holeB[0]-holeC[0]);
+        pathR2 = pathR1 + Math.abs(holeB[1]-holeC[0]);
+        // if pathL1 < pathR1, then we want pathL2 > pathR2
+        // else, we want pathL2 < pathR2
+        if (pathL1 < pathR1) {
+          isSuccess = pathL2 > pathR2;
+        } else {
+          isSuccess = pathL2 < pathR2;
+        }
+        all_hole_locations = [holeA, holeB, holeC];
+      }
     } else if (curPlanningDepth === 3) {
       // 1-hole, 2-hole, 2-hole, 1-hole
       // where greedy/2-step solution are the same, 3-step solution is different
