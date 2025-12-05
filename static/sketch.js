@@ -29,6 +29,8 @@ let trials = [];
 let levelIndex = 0;
 let gameIndex = 0;
 let startTime;
+let planningDepth = 3;
+let holePlanner;
 
 function setup() {
   let windowSize = min(windowWidth, windowHeight);
@@ -53,12 +55,14 @@ function initGame() {
   ball.x = width/2;
   ball.y = 100;
   cameraY = 0;
+
+  holePlanner = new HolePlanner(K, planningDepth);
   
   // Create initial levels
   levels = [];
   levelIndex = 0;
   for (let i = 0; i < 10; i++) {
-    let holes = randomHoles(K);
+    let holes = holePlanner.next_holes();
     let y = height + i * levelSpacing;
     levelIndex++;
 
@@ -68,6 +72,18 @@ function initGame() {
   isGameOver = false;
   startTime = millis();
   gameIndex++;
+}
+
+function checkForModeSwitch(modeIndex, modeSwitchRate) {
+  let doModeSwitch = false;
+  if (modeSwitchCooldown > 0) {
+    modeSwitchCooldown--;
+  } else {
+    doModeSwitch = random() < modeSwitchRate;
+    if (doModeSwitch) modeSwitchCooldown = minLevelsPerMode;
+  }
+  if (doModeSwitch) modeIndex = int(!modeIndex);
+  return {modeIndex, doModeSwitch};
 }
 
 function draw() {
@@ -100,7 +116,7 @@ function draw() {
     if (lvl.passedThrough(ball)) {
       updateTrials(lvl);
       // toggle mode when we pass through
-      if (lvl.isModeSwitch) cameraMode = int(!cameraMode);
+      if (lvl.isModeSwitch) cameraMode = lvl.modeIndex; //int(!cameraMode);
     }
   }
 
@@ -110,23 +126,16 @@ function draw() {
     
     // Set params for new level
     levelIndex++;
-    let holes = randomHoles(K);
+    let holes = holePlanner.next_holes();
     let newY = levels[levels.length - 1].y + levelSpacing;
     let modeIndex = levels[levels.length - 1].modeIndex;
 
     // Check for mode switch on this level
-    let doModeSwitch = false;
-    if (modeSwitchCooldown > 0) {
-      modeSwitchCooldown--;
-    } else {
-      let modeSwitchRate = modeSwitchRates[cameraMode];
-      doModeSwitch = random() < modeSwitchRate;
-      if (doModeSwitch) modeSwitchCooldown = minLevelsPerMode;
-    }
-    if (doModeSwitch) modeIndex = int(!modeIndex);
+    // let modeInfo = checkForModeSwitch(modeIndex, modeSwitchRates[cameraMode]);
+    let modeInfo = checkForModeSwitch(modeIndex, modeSwitchRates[modeIndex]);
     
     // Create new level
-    levels.push(new Level(levelIndex, K, levelWidth, holes, newY, modeIndex, doModeSwitch));
+    levels.push(new Level(levelIndex, K, levelWidth, holes, newY, modeInfo.modeIndex, modeInfo.doModeSwitch));
   }
   
   // Render ball
@@ -158,213 +167,10 @@ function draw() {
 function keyPressed() {
   if (key === 'p') isPaused = !isPaused;
   if (key === 'n' && (isPaused || isGameOver)) initGame();
-  if (key === 'm' && (isPaused || isGameOver)) cameraMode = int(!cameraMode); // toggle
+  // if (key === 'm' && (isPaused || isGameOver)) cameraMode = int(!cameraMode); // toggle
   if (key === 's' && (isPaused || isGameOver)) saveTrials();
   if (keyCode === UP_ARROW && (isPaused || isGameOver)) scrollSpeed += 0.1;
   if (keyCode === DOWN_ARROW && (isPaused || isGameOver)) scrollSpeed -= 0.1;
-}
-
-function randomHoles(K) {
-  // choose 1–3 random holes
-  let num = floor(random(1, 3));
-  let arr = [];
-  while (arr.length < num) {
-    let idx = floor(random(K));
-    if (!arr.includes(idx)) arr.push(idx);
-  }
-  return arr;
-}
-
-// ======================
-// Ball class
-// ======================
-class Ball {
-  constructor(x, y, r) {
-    this.x = x;
-    this.y = y;
-    this.xprev = x;
-    this.yprev = y;
-    this.r = r;
-    this.vx = 0;
-    this.vy = 0;
-  }
-
-  update() {
-    // save previous position
-    this.xprev = this.x;
-    this.yprev = this.y;
-    this.vy += gravity;
-    this.x += this.vx;
-    this.y += this.vy;
-    
-    // Slow horizontal motion (friction)
-    this.vx *= 0.95;
-
-    // Keep inside screen
-    if (this.x < this.r) { this.x = this.r; this.vx = 0; }
-    if (this.x > width - this.r) { this.x = width - this.r; this.vx = 0; }
-  }
-
-  render() {
-    fill(255, 200, 0);
-    noStroke();
-    circle(this.x, this.y - cameraY, this.r * 2);
-  }
-}
-
-
-// ======================
-// RectSegment class
-// ======================
-class RectSegment {
-  constructor(index, x, y, w, color) {
-    this.index = index;
-    this.x = x;
-    this.y = y;
-    this.w = w;
-    this.h = levelHeight;
-    this.color = color;
-  }
-
-  update() {
-    // if (cameraMode === 1) this.y -= scrollSpeed;
-  }
-
-  render() {
-    fill(this.color);
-    rect(this.x, this.y - cameraY, this.w, this.h);
-  }
-
-  collidesWith(ball) {
-    const hit = collideRectCircle(this.x, this.y, this.w, this.h, ball.x, ball.y, ball.r * 2);
-    if (hit.colliding) {
-      let prevBallX = ball.x;
-      let prevBallY = ball.y;
-      
-      if (hit.yEdge === 0) {
-        // ball is hitting side of platform
-        if (hit.xEdge === -1) ball.x = this.x - ball.r;
-        else if (hit.xEdge === 1) ball.x = this.x + this.w + ball.r;
-        ball.vx = 0;
-      }
-      if (hit.xEdge === 0) {
-        // ball is hitting top of platform
-        ball.y = this.y - ball.r;
-        ball.vy = min(ball.vy, 0);
-      }
-    }
-    return hit.colliding;
-  }
-}
-
-collideRectCircle = function (rx, ry, rw, rh, cx, cy, diameter) {
-  // temporary variables to set edges for testing
-  var testX = cx;
-  var testY = cy;
-  let xEdge = 0;
-  let yEdge = 0;
-
-  // which edge is closest?
-  if (cx < rx){ testX = rx; xEdge = -1; // left edge
-  }else if (cx > rx+rw){ testX = rx+rw; xEdge = 1; }   // right edge
-
-  if (cy < ry){ testY = ry; yEdge = -1; // top edge
-  }else if (cy > ry+rh){ testY = ry+rh; yEdge = 1; }   // bottom edge
-
-  // // get distance from closest edges
-  var distance = this.dist(cx,cy,testX,testY)
-
-  // if the distance is less than the radius, collision!
-  if (distance <= diameter/2) {
-    return {colliding: true, xEdge: xEdge, yEdge: yEdge};
-  }
-  return {colliding: false, xEdge: xEdge, yEdge: yEdge};
-};
-
-// ======================
-// Level class
-// ======================
-class Level {
-  constructor(index, K, width, holes, y, modeIndex, isModeSwitch) {
-    this.index = index;
-    this.K = K;
-    this.width = width;
-    this.holes = holes;
-    this.y = y;
-    this.holeUsed = -1;
-    this.ballTouched = false;
-    this.modeIndex = modeIndex;
-    this.color = modeRectColors[this.modeIndex];
-    this.isModeSwitch = isModeSwitch;
-    
-    this.segments = [];
-    let segW = width / K;
-
-    this.segmentExists = [];
-    for (let i = 0; i < K; i++) {
-      if (!holes.includes(i)) {
-        this.segmentExists.push(1);
-        this.segments.push(new RectSegment(i, i * segW, y, segW, this.color));
-      } else {
-        this.segmentExists.push(0);
-      }
-    }
-  }
-
-  update() {
-    // if (cameraMode === 1) this.y -= scrollSpeed;
-    for (let seg of this.segments) {
-      seg.update();
-    }
-  }
-
-  render() {
-    for (let seg of this.segments) {
-      seg.render();
-    }
-    // textSize(12);
-    // text(this.holeUsed.toString(), width/2, this.y - cameraY);
-  }
-
-  collidesWith(ball) {
-    for (let seg of this.segments) {      
-      let didTouch = seg.collidesWith(ball);
-      this.ballTouched = this.ballTouched || didTouch;
-    }
-  }
-  
-  passedThrough(ball) {
-    if (this.holeUsed > -1) return false;
-    
-    // Check if the ball has crossed the level vertically
-    if (ball.y - 2*ball.r > this.y + levelHeight) {
-
-      // Compute horizontal grid index of the ball
-      let segWidth = this.width / this.K;
-      this.holeUsed = floor(ball.x / segWidth);
-
-      // Verify that this grid index is actually a hole
-      if (!this.holes.includes(this.holeUsed)) {
-        // Ball didn’t pass through a hole, ignore
-        this.holeUsed = -1;
-      }
-      return this.holeUsed > -1;
-    }
-    return this.holeUsed > -1;
-  }
-  
-  toJSON() {
-    return {
-      index: this.index,
-      levelY: this.y,
-      // represent level as a K-bit integer
-      levelInt: bitsToByte(this.segmentExists, this.K), 
-      holeUsed: this.holeUsed,
-      ballTouched: this.ballTouched,
-      modeIndex: this.modeIndex,
-      isModeSwitch: this.isModeSwitch,
-    };
-  }
 }
 
 function bitsToByte(bits, K) {
