@@ -5,7 +5,7 @@
 let scrollSpeed = 1.5;    // upward speed of world
 let gravity = 0.5;
 let ballAccel = 0.4;      // acceleration added by pressing key
-let K = 8;                // number of segments per level
+let K = 12;                // number of segments per level
 let levelWidth;           // total width in pixels
 let levelSpacing;   // vertical distance between levels
 let nLevelsVisible = 7;
