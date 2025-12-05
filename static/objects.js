@@ -46,7 +46,7 @@ class HolePlanner {
     let curPlanningDepth = floor(random(0,this.planningDepth))+1;
     if (curPlanningDepth === 1) {
       // 1-hole, 2-hole, 1-hole
-      // where greedy solution is optimal
+      // where greedy solution is optimal (b/c 1st and 3rd layers are identical)
       let holeA = this.random_hole_locations(this.nSegments, 1, true);
       let holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
       let holeC = [...holeA];
@@ -57,6 +57,12 @@ class HolePlanner {
       let holeA = this.random_hole_locations(this.nSegments, 1, true);
       let holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
       let holeC = this.random_hole_locations(this.nSegments, 1, false, holeB);
+      let pathL1 = Math.abs(holeA[0]-holeB[0]);
+      let pathR1 = Math.abs(holeA[0]-holeB[1]);
+      let pathL2 = pathL1 + Math.abs(holeB[0]-holeC[0]);
+      let pathR2 = pathR1 + Math.abs(holeB[1]-holeC[0]);
+      // if pathL1 < pathR1, then we want pathL2 > pathR2
+      // else, we want pathL2 < pathR2
       all_hole_locations = [holeA, holeB, holeC];
     } else if (curPlanningDepth === 3) {
       // 1-hole, 2-hole, 2-hole, 1-hole
