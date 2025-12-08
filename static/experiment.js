@@ -72,7 +72,6 @@ class TrialBlock {
     trial.block_index = this.block_index;
     trial.timePassedThru = millis() - this.startTime;
     trial.cameraMode = cameraMode;
-    trial.scrollSpeed = scrollSpeed;
     trial.ballX = ball.x;
     trial.ballY = ball.y;
     trial.cameraY = cameraY;

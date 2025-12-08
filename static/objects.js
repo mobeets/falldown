@@ -168,7 +168,7 @@ class Ball {
     this.y += this.vy;
     
     // Slow horizontal motion (friction)
-    this.vx *= friction;
+    this.vx *= E.params.friction;
 
     // Keep inside screen
     if (this.x < this.r) { this.x = this.r; this.vx = 0; }
@@ -187,17 +187,16 @@ class Ball {
 // RectSegment class
 // ======================
 class RectSegment {
-  constructor(index, x, y, w, color) {
+  constructor(index, x, y, w, h, color) {
     this.index = index;
     this.x = x;
     this.y = y;
     this.w = w;
-    this.h = levelHeight;
+    this.h = h;
     this.color = color;
   }
 
   update() {
-    // if (cameraMode === 1) this.y -= scrollSpeed;
   }
 
   render() {
@@ -255,27 +254,28 @@ collideRectCircle = function (rx, ry, rw, rh, cx, cy, diameter) {
 // Level class
 // ======================
 class Level {
-  constructor(index, K, width, holes, y, modeIndex, isModeSwitch) {
+  constructor(index, nSegments, width, height, holes, y, modeIndex, color, isModeSwitch) {
     this.index = index;
-    this.K = K;
+    this.nSegments = nSegments;
     this.width = width;
+    this.height = height;
     this.holes = holes;
     this.hole_locations = this.holes.hole_locations;
     this.y = y;
     this.holeUsed = -1;
     this.ballTouched = false;
     this.modeIndex = modeIndex;
-    this.color = modeRectColors[this.modeIndex];
+    this.color = color;
     this.isModeSwitch = isModeSwitch;
     
     this.segments = [];
-    let segW = width / K;
+    let segW = width / this.nSegments;
 
     this.segmentExists = [];
-    for (let i = 0; i < K; i++) {
+    for (let i = 0; i < this.nSegments; i++) {
       if (!this.hole_locations.includes(i)) {
         this.segmentExists.push(1);
-        this.segments.push(new RectSegment(i, i * segW, y, segW, this.color));
+        this.segments.push(new RectSegment(i, i * segW, y, segW, this.height, this.color));
       } else {
         this.segmentExists.push(0);
       }
@@ -283,7 +283,6 @@ class Level {
   }
 
   update() {
-    // if (cameraMode === 1) this.y -= scrollSpeed;
     for (let seg of this.segments) {
       seg.update();
     }
@@ -308,10 +307,10 @@ class Level {
     if (this.holeUsed > -1) return false;
     
     // Check if the ball has crossed the level vertically
-    if (ball.y - 2*ball.r > this.y + levelHeight) {
+    if (ball.y - 2*ball.r > this.y + this.height) {
 
       // Compute horizontal grid index of the ball
-      let segWidth = this.width / this.K;
+      let segWidth = this.width / this.nSegments;
       this.holeUsed = floor(ball.x / segWidth);
 
       // Verify that this grid index is actually a hole

@@ -1,24 +1,9 @@
 // ======================
 // Global settings
 // ======================
-let scrollSpeed = 2.2;    // upward speed of world
 let gravity = 0.5;
 let ballAccel = 0.4;      // acceleration added by pressing key
-let friction = 0.95; // decay on ball's vx
-let K = 12;                // number of segments per level
-let levelWidth;           // total width in pixels
-let levelSpacing;   // vertical distance between levels
-let nLevelsVisible = 7;
-let levelHeight = 10;
-let cameraY = 0;
 let cameraMode = 0; // options: 0 = 'follow', 1 = 'drift'
-let FPS = 60;
-// let modeSwitchRates = [0.05, 0.1];
-let modeSwitchRates = [0.0, 0.1];
-let minLevelsPerMode = 10;
-let modeSwitchCooldown = 0;
-// let modeRectColors = ['gray', 'red'];
-let modeRectColors = ['gray', 'gray'];
 
 // todo: track pause times
 
@@ -26,8 +11,12 @@ let levels = [];
 let isPaused = false;
 let isGameOver = false;
 let levelIndex = 0;
+let cameraY = 0;
 let planningDepth = 2;
 
+let modeSwitchCooldown; // min levels per cameraMode
+let levelWidth;     // total width in pixels
+let levelSpacing;   // vertical distance between levels
 let ball;
 let experiment;
 let trial_block;
@@ -49,19 +38,20 @@ function setup() {
   cnv.parent('canvas-container'); // attach to the centered div
   levelWidth = width;
 
-  photodiode = new Photodiode({}, width, height);
+  E = new Experiment(config);
+  
+  photodiode = new Photodiode(E.params.photodiode, width, height);
   controls = new UnifiedControls(wsLogger);
   user = new TaskControls(controls);
-  E = new Experiment(config);
 
   // adjust gravity and ballAccel relative to 600x600 window
   gravity *= 1.5 * (width / 600);
   ballAccel *= (height / 600);
 
   // set level spacing so that the same number of levels are visible
-  levelSpacing = width / nLevelsVisible;
+  levelSpacing = width / E.params.nLevelsVisible;
 
-  let gapSize = windowSize / K;
+  let gapSize = windowSize / E.params.nSegments;
   ball = new Ball(width/2, 100, 0.1*gapSize);
   initGame();
 }
@@ -71,8 +61,9 @@ function initGame() {
   ball.x = width/2;
   ball.y = 100;
   cameraY = 0;
+  modeSwitchCooldown = E.params.minLevelsPerMode;
 
-  holePlanner = new HolePlanner(K, planningDepth);
+  holePlanner = new HolePlanner(E.params.nSegments, planningDepth);
   
   // Create initial levels
   levels = [];
@@ -82,7 +73,7 @@ function initGame() {
     let y = height + i * levelSpacing;
     levelIndex++;
 
-    levels.push(new Level(levelIndex, K, levelWidth, holes, y, cameraMode, false));
+    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, holes, y, cameraMode, E.params.modeRectColors[cameraMode], false));
   }
   
   isGameOver = false;
@@ -95,14 +86,14 @@ function checkForModeSwitch(modeIndex, modeSwitchRate) {
     modeSwitchCooldown--;
   } else {
     doModeSwitch = random() < modeSwitchRate;
-    if (doModeSwitch) modeSwitchCooldown = minLevelsPerMode;
+    if (doModeSwitch) modeSwitchCooldown = E.params.minLevelsPerMode;
   }
   if (doModeSwitch) modeIndex = int(!modeIndex);
   return {modeIndex, doModeSwitch};
 }
 
 function draw() {
-  frameRate(FPS);
+  frameRate(E.params.FPS);
   background(40);
   controls.update();
   checkUserButtonPresses();
@@ -122,7 +113,7 @@ function draw() {
     // keep ball halfway up screen, but smooth movements
     cameraY = 0.25*(ball.y - height/2) + 0.75*cameraY;
   } else if (doUpdate) {
-    cameraY += scrollSpeed;
+    cameraY += E.params.scrollSpeed;
   }
   
   // Update and render levels
@@ -149,11 +140,10 @@ function draw() {
     let modeIndex = levels[levels.length - 1].modeIndex;
 
     // Check for mode switch on this level
-    // let modeInfo = checkForModeSwitch(modeIndex, modeSwitchRates[cameraMode]);
-    let modeInfo = checkForModeSwitch(modeIndex, modeSwitchRates[modeIndex]);
+    let modeInfo = checkForModeSwitch(modeIndex, E.params.modeSwitchRates[modeIndex]);
     
     // Create new level
-    levels.push(new Level(levelIndex, K, levelWidth, holes, newY, modeInfo.modeIndex, modeInfo.doModeSwitch));
+    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, holes, newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
   }
   
   // Render ball
@@ -177,7 +167,7 @@ function draw() {
     }
     if (cameraMode === 1) {
       textSize(24);
-      text("Scroll speed: " + scrollSpeed.toFixed(2), width/2, height/2 + 60);
+      text("Scroll speed: " + E.params.scrollSpeed.toFixed(2), width/2, height/2 + 60);
     }
   }
 
@@ -189,8 +179,6 @@ function draw() {
 function checkUserButtonPresses() {
   if (user.pause) isPaused = !isPaused;
   if (user.save && (isPaused || isGameOver)) manuallySaveToJSON(E);
-  // if (keyCode === UP_ARROW && (isPaused || isGameOver)) scrollSpeed += 0.1;
-  // if (keyCode === DOWN_ARROW && (isPaused || isGameOver)) scrollSpeed -= 0.1;
 }
 
 // for discrete events that we want to timestamp
@@ -212,13 +200,7 @@ function getGameInfo() {
     ballRadius: ball.r,
     ballAccel: ballAccel,
     gravity: gravity,
-    levelHeight: levelHeight,
     levelSpacing: levelSpacing,
-    modeSwitchRates: modeSwitchRates,
-    minLevelsPerMode: minLevelsPerMode,
-    segmentsPerLevel: K,
-    scrollSpeed: scrollSpeed,
-    FPS: FPS,
   };
 }
 
