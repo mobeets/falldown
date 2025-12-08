@@ -22,26 +22,21 @@ let modeRectColors = ['gray', 'gray'];
 
 // todo: track pause times
 
-let ball;
 let levels = [];
 let isPaused = false;
 let isGameOver = false;
-let trials = [];
 let levelIndex = 0;
-let gameIndex = 0;
-let startTime;
 let planningDepth = 2;
-let holePlanner;
 
+let ball;
+let experiment;
+let trial_block;
+let holePlanner;
 let config;
 let photodiode;
 let controls;
 let user;
 let clickSound;
-
-function loadConfig() {
-  return [];
-}
 
 function preload() {
   clickSound = new Audio('static/click.mp3');
@@ -57,6 +52,7 @@ function setup() {
   photodiode = new Photodiode({}, width, height);
   controls = new UnifiedControls(wsLogger);
   user = new TaskControls(controls);
+  E = new Experiment(config);
 
   // adjust gravity and ballAccel relative to 600x600 window
   gravity *= 1.5 * (width / 600);
@@ -87,11 +83,10 @@ function initGame() {
     levelIndex++;
 
     levels.push(new Level(levelIndex, K, levelWidth, holes, y, cameraMode, false));
-  }  
+  }
   
   isGameOver = false;
-  startTime = millis();
-  gameIndex++;
+  trial_block = E.new_block();
 }
 
 function checkForModeSwitch(modeIndex, modeSwitchRate) {
@@ -136,7 +131,7 @@ function draw() {
     lvl.render();
     lvl.collidesWith(ball);
     if (lvl.passedThrough(ball)) {
-      updateTrials(lvl);
+      trial_block.add_trial(lvl);
       markEvent(); // trigger photodiode and play sound
       // toggle mode when we pass through
       if (lvl.isModeSwitch) cameraMode = lvl.modeIndex; //int(!cameraMode);
@@ -193,7 +188,7 @@ function draw() {
 
 function checkUserButtonPresses() {
   if (user.pause) isPaused = !isPaused;
-  if (user.save && (isPaused || isGameOver)) saveTrials();
+  if (user.save && (isPaused || isGameOver)) manuallySaveToJSON(E);
   // if (keyCode === UP_ARROW && (isPaused || isGameOver)) scrollSpeed += 0.1;
   // if (keyCode === DOWN_ARROW && (isPaused || isGameOver)) scrollSpeed -= 0.1;
 }
@@ -209,26 +204,6 @@ function keyPressed(event) { controls.keyPressed(event); }
 function keyReleased(event) { controls.keyReleased(event); }
 function mousePressed(event) { controls.mousePressed(event); }
 function mouseReleased(event) { controls.mouseReleased(event); }
-
-function bitsToByte(bits, K) {
-  let value = 0;
-  for (let i = 0; i < K; i++) {
-    value = (value << 1) | bits[i];
-  }
-  return value;
-}
-
-function updateTrials(level) {
-  let trial = level.toJSON();
-  trial.timePassedThru = millis() - startTime;
-  trial.gameIndex = gameIndex;
-  trial.cameraMode = cameraMode;
-  trial.scrollSpeed = scrollSpeed;
-  trial.ballX = ball.x;
-  trial.ballY = ball.y;
-  trial.cameraY = cameraY;
-  trials.push(trial);
-}
 
 function getGameInfo() {
   return {
@@ -247,21 +222,3 @@ function getGameInfo() {
   };
 }
 
-function saveTrials() {
-  let gameInfo = getGameInfo();
-  let jsonString = JSON.stringify({gameInfo: gameInfo,
-    trials: trials}, null, 2); // Pretty-print with 2-space indent
-
-  // Create a Blob from the JSON string
-  let blob = new Blob([jsonString], { type: 'application/json' });
-
-  // Create a temporary download link
-  let url = URL.createObjectURL(blob);
-  let a = document.createElement('a');
-  a.href = url;
-  a.download = 'data.json';
-  a.click();
-
-  // Clean up the URL object
-  URL.revokeObjectURL(url);
-}

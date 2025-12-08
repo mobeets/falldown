@@ -329,7 +329,7 @@ class Level {
       index: this.index,
       levelY: this.y,
       // represent level as a K-bit integer
-      levelInt: bitsToByte(this.segmentExists, this.K), 
+      // levelInt: bitsToByte(this.segmentExists, this.K), 
       holeUsed: this.holeUsed,
       ballTouched: this.ballTouched,
       modeIndex: this.modeIndex,
