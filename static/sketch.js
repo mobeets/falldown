@@ -1,19 +1,13 @@
-// ======================
-// Global settings
-// ======================
-let gravity = 0.5;
-let ballAccel = 0.4;      // acceleration added by pressing key
-let cameraMode = 0; // options: 0 = 'follow', 1 = 'drift'
-
-// todo: track pause times
-
 let levels = [];
 let isPaused = false;
 let isGameOver = false;
 let levelIndex = 0;
 let cameraY = 0;
 let planningDepth = 2;
+let cameraMode; // options: 0 = 'follow', 1 = 'drift'
 
+let gravity;
+let ballAccel;      // acceleration added by pressing key
 let modeSwitchCooldown; // min levels per cameraMode
 let levelWidth;     // total width in pixels
 let levelSpacing;   // vertical distance between levels
@@ -27,6 +21,8 @@ let controls;
 let user;
 let clickSound;
 
+// todo: track pause times
+
 function preload() {
   clickSound = new Audio('static/click.mp3');
   config = loadConfig();
@@ -37,16 +33,17 @@ function setup() {
   let cnv = createCanvas(windowSize, windowSize);
   cnv.parent('canvas-container'); // attach to the centered div
   levelWidth = width;
+  cameraMode = E.params.startCameraMode;
 
   E = new Experiment(config);
-  
+
   photodiode = new Photodiode(E.params.photodiode, width, height);
   controls = new UnifiedControls(wsLogger);
   user = new TaskControls(controls);
 
   // adjust gravity and ballAccel relative to 600x600 window
-  gravity *= 1.5 * (width / 600);
-  ballAccel *= (height / 600);
+  gravity = E.params.relativeGravity * (width / 600);
+  ballAccel = E.params.relativeBallAccel * (height / 600);
 
   // set level spacing so that the same number of levels are visible
   levelSpacing = width / E.params.nLevelsVisible;

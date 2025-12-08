@@ -1,14 +1,14 @@
 {
 	"scrollSpeed": 2.2,
-	"gravity": 0.5,
-	"ballAccel": 0.4,
+	"relativeGravity": 0.75,
+	"relativeBallAccel": 0.4,
 	"friction": 0.95,
 	"nSegments": 12,
 	"nLevelsVisible": 7,
 	"levelHeight": 10,
-	"cameraMode": 0,
 	"FPS": 60,
 	"photodiode": {"size": 50},
+	"startCameraMode": 0,
 	"modeSwitchRates": [0.0, 0.1],
 	"minLevelsPerMode": 10,
 	"modeRectColors": ["gray", "gray"]
