@@ -1,1 +1,19 @@
 .DS_Store
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Folders
+data/*
+!data/.gitkeep
+logs/*
+!logs/.gitkeep
+

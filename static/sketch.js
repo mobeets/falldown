@@ -1,10 +1,10 @@
 // ======================
 // Global settings
 // ======================
-// let scrollSpeed = 1.5;    // upward speed of world
-let scrollSpeed = 1.5;    // upward speed of world
+let scrollSpeed = 2.2;    // upward speed of world
 let gravity = 0.5;
 let ballAccel = 0.4;      // acceleration added by pressing key
+let friction = 0.95; // decay on ball's vx
 let K = 12;                // number of segments per level
 let levelWidth;           // total width in pixels
 let levelSpacing;   // vertical distance between levels
@@ -14,10 +14,11 @@ let cameraY = 0;
 let cameraMode = 0; // options: 0 = 'follow', 1 = 'drift'
 let FPS = 60;
 // let modeSwitchRates = [0.05, 0.1];
-let modeSwitchRates = [0.5, 0.5];
-let minLevelsPerMode = 5;
+let modeSwitchRates = [0.0, 0.1];
+let minLevelsPerMode = 10;
 let modeSwitchCooldown = 0;
-let modeRectColors = ['gray', 'red'];
+// let modeRectColors = ['gray', 'red'];
+let modeRectColors = ['gray', 'gray'];
 
 // todo: track pause times
 
@@ -29,7 +30,7 @@ let trials = [];
 let levelIndex = 0;
 let gameIndex = 0;
 let startTime;
-let planningDepth = 3;
+let planningDepth = 2;
 let holePlanner;
 
 function setup() {
@@ -39,14 +40,14 @@ function setup() {
   levelWidth = width;
 
   // adjust gravity and ballAccel relative to 600x600 window
-  gravity *= (width / 600);
+  gravity *= 1.5 * (width / 600);
   ballAccel *= (height / 600);
 
   // set level spacing so that the same number of levels are visible
   levelSpacing = width / nLevelsVisible;
 
   let gapSize = windowSize / K;
-  ball = new Ball(width/2, 100, 0.2*gapSize);
+  ball = new Ball(width/2, 100, 0.1*gapSize);
   initGame();
 }
 
@@ -186,6 +187,7 @@ function updateTrials(level) {
   trial.timePassedThru = millis() - startTime;
   trial.gameIndex = gameIndex;
   trial.cameraMode = cameraMode;
+  trial.scrollSpeed = scrollSpeed;
   trial.ballX = ball.x;
   trial.ballY = ball.y;
   trial.cameraY = cameraY;

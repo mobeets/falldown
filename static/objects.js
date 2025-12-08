@@ -12,6 +12,8 @@ class HolePlanner {
 
   random_hole_locations(nSegments, nHoles, skipEdges = false, holesToAvoid) {
     // creates array with length nHoles, where indices correspond to hole locations
+    // if skipEdges is true, will not put holes on the far left or far right
+    // will also not put holes at any locations in holesToAvoid
     let arr = [];
     if (holesToAvoid === undefined) { holesToAvoid = []; }
     while (arr.length < nHoles) {
@@ -166,7 +168,7 @@ class Ball {
     this.y += this.vy;
     
     // Slow horizontal motion (friction)
-    this.vx *= 0.95;
+    this.vx *= friction;
 
     // Keep inside screen
     if (this.x < this.r) { this.x = this.r; this.vx = 0; }
