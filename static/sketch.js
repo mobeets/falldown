@@ -33,11 +33,30 @@ let startTime;
 let planningDepth = 2;
 let holePlanner;
 
+let config;
+let photodiode;
+let controls;
+let user;
+let clickSound;
+
+function loadConfig() {
+  return [];
+}
+
+function preload() {
+  clickSound = new Audio('static/click.mp3');
+  config = loadConfig();
+}
+
 function setup() {
   let windowSize = min(windowWidth, windowHeight);
   let cnv = createCanvas(windowSize, windowSize);
   cnv.parent('canvas-container'); // attach to the centered div
   levelWidth = width;
+
+  photodiode = new Photodiode({}, width, height);
+  controls = new UnifiedControls(wsLogger);
+  user = new TaskControls(controls);
 
   // adjust gravity and ballAccel relative to 600x600 window
   gravity *= 1.5 * (width / 600);
@@ -90,13 +109,15 @@ function checkForModeSwitch(modeIndex, modeSwitchRate) {
 function draw() {
   frameRate(FPS);
   background(40);
+  controls.update();
+  checkUserButtonPresses();
   
   // Update ball
   let doUpdate = !isPaused && !isGameOver;
 
   if (doUpdate) {
-    if (keyIsDown(LEFT_ARROW)) ball.vx -= ballAccel;
-    if (keyIsDown(RIGHT_ARROW)) ball.vx += ballAccel;
+    if (user.moveLeft) ball.vx -= ballAccel;
+    if (user.moveRight) ball.vx += ballAccel;
     ball.vx = constrain(ball.vx, -15*ballAccel, 15*ballAccel);
     ball.update();
   }
@@ -116,6 +137,7 @@ function draw() {
     lvl.collidesWith(ball);
     if (lvl.passedThrough(ball)) {
       updateTrials(lvl);
+      markEvent(); // trigger photodiode and play sound
       // toggle mode when we pass through
       if (lvl.isModeSwitch) cameraMode = lvl.modeIndex; //int(!cameraMode);
     }
@@ -163,16 +185,30 @@ function draw() {
       text("Scroll speed: " + scrollSpeed.toFixed(2), width/2, height/2 + 60);
     }
   }
+
+  // render photodiode last
+  photodiode.update();
+  photodiode.render();
 }
 
-function keyPressed() {
-  if (key === 'p') isPaused = !isPaused;
-  if (key === 'n' && (isPaused || isGameOver)) initGame();
-  // if (key === 'm' && (isPaused || isGameOver)) cameraMode = int(!cameraMode); // toggle
-  if (key === 's' && (isPaused || isGameOver)) saveTrials();
-  if (keyCode === UP_ARROW && (isPaused || isGameOver)) scrollSpeed += 0.1;
-  if (keyCode === DOWN_ARROW && (isPaused || isGameOver)) scrollSpeed -= 0.1;
+function checkUserButtonPresses() {
+  if (user.pause) isPaused = !isPaused;
+  if (user.save && (isPaused || isGameOver)) saveTrials();
+  // if (keyCode === UP_ARROW && (isPaused || isGameOver)) scrollSpeed += 0.1;
+  // if (keyCode === DOWN_ARROW && (isPaused || isGameOver)) scrollSpeed -= 0.1;
 }
+
+// for discrete events that we want to timestamp
+function markEvent() {
+  photodiode.trigger(50);
+  clickSound.play();
+}
+
+// hook up to universal controls
+function keyPressed(event) { controls.keyPressed(event); }
+function keyReleased(event) { controls.keyReleased(event); }
+function mousePressed(event) { controls.mousePressed(event); }
+function mouseReleased(event) { controls.mouseReleased(event); }
 
 function bitsToByte(bits, K) {
   let value = 0;

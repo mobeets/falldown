@@ -7,35 +7,8 @@ class TaskControls {
     return this.u.justPressedKey('p') || this.u.justPressedButton("START");
   }
 
-  get next_block() {
-    return this.u.justPressedKey('n');
-  }
-
-  get restart_block() {
-    return this.u.justPressedKey('r');
-  }
-
   get save() {
     return this.u.justPressedKey('s');
-  }
-
-  get fired() {
-    if (this.fireA) return 1;
-    if (this.fireB) return 2;
-    if (this.fireC) return 3;
-    return -1;
-  }
-
-  get fireA() {
-    return this.u.justPressedKey('1') || this.u.justPressedButton("WEST");
-  }
-
-  get fireB() {
-    return this.u.justPressedKey('2') || this.u.justPressedButton("SOUTH");
-  }
-
-  get fireC() {
-    return this.u.justPressedKey('3') || this.u.justPressedButton("EAST");
   }
 
   get moveLeft() {

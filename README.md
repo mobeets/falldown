@@ -21,6 +21,7 @@ To start the task, open a Chrome browser and navigate to `http://0.0.0.0:8000?su
 
 On the experimenter's side:
 - `p` to pause
+- `s` to manually save json
 
 On the patient's side (with USB controller connected):
 - Left analog stick controls position (left and right only)
