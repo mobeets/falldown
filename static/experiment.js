@@ -27,7 +27,7 @@ function loadConfig() {
   } = finalParams;
 
   // Build path to params file
-  const params_path = `static/${params_name}.json`;
+  const params_path = `configs/${params_name}.json`;
 
   // In preload(), loadJSON() returns the parsed JSON synchronously
   const params = loadJSON(params_path);
@@ -85,9 +85,7 @@ class TrialBlock {
 }
 
 function manuallySaveToJSON(E) {
-  let gameInfo = getGameInfo();
-  let jsonString = JSON.stringify({gameInfo: gameInfo,
-    experiment: E}, null, 2); // Pretty-print with 2-space indent
+  let jsonString = JSON.stringify(E);
 
   // Create a Blob from the JSON string
   let blob = new Blob([jsonString], { type: 'application/json' });
@@ -96,8 +94,17 @@ function manuallySaveToJSON(E) {
   let url = URL.createObjectURL(blob);
   let a = document.createElement('a');
   a.href = url;
-  let saveName = E.subject_id;
-  a.download = `${saveName}.json`;
+  let saveName = wsLogger.log_filename;
+  if (saveName !== undefined && saveName.endsWith('jsonl')) {
+  	saveName = saveName.slice(0, -1); // .json
+  } else {
+  	const params = new URLSearchParams(window.location.search);
+    const subj = params.get("subject_id") || "unknown";
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const rand = Math.random().toString(36).slice(2, 6);
+    saveName = `${subj}-${timestamp}-${rand}.json`;
+  }
+  a.download = saveName;
   a.click();
 
   // Clean up the URL object

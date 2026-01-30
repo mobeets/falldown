@@ -40,34 +40,47 @@ class HolePlanner {
     return [idxL, idxR];
   }
 
-  plan_next_chunk() {
+  plan_next_chunk(prevHole) {
     // adds to holes_queued
     // where each entry is {plan_index, layer_index, hole_locations}
     this.plan_index++;
     let isSuccess = false;
-    let all_hole_locations;
+    let all_hole_locations = [];
+    let holeA, holeB, holeC, holeD;
+    
+    if (prevHole !== undefined && prevHole.hole_locations.length == 1) {
+      // set previous 1-hole layer as our first layer
+      holeA = prevHole.hole_locations;
+    } else {
+      holeA = this.random_hole_locations(this.nSegments, 1, true);
+      all_hole_locations.push(holeA);
+    }
+
+    // sample between 1 and max planning depth
     let curPlanningDepth = floor(random(0,this.planningDepth))+1;
 
     if (curPlanningDepth === 1) {
-      // 1-hole, 2-hole, 1-hole
+      // will use this to test the momentum hypothesis
+      // 1-hole -> 1-hole, 2-hole, 1-hole
       // where greedy solution is optimal (b/c 1st and 3rd layers are identical)
-      let holeA = this.random_hole_locations(this.nSegments, 1, true);
-      let holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
-      let holeC = [...holeA];
-      all_hole_locations = [holeA, holeB, holeC];
+      holeB = this.random_hole_locations(this.nSegments, 1, true);
+      holeC = this.random_holes_flanking(this.nSegments, holeB[0]);
+      holeD = [...holeA];
+      all_hole_locations.push(holeB);
+      all_hole_locations.push(holeC);
+      all_hole_locations.push(holeD);
       isSuccess = true;
     } else if (curPlanningDepth === 2) {
-      // 1-hole, 2-hole, 1-hole
+      // 1-hole -> 2-hole, 1-hole
       // where 2-step solution is better than greedy solution
       let nTries = 0;
-      let holeA, holeB, holeC;
       let pathL1, pathR1, pathL2, pathR2;
       while (!isSuccess && nTries < 10) {
         nTries++;
-        holeA = this.random_hole_locations(this.nSegments, 1, true);
         holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
         holeC = this.random_hole_locations(this.nSegments, 1, false, holeB);
-        all_hole_locations = [holeA, holeB, holeC];
+        all_hole_locations.push(holeB);
+        all_hole_locations.push(holeC);
         pathL1 = Math.abs(holeA[0]-holeB[0]);
         pathR1 = Math.abs(holeA[0]-holeB[1]);
         pathL2 = pathL1 + Math.abs(holeB[0]-holeC[0]);
@@ -81,19 +94,19 @@ class HolePlanner {
         }
       }
     } else if (curPlanningDepth === 3) {
-      // 1-hole, 2-hole, 2-hole, 1-hole
+      // 1-hole -> 2-hole, 2-hole, 1-hole
       // where greedy/2-step solution are the same, 3-step solution is different
       // and 3-step solution is better than greedy/2-step
       let nTries = 0;
-      let holeA, holeB, holeC, holeD;
       let pathL1, pathR1, pathL2, pathR2, pathL3, pathR3;
       while (!isSuccess && nTries < 10) {
         nTries++;
-        holeA = this.random_hole_locations(this.nSegments, 1, true);
         holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
         holeC = this.random_hole_locations(this.nSegments, 2, false, holeB);
         holeD = this.random_hole_locations(this.nSegments, 1, false, holeC);
-        all_hole_locations = [holeA, holeB, holeC, holeD];
+        all_hole_locations.push(holeB);
+        all_hole_locations.push(holeC);
+        all_hole_locations.push(holeD);
 
         pathL1 = Math.abs(holeA[0]-holeB[0]);
         pathR1 = Math.abs(holeA[0]-holeB[1]);
@@ -131,8 +144,8 @@ class HolePlanner {
     return {plan_index: this.plan_index, plan_depth: 0, layer_index: 0, hole_locations: hole_locations};
   }
 
-  next_holes() {
-    if (this.holes_queued.length === 0) this.plan_next_chunk();
+  next_holes(prevHole) {
+    if (this.holes_queued.length === 0) this.plan_next_chunk(prevHole);
     let holes;
     if (this.holes_queued.length === 0) {
       // did not plan anything, so we choose a 1-hole layer randomly

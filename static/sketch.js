@@ -20,6 +20,7 @@ let photodiode;
 let controls;
 let user;
 let clickSound;
+let E;
 
 // todo: track pause times
 
@@ -33,9 +34,9 @@ function setup() {
   let cnv = createCanvas(windowSize, windowSize);
   cnv.parent('canvas-container'); // attach to the centered div
   levelWidth = width;
-  cameraMode = E.params.startCameraMode;
-
   E = new Experiment(config);
+  
+  cameraMode = E.params.startCameraMode;
 
   photodiode = new Photodiode(E.params.photodiode, width, height);
   controls = new UnifiedControls(wsLogger);
@@ -65,12 +66,14 @@ function initGame() {
   // Create initial levels
   levels = [];
   levelIndex = 0;
+  let prevHole;
   for (let i = 0; i < 10; i++) {
-    let holes = holePlanner.next_holes();
+    let holes = holePlanner.next_holes(prevHole);
     let y = height + i * levelSpacing;
     levelIndex++;
 
     levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, holes, y, cameraMode, E.params.modeRectColors[cameraMode], false));
+    prevHole = holes;
   }
   
   isGameOver = false;
@@ -132,7 +135,7 @@ function draw() {
     
     // Set params for new level
     levelIndex++;
-    let holes = holePlanner.next_holes();
+    let holes = holePlanner.next_holes(levels[levels.length - 1].holes);
     let newY = levels[levels.length - 1].y + levelSpacing;
     let modeIndex = levels[levels.length - 1].modeIndex;
 
