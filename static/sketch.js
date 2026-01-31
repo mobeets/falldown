@@ -178,7 +178,7 @@ function draw() {
 
 function checkUserButtonPresses() {
   if (user.pause) isPaused = !isPaused;
-  if (user.save && (isPaused || isGameOver)) manuallySaveToJSON(E);
+  if (user.save && (isPaused || isGameOver)) wsLogger.saveJson(E);
 }
 
 // for discrete events that we want to timestamp

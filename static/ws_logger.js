@@ -140,6 +140,23 @@ class WSLogger {
     }
   }
 
+  saveJson(finalObject) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      console.warn("Cannot save JSON - WebSocket not connected");
+      return;
+    }
+
+    try {
+      this.socket.send(JSON.stringify({
+        type: "save_json",
+        contents: JSON.stringify(finalObject)
+      }));
+      console.log("Saved JSON file");
+    } catch (err) {
+      console.error("Failed to save JSON", err);
+    }
+  }
+
   // batching logic
   _startBatching() {
     setInterval(() => {
