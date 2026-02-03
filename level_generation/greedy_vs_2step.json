@@ -1,0 +1,932 @@
+[
+    {
+        "trial_id": 1,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    415
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    510,
+                    147
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    111
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 510,
+            "planner_choice": 147,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 173,
+            "cost_planner_diff": 190
+        }
+    },
+    {
+        "trial_id": 2,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    227
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    148,
+                    451
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    450
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 148,
+            "planner_choice": 451,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 145,
+            "cost_planner_diff": 156
+        }
+    },
+    {
+        "trial_id": 3,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    245
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    345,
+                    74
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    111
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 345,
+            "planner_choice": 74,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 71,
+            "cost_planner_diff": 126
+        }
+    },
+    {
+        "trial_id": 4,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    286
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    172,
+                    550
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    534
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 172,
+            "planner_choice": 550,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 150,
+            "cost_planner_diff": 196
+        }
+    },
+    {
+        "trial_id": 5,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    292
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    403,
+                    87
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    83
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 403,
+            "planner_choice": 87,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 94,
+            "cost_planner_diff": 222
+        }
+    },
+    {
+        "trial_id": 6,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    484
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    591,
+                    196
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    154
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 591,
+            "planner_choice": 196,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 181,
+            "cost_planner_diff": 214
+        }
+    },
+    {
+        "trial_id": 7,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    447
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    568,
+                    187
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    196
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 568,
+            "planner_choice": 187,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 139,
+            "cost_planner_diff": 224
+        }
+    },
+    {
+        "trial_id": 8,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    262
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    124,
+                    526
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    490
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 124,
+            "planner_choice": 526,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 126,
+            "cost_planner_diff": 204
+        }
+    },
+    {
+        "trial_id": 9,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    270
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    419,
+                    15
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    50
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 419,
+            "planner_choice": 15,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 106,
+            "cost_planner_diff": 228
+        }
+    },
+    {
+        "trial_id": 10,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    301
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    392,
+                    36
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    49
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 392,
+            "planner_choice": 36,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 174,
+            "cost_planner_diff": 156
+        }
+    },
+    {
+        "trial_id": 11,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    493
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    587,
+                    299
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    333
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 587,
+            "planner_choice": 299,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 100,
+            "cost_planner_diff": 120
+        }
+    },
+    {
+        "trial_id": 12,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    304
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    398,
+                    113
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    148
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 398,
+            "planner_choice": 113,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 97,
+            "cost_planner_diff": 118
+        }
+    },
+    {
+        "trial_id": 13,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    270
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    137,
+                    476
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    456
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 137,
+            "planner_choice": 476,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 73,
+            "cost_planner_diff": 226
+        }
+    },
+    {
+        "trial_id": 14,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    278
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    420,
+                    1
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    35
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 420,
+            "planner_choice": 1,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 135,
+            "cost_planner_diff": 216
+        }
+    },
+    {
+        "trial_id": 15,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    455
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    546,
+                    207
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    212
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 546,
+            "planner_choice": 207,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 157,
+            "cost_planner_diff": 172
+        }
+    },
+    {
+        "trial_id": 16,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    466
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    577,
+                    283
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    274
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 577,
+            "planner_choice": 283,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 72,
+            "cost_planner_diff": 222
+        }
+    },
+    {
+        "trial_id": 17,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    335
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    190,
+                    596
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    599
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 190,
+            "planner_choice": 596,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 116,
+            "cost_planner_diff": 290
+        }
+    },
+    {
+        "trial_id": 18,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    458
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    573,
+                    285
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    268
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 573,
+            "planner_choice": 285,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 58,
+            "cost_planner_diff": 230
+        }
+    },
+    {
+        "trial_id": 19,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    483
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    588,
+                    246
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    267
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 588,
+            "planner_choice": 246,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 132,
+            "cost_planner_diff": 168
+        }
+    },
+    {
+        "trial_id": 20,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    225
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    318,
+                    38
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    42
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 318,
+            "planner_choice": 38,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 94,
+            "cost_planner_diff": 178
+        }
+    },
+    {
+        "trial_id": 21,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    209
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    91,
+                    453
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    464
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 91,
+            "planner_choice": 453,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 126,
+            "cost_planner_diff": 236
+        }
+    },
+    {
+        "trial_id": 22,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    214
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    134,
+                    445
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    464
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 134,
+            "planner_choice": 445,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 151,
+            "cost_planner_diff": 160
+        }
+    },
+    {
+        "trial_id": 23,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    314
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    399,
+                    31
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    11
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 399,
+            "planner_choice": 31,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 198,
+            "cost_planner_diff": 170
+        }
+    },
+    {
+        "trial_id": 24,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    255
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    375,
+                    30
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    61
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 375,
+            "planner_choice": 30,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 105,
+            "cost_planner_diff": 178
+        }
+    },
+    {
+        "trial_id": 25,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    394
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    485,
+                    218
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    199
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 485,
+            "planner_choice": 218,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 85,
+            "cost_planner_diff": 182
+        }
+    },
+    {
+        "trial_id": 26,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    428
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    534,
+                    217
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    252
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 534,
+            "planner_choice": 217,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 105,
+            "cost_planner_diff": 142
+        }
+    },
+    {
+        "trial_id": 27,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    483
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    567,
+                    301
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    282
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 567,
+            "planner_choice": 301,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 98,
+            "cost_planner_diff": 168
+        }
+    },
+    {
+        "trial_id": 28,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    163
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    37,
+                    416
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    411
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 37,
+            "planner_choice": 416,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 127,
+            "cost_planner_diff": 242
+        }
+    },
+    {
+        "trial_id": 29,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    183
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    82,
+                    457
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    440
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 82,
+            "planner_choice": 457,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 173,
+            "cost_planner_diff": 168
+        }
+    },
+    {
+        "trial_id": 30,
+        "levels": [
+            {
+                "level": 1,
+                "holes": [
+                    276
+                ]
+            },
+            {
+                "level": 2,
+                "holes": [
+                    194,
+                    528
+                ]
+            },
+            {
+                "level": 3,
+                "holes": [
+                    518
+                ]
+            }
+        ],
+        "metadata": {
+            "greedy_choice": 194,
+            "planner_choice": 528,
+            "switch_cost_param": 0,
+            "cost_greedy_diff": 170,
+            "cost_planner_diff": 144
+        }
+    }
+]
