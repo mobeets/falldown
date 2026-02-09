@@ -7,17 +7,14 @@ class HolePlanner {
   constructor(nSegments, trialsData) {
     this.nSegments = nSegments;
     
-    // --- ROBUST DATA LOADING ---
-    // 1. If it's an array (List of trials), use it directly.
     if (Array.isArray(trialsData)) {
        this.trials = trialsData;
     } 
-    // 2. If it's a single object that HAS a 'levels' property (The structure you pasted),
-    //    we wrap it in an array so the rest of the code works.
+
     else if (trialsData && trialsData.levels) {
        this.trials = [trialsData];
     }
-    // 3. Fallback: It might be an object of numbered keys { "0": {...}, "1": {...} }
+    
     else if (trialsData) {
        this.trials = Object.values(trialsData);
     } 
@@ -34,7 +31,6 @@ class HolePlanner {
     // Safety check: Return empty holes if data is missing, don't crash
     if (!this.trials || this.trials.length === 0) return { hole_locations: [] };
 
-    // Get current trial
     let currentTrial = this.trials[this.trialIndex];
 
     // Safety check: If this trial is broken/empty, skip or return empty
