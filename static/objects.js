@@ -1,160 +1,74 @@
 // ======================
 // HolePlanner class
 // ======================
+
+
 class HolePlanner {
-  constructor(nSegments, planningDepth) {
+  constructor(nSegments, trialsData) {
     this.nSegments = nSegments;
-    this.planningDepth = planningDepth;
-    this.holes_queued = [];
-    this.plan_index = 0;
-    this.plan_next_chunk();
-  }
-
-  random_hole_locations(nSegments, nHoles, skipEdges = false, holesToAvoid) {
-    // creates array with length nHoles, where indices correspond to hole locations
-    // if skipEdges is true, will not put holes on the far left or far right
-    // will also not put holes at any locations in holesToAvoid
-    let arr = [];
-    if (holesToAvoid === undefined) { holesToAvoid = []; }
-    while (arr.length < nHoles) {
-      let idx;
-      if (skipEdges) {
-        // don't allow holes on left-most or right-most edge
-        idx = floor(random(0, nSegments-2))+1; // 1...nSegments-2
-      } else {
-        idx = floor(random(0, nSegments)); // 0...nSegments-1
-      }
-      // we will add this hole if it isn't already present,
-      // and if it is not in our list of holesToAvoid
-      if (!arr.includes(idx) && !holesToAvoid.includes(idx)) {
-        arr.push(idx);
-      }
-    }
-    return arr;
-  }
-
-  random_holes_flanking(nSegments, centerHole) {
-    // returns two holes, one to the left of centerHole, and one to the right
-    let idxL = floor(random(0, centerHole)); // 0...centerHole-1
-    let idxR = floor(random(centerHole+1, nSegments)); // centerHole+1...nSegments-1
-    return [idxL, idxR];
-  }
-
-  plan_next_chunk(prevHole) {
-    // adds to holes_queued
-    // where each entry is {plan_index, layer_index, hole_locations}
-    this.plan_index++;
-    let isSuccess = false;
-    let all_hole_locations = [];
-    let holeA, holeB, holeC, holeD;
     
-    if (prevHole !== undefined && prevHole.hole_locations.length == 1) {
-      // set previous 1-hole layer as our first layer
-      holeA = prevHole.hole_locations;
-    } else {
-      holeA = this.random_hole_locations(this.nSegments, 1, true);
-      all_hole_locations.push(holeA);
+    // --- ROBUST DATA LOADING ---
+    // 1. If it's an array (List of trials), use it directly.
+    if (Array.isArray(trialsData)) {
+       this.trials = trialsData;
+    } 
+    // 2. If it's a single object that HAS a 'levels' property (The structure you pasted),
+    //    we wrap it in an array so the rest of the code works.
+    else if (trialsData && trialsData.levels) {
+       this.trials = [trialsData];
+    }
+    // 3. Fallback: It might be an object of numbered keys { "0": {...}, "1": {...} }
+    else if (trialsData) {
+       this.trials = Object.values(trialsData);
+    } 
+    else {
+       this.trials = []; // Empty fallback to prevent crash
+       console.error("HolePlanner: No valid data found!");
     }
 
-    // sample between 1 and max planning depth
-    let curPlanningDepth = floor(random(0,this.planningDepth))+1;
-
-    if (curPlanningDepth === 1) {
-      // will use this to test the momentum hypothesis
-      // 1-hole -> 1-hole, 2-hole, 1-hole
-      // where greedy solution is optimal (b/c 1st and 3rd layers are identical)
-      holeB = this.random_hole_locations(this.nSegments, 1, true);
-      holeC = this.random_holes_flanking(this.nSegments, holeB[0]);
-      holeD = [...holeA];
-      all_hole_locations.push(holeB);
-      all_hole_locations.push(holeC);
-      all_hole_locations.push(holeD);
-      isSuccess = true;
-    } else if (curPlanningDepth === 2) {
-      // 1-hole -> 2-hole, 1-hole
-      // where 2-step solution is better than greedy solution
-      let nTries = 0;
-      let pathL1, pathR1, pathL2, pathR2;
-      while (!isSuccess && nTries < 10) {
-        nTries++;
-        holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
-        holeC = this.random_hole_locations(this.nSegments, 1, false, holeB);
-        all_hole_locations.push(holeB);
-        all_hole_locations.push(holeC);
-        pathL1 = Math.abs(holeA[0]-holeB[0]);
-        pathR1 = Math.abs(holeA[0]-holeB[1]);
-        pathL2 = pathL1 + Math.abs(holeB[0]-holeC[0]);
-        pathR2 = pathR1 + Math.abs(holeB[1]-holeC[0]);
-        // if pathL1 < pathR1, then we want pathL2 > pathR2
-        // else, we want pathL2 < pathR2
-        if (pathL1 < pathR1) {
-          isSuccess = pathL2 > pathR2;
-        } else {
-          isSuccess = pathL2 < pathR2;
-        }
-      }
-    } else if (curPlanningDepth === 3) {
-      // 1-hole -> 2-hole, 2-hole, 1-hole
-      // where greedy/2-step solution are the same, 3-step solution is different
-      // and 3-step solution is better than greedy/2-step
-      let nTries = 0;
-      let pathL1, pathR1, pathL2, pathR2, pathL3, pathR3;
-      while (!isSuccess && nTries < 10) {
-        nTries++;
-        holeB = this.random_holes_flanking(this.nSegments, holeA[0]);
-        holeC = this.random_hole_locations(this.nSegments, 2, false, holeB);
-        holeD = this.random_hole_locations(this.nSegments, 1, false, holeC);
-        all_hole_locations.push(holeB);
-        all_hole_locations.push(holeC);
-        all_hole_locations.push(holeD);
-
-        pathL1 = Math.abs(holeA[0]-holeB[0]);
-        pathR1 = Math.abs(holeA[0]-holeB[1]);
-        pathL2 = pathL1 + Math.min(Math.abs(holeB[0]-holeC[0]), Math.abs(holeB[0]-holeC[1]));
-        pathR2 = pathR1 + Math.min(Math.abs(holeB[1]-holeC[0]), Math.abs(holeB[1]-holeC[1]));
-        pathL3 = pathL1 + Math.min(Math.abs(holeB[0]-holeC[0]) + Math.abs(holeC[0]-holeD[0]), Math.abs(holeB[0]-holeC[1]) + Math.abs(holeC[1]-holeD[0]));
-        // we want greedy and level-2 planning to have same solution,
-        // but level-3 to be different
-        if (pathL1 < pathR1) {
-          isSuccess = (pathL2 < pathR2) && (pathL3 > pathR3);
-        } else {
-          isSuccess = (pathL2 > pathR2) && (pathL3 < pathR3);
-        }
-      }
-    } else {
-      // not implemented
-      return;
-    }
-
-    for (var i = 0; i < all_hole_locations.length; i++) {
-      let curHole = {
-        plan_index: this.plan_index,
-        plan_depth: curPlanningDepth,
-        layer_index: i,
-        hole_locations: all_hole_locations[i]
-      };
-      this.holes_queued.push(curHole);
-    }
-    console.log('planning: ', isSuccess, curPlanningDepth);
+    this.trialIndex = 0;
+    this.levelIndex = 0;
   }
 
-  plan_random_layer() {
-    this.plan_index++;
-    let hole_locations = this.random_hole_locations(this.nSegments, 1);
-    return {plan_index: this.plan_index, plan_depth: 0, layer_index: 0, hole_locations: hole_locations};
-  }
+  next_holes() {
+    // Safety check: Return empty holes if data is missing, don't crash
+    if (!this.trials || this.trials.length === 0) return { hole_locations: [] };
 
-  next_holes(prevHole) {
-    if (this.holes_queued.length === 0) this.plan_next_chunk(prevHole);
-    let holes;
-    if (this.holes_queued.length === 0) {
-      // did not plan anything, so we choose a 1-hole layer randomly
-      holes = this.plan_random_layer();
-    } else {
-      holes = this.holes_queued.shift();
+    // Get current trial
+    let currentTrial = this.trials[this.trialIndex];
+
+    // Safety check: If this trial is broken/empty, skip or return empty
+    if (!currentTrial || !currentTrial.levels) return { hole_locations: [] };
+
+    // Get current level
+    let currentLevelObj = currentTrial.levels[this.levelIndex];
+    let rawHoles = currentLevelObj.holes || []; // Default to empty array if missing
+
+    // Convert floats to segment indices
+    let processedHoles = rawHoles.map(val => {
+        let clamped = Math.max(0, Math.min(1, val));
+        return Math.floor(clamped * this.nSegments);
+    });
+
+    // Advance indices
+    this.levelIndex++;
+
+    // If we finished the levels in this trial...
+    if (this.levelIndex >= currentTrial.levels.length) {
+      this.levelIndex = 0;      
+      this.trialIndex++;        
+      
+      // If we finished ALL trials, loop back to start
+      if (this.trialIndex >= this.trials.length) {
+        this.trialIndex = 0;
+      }
     }
-    console.log(holes);
-    return holes;
+
+    return {
+      plan_index: this.trialIndex,
+      layer_index: this.levelIndex, // Note: this is just for logging, doesn't affect gameplay
+      hole_locations: processedHoles
+    };
   }
 }
 
