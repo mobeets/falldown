@@ -56,14 +56,14 @@ function setup() {
   user = new TaskControls(controls);
 
   // adjust gravity and ballAccel relative to 600x600 window
-  gravity = E.params.relativeGravity * (width / 600);
+  gravity = E.params.relativeGravity * (levelWidth / 600);
   ballAccel = E.params.relativeBallAccel * (height / 600);
 
   // set level spacing so that the same number of levels are visible
   levelSpacing = height / E.params.nLevelsVisible;
 
-  let gapSize = windowWidth / E.params.nSegments;
-  ball = new Ball(width/2, 100, 0.1*gapSize);
+  let gapSize = levelWidth / E.params.nSegments;
+  ball = new Ball(levelWidth/2, 100, 0.1*gapSize);
   E.gameInfo = getGameInfo();
   newGame(false);
 }

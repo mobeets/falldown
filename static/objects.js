@@ -123,7 +123,7 @@ class Level {
     this.timesTouchingBall = [];
     
     this.segments = [];
-    let segW = width / this.nSegments;
+    let segW = this.width / this.nSegments;
 
     this.segmentExists = [];
     for (let i = 0; i < this.nSegments; i++) {
