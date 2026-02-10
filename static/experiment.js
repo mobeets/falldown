@@ -14,6 +14,7 @@ function loadConfig() {
   const defaults = {
     subject: 'unknown',
     params_name: 'default_params',
+    experiment: 'default_trials'
   };
 
   // Merge defaults with URL params
@@ -24,21 +25,27 @@ function loadConfig() {
   const {
     subject = 'unknown',
     params_name ='default_params',
+    experiment = 'default_trials'
   } = finalParams;
 
-  // Build path to params file
+  // Build path to params and experiment files
   const params_path = `configs/${params_name}.json`;
-
+  const experiment_path = `configs/${experiment}.json`;
+  
   // In preload(), loadJSON() returns the parsed JSON synchronously
   const params = loadJSON(params_path);
-  return {subject, params_path, params};
+  const block_configs = loadJSON(experiment_path);
+
+  return {subject, params_path, experiment_path, params, block_configs};
 }
 
 class Experiment {
-  constructor({subject_id, params_path, params}) {
+  constructor({subject_id, params_path, experiment_path, params, block_configs}) {
     this.subject_id = subject_id;
     this.params_path = params_path;
     this.params = params;
+    this.experiment_path = experiment_path;
+    this.block_configs = block_configs;
     this.block_index = -1;
     this.blocks = [];
   }
