@@ -11,6 +11,18 @@ class TaskControls {
     return this.u.justPressedKey('s');
   }
 
+  get back_block() {
+    return this.u.justPressedKey('b');
+  }
+
+  get next_block() {
+    return this.u.justPressedKey('n');
+  }
+
+  get restart_block() {
+    return this.u.justPressedKey('r');
+  }
+
   get moveLeft() {
     const stick = this.u.leftStick();
     const d = this.u.dpad();
