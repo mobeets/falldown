@@ -76,15 +76,17 @@ class Experiment {
 				this.blocks[this.blocks.length-1].log(false);
 			}
 			if (this.no_more_blocks()) {
-				// log end of experiment
-				wsLogger.saveJson(this);
 				this.log(false);
+        // log experiment
+        wsLogger.saveJson(this);
 				return;
 			};
 			this.block_index++;
 		} else if (goBack) {
 			if (this.block_index >= 1) this.block_index--;
 		}
+    // log experiment
+    wsLogger.saveJson(this);
 
 		this.block_count++;
 		let block = new TrialBlock(this.block_index, this.block_count, this.block_configs[this.block_index]);
