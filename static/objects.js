@@ -177,13 +177,13 @@ collideRectCircle = function (rx, ry, rw, rh, cx, cy, diameter) {
 // Level class
 // ======================
 class Level {
-  constructor(index, nSegments, width, height, holes, y, modeIndex, color, isModeSwitch) {
+  constructor(index, nSegments, width, height, trial, y, modeIndex, color, isModeSwitch) {
     this.index = index;
     this.nSegments = nSegments;
     this.width = width;
     this.height = height;
-    this.holes = holes;
-    this.hole_locations = this.holes.hole_locations;
+    this.trial = trial;
+    this.hole_locations = this.trial.hole_locations;
     this.y = y;
     this.holeUsed = -1;
     this.ballTouched = false;
@@ -255,7 +255,7 @@ class Level {
       holeUsed: this.holeUsed,
       ballTouched: this.ballTouched,
       modeIndex: this.modeIndex,
-      holes: this.holes,
+      // trial: this.trial,
       isModeSwitch: this.isModeSwitch,
     };
   }

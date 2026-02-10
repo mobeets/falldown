@@ -14,6 +14,7 @@ let levelSpacing;   // vertical distance between levels
 let ball;
 let experiment;
 let trial_block;
+let trial;
 let holePlanner;
 let config;
 let photodiode;
@@ -21,6 +22,13 @@ let controls;
 let user;
 let clickSound;
 let E;
+
+const PLAY_MODE = 0;
+const PAUSE_MODE = 1;
+const STARTING_MODE = 2;
+const READY_MODE = 3;
+const COMPLETE_MODE = 4;
+let gameMode = READY_MODE;
 
 // todo: track pause times
 
@@ -51,10 +59,10 @@ function setup() {
 
   let gapSize = windowSize / E.params.nSegments;
   ball = new Ball(width/2, 100, 0.1*gapSize);
-  initGame();
+  newGame(false);
 }
 
-function initGame() {
+function newGame(restartGame = false, goBack = false) {
   // Set ball position
   ball.x = width/2;
   ball.y = 100;
@@ -62,22 +70,26 @@ function initGame() {
   modeSwitchCooldown = E.params.minLevelsPerMode;
 
   holePlanner = new HolePlanner(E.params.nSegments, E.block_configs);
+  trial_block = E.next_block(restartGame, goBack);
+  if (trial_block === undefined) { gameMode = COMPLETE_MODE; return; }
+  gameMode = READY_MODE;
   
   // Create initial levels
   levels = [];
   levelIndex = 0;
-  let prevHole;
+  let prevTrial;
   for (let i = 0; i < 10; i++) {
-    let holes = holePlanner.next_holes(prevHole);
+    trial = trial_block.next_trial();
+
     let y = height + i * levelSpacing;
     levelIndex++;
 
-    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, holes, y, cameraMode, E.params.modeRectColors[cameraMode], false));
-    prevHole = holes;
+    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, y, cameraMode, E.params.modeRectColors[cameraMode], false));
+    prevTrial = trial;
   }
   
   isGameOver = false;
-  trial_block = E.new_block();
+  // trial_block = E.new_block();
 }
 
 function checkForModeSwitch(modeIndex, modeSwitchRate) {
@@ -90,6 +102,18 @@ function checkForModeSwitch(modeIndex, modeSwitchRate) {
   }
   if (doModeSwitch) modeIndex = int(!modeIndex);
   return {modeIndex, doModeSwitch};
+}
+
+function getEvent(level) {
+  let event = level.toJSON();
+  // trial.trial_index = this.trial_index;
+  // trial.block_index = this.block_index;
+  // event.timePassedThru = millis() - this.startTime;
+  event.cameraMode = cameraMode;
+  event.ballX = ball.x;
+  event.ballY = ball.y;
+  event.cameraY = cameraY;
+  return event;
 }
 
 function draw() {
@@ -122,7 +146,8 @@ function draw() {
     lvl.render();
     lvl.collidesWith(ball);
     if (lvl.passedThrough(ball)) {
-      trial_block.add_trial(lvl);
+      // trial_block.add_trial(lvl);
+      lvl.trial.trigger(getEvent(lvl));
       markEvent(); // trigger photodiode and play sound
       // toggle mode when we pass through
       if (lvl.isModeSwitch) cameraMode = lvl.modeIndex; //int(!cameraMode);
@@ -135,7 +160,7 @@ function draw() {
     
     // Set params for new level
     levelIndex++;
-    let holes = holePlanner.next_holes(levels[levels.length - 1].holes);
+    let trial = trial_block.next_trial();
     let newY = levels[levels.length - 1].y + levelSpacing;
     let modeIndex = levels[levels.length - 1].modeIndex;
 
@@ -143,7 +168,7 @@ function draw() {
     let modeInfo = checkForModeSwitch(modeIndex, E.params.modeSwitchRates[modeIndex]);
     
     // Create new level
-    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, holes, newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
+    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
   }
   
   // Render ball
