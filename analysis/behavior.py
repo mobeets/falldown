@@ -68,7 +68,8 @@ def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to ho
 
 #%% load data
 
-fnm = '../logs/unknown-2026-01-30T20-34-28-374Z-jr71.json'
+#fnm = '../logs/unknown-2026-01-30T20-34-28-374Z-jr71.json'
+fnm = '2-9-trial3.json'
 data = load(fnm)
 
 #%% plot psychometric curve (greedy)
