@@ -1,74 +1,4 @@
 // ======================
-// HolePlanner class
-// ======================
-
-
-class HolePlanner {
-  constructor(nSegments, trialsData) {
-    this.nSegments = nSegments;
-    
-    if (Array.isArray(trialsData)) {
-       this.trials = trialsData;
-    } 
-
-    else if (trialsData && trialsData.levels) {
-       this.trials = [trialsData];
-    }
-    
-    else if (trialsData) {
-       this.trials = Object.values(trialsData);
-    } 
-    else {
-       this.trials = []; // Empty fallback to prevent crash
-       console.error("HolePlanner: No valid data found!");
-    }
-
-    this.trialIndex = 0;
-    this.levelIndex = 0;
-  }
-
-  next_holes() {
-    // Safety check: Return empty holes if data is missing, don't crash
-    if (!this.trials || this.trials.length === 0) return { hole_locations: [] };
-
-    let currentTrial = this.trials[this.trialIndex];
-
-    // Safety check: If this trial is broken/empty, skip or return empty
-    if (!currentTrial || !currentTrial.levels) return { hole_locations: [] };
-
-    // Get current level
-    let currentLevelObj = currentTrial.levels[this.levelIndex];
-    let rawHoles = currentLevelObj.holes || []; // Default to empty array if missing
-
-    // Convert floats to segment indices
-    let processedHoles = rawHoles.map(val => {
-        let clamped = Math.max(0, Math.min(1, val));
-        return Math.floor(clamped * this.nSegments);
-    });
-
-    // Advance indices
-    this.levelIndex++;
-
-    // If we finished the levels in this trial...
-    if (this.levelIndex >= currentTrial.levels.length) {
-      this.levelIndex = 0;      
-      this.trialIndex++;        
-      
-      // If we finished ALL trials, loop back to start
-      if (this.trialIndex >= this.trials.length) {
-        this.trialIndex = 0;
-      }
-    }
-
-    return {
-      plan_index: this.trialIndex,
-      layer_index: this.levelIndex, // Note: this is just for logging, doesn't affect gameplay
-      hole_locations: processedHoles
-    };
-  }
-}
-
-// ======================
 // Ball class
 // ======================
 class Ball {
@@ -104,7 +34,6 @@ class Ball {
     circle(this.x, this.y - cameraY, this.r * 2);
   }
 }
-
 
 // ======================
 // RectSegment class

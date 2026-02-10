@@ -13,7 +13,6 @@ let ball;
 let experiment;
 let trial_block;
 let trial;
-let holePlanner;
 let config;
 let photodiode;
 let controls;
@@ -76,7 +75,6 @@ function newGame(restartGame = false, goBack = false) {
     lastScore = `${trial_block.trials.length} of ${trial_block.block_config.levels.length}`;
   }
 
-  holePlanner = new HolePlanner(E.params.nSegments, E.block_configs);
   trial_block = E.next_block(restartGame, goBack);
   console.log("Current block config:", trial_block);
   if (trial_block === undefined) { gameMode = COMPLETE_MODE; return; }

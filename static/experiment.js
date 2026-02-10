@@ -49,8 +49,7 @@ class Experiment {
     this.block_index = -1;
 		this.block_count = -1;
     this.blocks = [];
-    this.ball_states = {time: [], x: [], y: [], vx: [], vy: []};
-    this.camera_states = {time: [], cameraY: []};
+    this.game_states = {time: [], ball_x: [], ball_y: [], ball_vx: [], ball_vy: [], camera_y: []};
     this.user_inputs = {time: [], input: []};
   }
 
@@ -60,13 +59,12 @@ class Experiment {
   }
 
   log_states(ball) {
-    this.ball_states.time.push(performance.now());
-    this.ball_states.x.push(ball.x);
-    this.ball_states.y.push(ball.y);
-    this.ball_states.vx.push(ball.vx);
-    this.ball_states.vy.push(ball.vy);
-    this.camera_states.time.push(performance.now());
-    this.camera_states.cameraY.push(cameraY);
+    this.game_states.time.push(performance.now());
+    this.game_states.ball_x.push(ball.x);
+    this.game_states.ball_y.push(ball.y);
+    this.game_states.ball_vx.push(ball.vx);
+    this.game_states.ball_vy.push(ball.vy);
+    this.game_states.camera_y.push(cameraY);
   }
 
   next_block(restartGame, goBack) {
