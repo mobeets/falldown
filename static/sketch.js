@@ -61,6 +61,7 @@ function setup() {
 
   let gapSize = windowSize / E.params.nSegments;
   ball = new Ball(width/2, 100, 0.1*gapSize);
+  E.gameInfo = getGameInfo();
   newGame(false);
 }
 
@@ -108,7 +109,7 @@ function checkForModeSwitch(modeIndex, modeSwitchRate) {
   return {modeIndex, doModeSwitch};
 }
 
-function getEvent(level) {
+function decisionEvent(level) {
   let event = level.toJSON();
   event.cameraMode = cameraMode;
   event.ballX = ball.x;
@@ -151,7 +152,7 @@ function draw() {
       lvl.collidesWith(ball);
       if (lvl.passedThrough(ball)) {
         // trial_block.add_trial(lvl);
-        lvl.trial.trigger(getEvent(lvl));
+        lvl.trial.trigger(decisionEvent(lvl));
         markEvent(); // trigger photodiode and play sound
         // toggle mode when we pass through
         if (lvl.isModeSwitch) cameraMode = lvl.modeIndex; //int(!cameraMode);

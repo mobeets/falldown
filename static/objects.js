@@ -190,6 +190,7 @@ class Level {
     this.modeIndex = modeIndex;
     this.color = color;
     this.isModeSwitch = isModeSwitch;
+    this.timesTouchingBall = [];
     
     this.segments = [];
     let segW = width / this.nSegments;
@@ -215,14 +216,15 @@ class Level {
     for (let seg of this.segments) {
       seg.render();
     }
-    // textSize(12);
-    // text(this.holeUsed.toString(), width/2, this.y - cameraY);
   }
 
   collidesWith(ball) {
     for (let seg of this.segments) {      
       let didTouch = seg.collidesWith(ball);
       this.ballTouched = this.ballTouched || didTouch;
+      if (didTouch) {
+        this.timesTouchingBall.push(performance.now());
+      }
     }
   }
   
@@ -254,6 +256,7 @@ class Level {
       isModeSwitch: this.isModeSwitch,
       holeUsed: this.holeUsed,
       ballTouched: this.ballTouched,
+      timesTouchingBall: this.timesTouchingBall
     };
   }
 }
