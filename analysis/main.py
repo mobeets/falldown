@@ -168,7 +168,11 @@ print(f'Logistic regression accuracy: {np.mean(scores):.3f} ± {np.std(scores):.
 
 # print weights 
 print('Logistic regression weights:')
-print(clf.coef_)
+plt.bar(np.arange(clf.coef_[0].shape[0]), clf.coef_[0])
+plt.xlabel('Feature')
+plt.ylabel('Weight')
+plt.title('Logistic Regression Weights')
+plt.show()
 
 #%% plot psychometric curves for greedy vs rollout
 

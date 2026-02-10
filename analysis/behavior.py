@@ -14,37 +14,76 @@ def get_choices(data):
         for i, trial in enumerate(trials):
             if i == 0:
                 continue
-            hole_locs = sorted(trial['holes']['hole_locations'])
+            if 'holes' in trial:
+                hole_locs = sorted(trial['holes']['hole_locations'])
+            elif 'events' in trial and len(trial['events']) > 0:
+                hole_locs = sorted(trial['events'][0]['hole_locations'])
             if len(hole_locs) == 2:
-                h_cur = trial['holeUsed']
-                h_prev = trials[i-1]['holeUsed']
+                if 'holeUsed' in trial:
+                    h_cur = trial['holeUsed']
+                    h_prev = trials[i-1]['holeUsed']
+                elif 'events' in trial and len(trial['events']) > 0:
+                    h_cur = trial['events'][0]['holeUsed']
+                    h_prev = trials[i-1]['events'][0]['holeUsed']
                 dist_L = np.abs(hole_locs[0] - h_prev)
                 dist_R = np.abs(hole_locs[1] - h_prev)
                 choice = hole_locs.index(h_cur)
-                choices.append((dist_L, dist_R, choice))
+                if 'timePassedThru' in trial:
+                    rt = trial['timePassedThru'] - trials[i-1]['timePassedThru']
+                elif 'events' in trial and len(trial['events']) > 0 and len(trials[i-1]['events']) > 0:
+                    rt = trial['events'][0]['time'] - trials[i-1]['events'][0]['time']
+                else:
+                    rt = np.nan
+                choices.append((dist_L, dist_R, rt, choice))
         return np.vstack(choices)
 
-def compare_greedy_vs_rollout(data):
+def compare_greedy_vs_rollout(data, only_use_disagreements=False):
     choices = []
     for block in data['blocks']:
         trials = block['trials']
         for i, trial in enumerate(trials):
             if i == 0:
                 continue
-            if trial['holes']['plan_depth'] == 2 and trial['holes']['layer_index'] == 1:
-            # if len(trial['holes']['hole_locations']) == 2 and len(trials[i+1]['holes']['hole_locations']) == 1 and len(trials[i-1]['holes']['hole_locations']) == 1:
-                h_prev = trials[i-1]['holeUsed']
-                h_cur = trial['holeUsed']
+            if 'holes' in trial:
                 hole_locs = sorted(trial['holes']['hole_locations'])
+                prev_hole_locs = sorted(trials[i-1]['holes']['hole_locations'])
+                next_hole_locs = sorted(trials[i+1]['holes']['hole_locations'])
+                h_cur = trial['holeUsed']
+                h_prev = trials[i-1]['holeUsed']
                 h_next = trials[i+1]['holeUsed']
+            elif 'events' in trial and len(trial['events']) > 0 and len(trials[i-1]['events']) > 0 and len(trials[i+1]['events']) > 0:
+                hole_locs = sorted(trial['events'][0]['hole_locations'])
+                prev_hole_locs = sorted(trials[i-1]['events'][0]['hole_locations'])
+                next_hole_locs = sorted(trials[i+1]['events'][0]['hole_locations'])
+                h_cur = trial['events'][0]['holeUsed']
+                h_prev = trials[i-1]['events'][0]['holeUsed']
+                h_next = trials[i+1]['events'][0]['holeUsed']
+            else:
+                hole_locs = []
+                prev_hole_locs = []
+                next_hole_locs = []
+                h_cur = None
+                h_prev = None
+            if len(hole_locs) != 2 or len(prev_hole_locs) != 1 or len(next_hole_locs) != 1:
+                continue
 
-                dist_L1 = np.abs(hole_locs[0] - h_prev)
-                dist_R1 = np.abs(hole_locs[1] - h_prev)
-                dist_L2 = dist_L1 + np.abs(hole_locs[0] - h_next)
-                dist_R2 = dist_R1 + np.abs(hole_locs[1] - h_next)
-                
-                choice = hole_locs.index(h_cur)
-                choices.append((dist_L1, dist_R1, dist_L2, dist_R2, choice))
+            dist_L1 = np.abs(hole_locs[0] - h_prev)
+            dist_R1 = np.abs(hole_locs[1] - h_prev)
+            dist_L2 = dist_L1 + np.abs(hole_locs[0] - h_next)
+            dist_R2 = dist_R1 + np.abs(hole_locs[1] - h_next)
+            if only_use_disagreements:
+                # we ignore trials where both greedy and rollout would make the same choice
+                if (dist_L1 < dist_R1 and dist_L2 < dist_R2) or (dist_R1 < dist_L1 and dist_R2 < dist_L2):
+                    continue
+            
+            choice = hole_locs.index(h_cur)
+            if 'timePassedThru' in trial:
+                rt = trial['timePassedThru'] - trials[i-1]['timePassedThru']
+            elif 'events' in trial and len(trial['events']) > 0 and len(trials[i-1]['events']) > 0:
+                rt = trial['events'][0]['time'] - trials[i-1]['events'][0]['time']
+            else:
+                rt = np.nan
+            choices.append((dist_L1, dist_R1, dist_L2, dist_R2, rt, choice))
     return np.vstack(choices)
 
 def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to hole (L - R)', label='_'):
@@ -69,6 +108,7 @@ def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to ho
 #%% load data
 
 fnm = '../logs/unknown-2026-01-30T20-34-28-374Z-jr71.json'
+fnm = '../logs/unknown-2026-02-10T20-42-37-419Z-99s9.json'
 data = load(fnm)
 
 #%% plot psychometric curve (greedy)
@@ -121,7 +161,7 @@ plt.show()
 
 #%% compare greedy vs rollout heatmaps
 
-choices = compare_greedy_vs_rollout(data)
+choices = compare_greedy_vs_rollout(data, only_use_disagreements=True)
 fig = plt.figure(figsize=(3,3), dpi=300)
 
 X = choices[:,0] - choices[:,1]
@@ -133,7 +173,7 @@ plot_psychometric_curve(X, y, fig=fig, color='b')
 
 #%% plot psychometric curves for greedy vs rollout
 
-choices = compare_greedy_vs_rollout(data)
+choices = compare_greedy_vs_rollout(data, only_use_disagreements=True)
 fig = plt.figure(figsize=(3,3), dpi=300)
 clrs = ['g', 'r', 'b', 'm', 'k', 'c']
 names = ['Greedy L', 'Greedy R', 'Rollout L', 'Rollout R', 'Greedy (L-R)', 'Rollout (L-R)']
