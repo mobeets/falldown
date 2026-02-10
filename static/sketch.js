@@ -1,4 +1,5 @@
 let levels = [];
+let trialsData;
 let isPaused = false;
 let isGameOver = false;
 let levelIndex = 0;
@@ -27,6 +28,7 @@ let E;
 function preload() {
   clickSound = new Audio('static/click.mp3');
   config = loadConfig();
+  trialsData = loadJSON('static/trials_output.json');
 }
 
 function setup() {
@@ -61,7 +63,7 @@ function initGame() {
   cameraY = 0;
   modeSwitchCooldown = E.params.minLevelsPerMode;
 
-  holePlanner = new HolePlanner(E.params.nSegments, planningDepth);
+  holePlanner = new HolePlanner(E.params.nSegments, trialsData);
   
   // Create initial levels
   levels = [];
