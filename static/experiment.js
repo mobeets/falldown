@@ -86,7 +86,7 @@ class Experiment {
   }
 
   no_more_blocks() {
-		return this.block_index+1 >= this.block_configs.length;
+		return this.block_index+1 >= Object.keys(this.block_configs).length;
 	}
 
 	is_complete() {
@@ -118,9 +118,8 @@ class TrialBlock {
 		if (this.is_complete()) {
 			return;
 		}
-		if (this.trials.length > 0) {
-			this.trials[this.trials.length-1].log(false);
-		}
+		
+    // todo: log end of previous trial
 		this.trial_index++;
 		let hole_locations = this.block_config.levels[this.trial_index];
 
@@ -129,20 +128,6 @@ class TrialBlock {
 		this.trials.push(trial);
 		return trial;
 	}
-
-  // add_trial(level) {
-  //   this.trial_index++;
-
-  //   let trial = level.toJSON();
-  //   trial.trial_index = this.trial_index;
-  //   trial.block_index = this.block_index;
-  //   trial.timePassedThru = millis() - this.startTime;
-  //   trial.cameraMode = cameraMode;
-  //   trial.ballX = ball.x;
-  //   trial.ballY = ball.y;
-  //   trial.cameraY = cameraY;
-  //   this.trials.push(trial);
-  // }
 
   toJSON() {
     // outputs all of object's variables as a json object

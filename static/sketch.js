@@ -1,6 +1,4 @@
 let levels = [];
-let isPaused = false;
-let isGameOver = false;
 let levelIndex = 0;
 let cameraY = 0;
 let planningDepth = 2;
@@ -22,6 +20,7 @@ let controls;
 let user;
 let clickSound;
 let E;
+let myFont;
 
 const PLAY_MODE = 0;
 const PAUSE_MODE = 1;
@@ -34,6 +33,7 @@ let gameMode = READY_MODE;
 
 function preload() {
   clickSound = new Audio('static/click.mp3');
+  myFont = loadFont('static/LuckiestGuy-Regular.ttf');
   config = loadConfig();
 }
 
@@ -41,6 +41,7 @@ function setup() {
   let windowSize = min(windowWidth, windowHeight);
   let cnv = createCanvas(windowSize, windowSize);
   cnv.parent('canvas-container'); // attach to the centered div
+  textFont(myFont);
   levelWidth = width;
   E = new Experiment(config);
   
@@ -71,6 +72,7 @@ function newGame(restartGame = false, goBack = false) {
 
   holePlanner = new HolePlanner(E.params.nSegments, E.block_configs);
   trial_block = E.next_block(restartGame, goBack);
+  console.log("Current block config:", trial_block);
   if (trial_block === undefined) { gameMode = COMPLETE_MODE; return; }
   gameMode = READY_MODE;
   
@@ -87,9 +89,6 @@ function newGame(restartGame = false, goBack = false) {
     levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, y, cameraMode, E.params.modeRectColors[cameraMode], false));
     prevTrial = trial;
   }
-  
-  isGameOver = false;
-  // trial_block = E.new_block();
 }
 
 function checkForModeSwitch(modeIndex, modeSwitchRate) {
@@ -121,89 +120,171 @@ function draw() {
   background(40);
   controls.update();
   checkUserButtonPresses();
-  
-  // Update ball
-  let doUpdate = !isPaused && !isGameOver;
 
-  if (doUpdate) {
+  if (gameMode == PLAY_MODE) {
     if (user.moveLeft) ball.vx -= ballAccel;
     if (user.moveRight) ball.vx += ballAccel;
     ball.vx = constrain(ball.vx, -15*ballAccel, 15*ballAccel);
     ball.update();
-  }
-  
-  // Set y offset based on camera mode
-  if (cameraMode === 0) {
-    // keep ball halfway up screen, but smooth movements
-    cameraY = 0.25*(ball.y - height/2) + 0.75*cameraY;
-  } else if (doUpdate) {
-    cameraY += E.params.scrollSpeed;
-  }
-  
-  // Update and render levels
-  for (let lvl of levels) {
-    if (doUpdate) lvl.update();
-    lvl.render();
-    lvl.collidesWith(ball);
-    if (lvl.passedThrough(ball)) {
-      // trial_block.add_trial(lvl);
-      lvl.trial.trigger(getEvent(lvl));
-      markEvent(); // trigger photodiode and play sound
-      // toggle mode when we pass through
-      if (lvl.isModeSwitch) cameraMode = lvl.modeIndex; //int(!cameraMode);
-    }
-  }
-
-  // Remove levels that went off top and add new ones at bottom
-  if (levels[0].y - cameraY < -50) {
-    levels.shift();
     
-    // Set params for new level
-    levelIndex++;
-    let trial = trial_block.next_trial();
-    let newY = levels[levels.length - 1].y + levelSpacing;
-    let modeIndex = levels[levels.length - 1].modeIndex;
-
-    // Check for mode switch on this level
-    let modeInfo = checkForModeSwitch(modeIndex, E.params.modeSwitchRates[modeIndex]);
+    // Set y offset based on camera mode
+    if (cameraMode === 0) {
+      // keep ball halfway up screen, but smooth movements
+      cameraY = 0.25*(ball.y - height/2) + 0.75*cameraY;
+    } else {
+      cameraY += E.params.scrollSpeed;
+    }
     
-    // Create new level
-    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
+    // Update and render levels
+    for (let lvl of levels) {
+      lvl.update();
+      lvl.render();
+      lvl.collidesWith(ball);
+      if (lvl.passedThrough(ball)) {
+        // trial_block.add_trial(lvl);
+        lvl.trial.trigger(getEvent(lvl));
+        markEvent(); // trigger photodiode and play sound
+        // toggle mode when we pass through
+        if (lvl.isModeSwitch) cameraMode = lvl.modeIndex; //int(!cameraMode);
+      }
+    }
+  
+    // Remove levels that went off top and add new ones at bottom
+    if (levels[0].y - cameraY < -50) {
+      levels.shift();
+      
+      // Set params for new level
+      levelIndex++;
+      let trial = trial_block.next_trial();
+      if (trial === undefined) {
+          newGame(false);
+      } else {
+        let newY = levels[levels.length - 1].y + levelSpacing;
+        let modeIndex = levels[levels.length - 1].modeIndex;
+  
+        // Check for mode switch on this level
+        let modeInfo = checkForModeSwitch(modeIndex, E.params.modeSwitchRates[modeIndex]);
+        
+        // Create new level
+        levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
+      }
+    }
+    // Render ball
+    ball.render();
+    
+    // Game over condition
+    if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
+      isGameOver = true;
+    }
+  } else {
+    drawPauseScreen();
   }
   
-  // Render ball
-  ball.render();
-
-  // Game over condition
-  if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
-    isGameOver = true;
-  }
-  
-  if (!doUpdate) {
-    textAlign(CENTER, CENTER);
-    fill(color(50, 50, 50, 200));
-    rect(0, 0, width, height);
-    fill(255);
-    textSize(48);
-    if (isGameOver) {
-      text("GAME OVER", width/2, height/2);
-    } else if (isPaused) {
-      text("PAUSED", width/2, height/2);
-    }
-    if (cameraMode === 1) {
-      textSize(24);
-      text("Scroll speed: " + E.params.scrollSpeed.toFixed(2), width/2, height/2 + 60);
-    }
-  }
-
   // render photodiode last
   photodiode.update();
   photodiode.render();
 }
 
+function drawPauseScreen() {
+  textAlign(CENTER, CENTER);
+  fill(color(50, 50, 50, 200));
+  rect(0, 0, width, height);
+  fill('white');
+  textSize(48);
+  // if (gameMode == COMPLETE_MODE) {
+  //   text("GAME OVER", width/2, height/2);
+  // } else if (gameMode == PAUSE_MODE) {
+  //   text("PAUSED", width/2, height/2);
+  // }
+  // if (cameraMode === 1) {
+  //   textSize(24);
+  //   text("Scroll speed: " + E.params.scrollSpeed.toFixed(2), width/2, height/2 + 60);
+  // }
+
+  let firstLineY = 2 * height / 9;
+  let secondLineY = 3 * height / 9;
+
+  if (gameMode == PAUSE_MODE) {
+    text("PAUSED", width / 2, firstLineY);
+    // if (trial_block.instructions) {
+    //   showInstructions(secondLineY + 100);
+    //   showImages(secondLineY + 300);
+    // }
+  } else if (gameMode == STARTING_MODE) {
+    text("GAME COMPLETE", width / 2, firstLineY);
+
+    // fill('black');
+    textSize(32);
+    text("Game " + (E.block_index+1).toFixed(0) + " of " + Object.keys(E.block_configs).length.toFixed(0), width / 2, secondLineY + 0);
+    // text("Score: " + trial_block.score.toFixed(0) + " out of " + trial_block.trials.length, width / 2, secondLineY + 40);
+  } else if (gameMode == READY_MODE) {
+    if (trial_block.block_count === 0) {
+      // fill('black');
+      text("Welcome!", width / 2, firstLineY);
+    } else {
+      text("Great job!", width / 2, firstLineY);
+    }
+    // fill('black');
+    textSize(32);
+    text("Game " + (E.block_index+1).toFixed(0) + " of " + Object.keys(E.block_configs).length.toFixed(0), width / 2, secondLineY + 0);
+    // if (trial_block.is_practice) {
+    //   fill('#9e442f');
+    //   text("Practice round!", width / 2, secondLineY + 40);
+    // }
+    // if (trial_block.instructions) {
+    //   showInstructions(secondLineY + 100);
+    //   showImages(secondLineY + 300);
+    //   showJet();
+    // }
+    textSize(32);
+    // fill('black');
+  } else if (gameMode == COMPLETE_MODE) {
+    text("EXPERIMENT COMPLETE", width / 2, firstLineY);
+    // fill('black');
+    textSize(32);
+    text("Thank you!", width / 2, secondLineY + 0);
+  } else {
+    console.log("Invalid gameMode");
+  }
+
+  if (gameMode != COMPLETE_MODE) {
+    if (E.params.debug) {
+      text("'N' for next game", width / 2, secondLineY + 80);
+      text("'R' to restart current game", width / 2, secondLineY + 120);
+      text("'S' to save game data", width / 2, secondLineY + 160);
+    }
+  }
+}
+
 function checkUserButtonPresses() {
-  if (user.pause) isPaused = !isPaused;
-  if (user.save && (isPaused || isGameOver)) wsLogger.saveJson(E);
+  let eventMsg;
+  if (gameMode == PLAY_MODE) {
+    if (user.pause) {
+      // pause game
+      eventMsg = 'pause';
+      gameMode = PAUSE_MODE;
+    }
+  } else if (user.pause) {
+    // unpause game
+    eventMsg = 'unpause';
+    gameMode = PLAY_MODE;
+  } else if (user.next_block && gameMode != COMPLETE_MODE) {
+    // go to the next block
+    eventMsg = 'new game (going to next block)';
+    newGame(false);
+  } else if (user.back_block && gameMode != COMPLETE_MODE) {
+    // go back a block
+    eventMsg = 'new game (going back a block)';
+    newGame(false, true);
+  } else if (user.restart_block) {
+    eventMsg = 'restart block';
+    newGame(true);
+  } else if (user.save) {
+    wsLogger.saveJson(E);
+  }
+  if (eventMsg !== undefined) {
+    wsLogger.log("interaction", {eventMsg});
+  }
 }
 
 // for discrete events that we want to timestamp
