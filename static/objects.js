@@ -250,13 +250,10 @@ class Level {
     return {
       index: this.index,
       levelY: this.y,
-      // represent level as a K-bit integer
-      // levelInt: bitsToByte(this.segmentExists, this.K), 
+      modeIndex: this.modeIndex,
+      isModeSwitch: this.isModeSwitch,
       holeUsed: this.holeUsed,
       ballTouched: this.ballTouched,
-      modeIndex: this.modeIndex,
-      // trial: this.trial,
-      isModeSwitch: this.isModeSwitch,
     };
   }
 }

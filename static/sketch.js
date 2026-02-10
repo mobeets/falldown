@@ -21,6 +21,7 @@ let user;
 let clickSound;
 let E;
 let myFont;
+let lastScore;
 
 const PLAY_MODE = 0;
 const PAUSE_MODE = 1;
@@ -69,6 +70,10 @@ function newGame(restartGame = false, goBack = false) {
   ball.y = 100;
   cameraY = 0;
   modeSwitchCooldown = E.params.minLevelsPerMode;
+
+  if (trial_block !== undefined) {
+    lastScore = `${trial_block.trials.length} of ${trial_block.block_config.levels.length}`;
+  }
 
   holePlanner = new HolePlanner(E.params.nSegments, E.block_configs);
   trial_block = E.next_block(restartGame, goBack);
@@ -178,7 +183,7 @@ function draw() {
     
     // Game over condition
     if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
-      isGameOver = true;
+      newGame(false);
     }
   } else {
     drawPauseScreen();
@@ -197,7 +202,7 @@ function drawPauseScreen() {
   textSize(48);
 
   let firstLineY = 2 * height / 9;
-  let secondLineY = 3 * height / 9;
+  let secondLineY = 4 * height / 9;
 
   if (gameMode == PAUSE_MODE) {
     text("PAUSED", width / 2, firstLineY);
@@ -217,6 +222,10 @@ function drawPauseScreen() {
       text("Welcome!", width / 2, firstLineY);
     } else {
       text("Great job!", width / 2, firstLineY);
+      if (lastScore !== undefined) {
+        textSize(24);
+        text(`Completed ${lastScore}`, width / 2, firstLineY + 50);
+      }
     }
     // fill('black');
     textSize(32);
