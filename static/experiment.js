@@ -49,6 +49,24 @@ class Experiment {
     this.block_index = -1;
 		this.block_count = -1;
     this.blocks = [];
+    this.ball_states = {time: [], x: [], y: [], vx: [], vy: []};
+    this.camera_states = {time: [], cameraY: []};
+    this.user_inputs = {time: [], input: []};
+  }
+
+  log_user_input(input) {
+    this.user_inputs.time.push(performance.now());
+    this.user_inputs.input.push(input);
+  }
+
+  log_states(ball) {
+    this.ball_states.time.push(performance.now());
+    this.ball_states.x.push(ball.x);
+    this.ball_states.y.push(ball.y);
+    this.ball_states.vx.push(ball.vx);
+    this.ball_states.vy.push(ball.vy);
+    this.camera_states.time.push(performance.now());
+    this.camera_states.cameraY.push(cameraY);
   }
 
   next_block(restartGame, goBack) {
@@ -101,7 +119,6 @@ class TrialBlock {
     this.block_config = block_config;
     this.trials = [];
     this.trial_index = -1;
-    // this.startTime = millis();
   }
 
   is_complete() {

@@ -105,9 +105,6 @@ function checkForModeSwitch(modeIndex, modeSwitchRate) {
 
 function getEvent(level) {
   let event = level.toJSON();
-  // trial.trial_index = this.trial_index;
-  // trial.block_index = this.block_index;
-  // event.timePassedThru = millis() - this.startTime;
   event.cameraMode = cameraMode;
   event.ballX = ball.x;
   event.ballY = ball.y;
@@ -122,9 +119,16 @@ function draw() {
   checkUserButtonPresses();
 
   if (gameMode == PLAY_MODE) {
-    if (user.moveLeft) ball.vx -= ballAccel;
-    if (user.moveRight) ball.vx += ballAccel;
+    if (user.moveLeft) {
+      ball.vx -= ballAccel;
+      E.log_user_input(-1);
+    }
+    if (user.moveRight) {
+      ball.vx += ballAccel;
+      E.log_user_input(1);
+    }
     ball.vx = constrain(ball.vx, -15*ballAccel, 15*ballAccel);
+    E.log_states(ball); // logs ball and camera states
     ball.update();
     
     // Set y offset based on camera mode
@@ -191,15 +195,6 @@ function drawPauseScreen() {
   rect(0, 0, width, height);
   fill('white');
   textSize(48);
-  // if (gameMode == COMPLETE_MODE) {
-  //   text("GAME OVER", width/2, height/2);
-  // } else if (gameMode == PAUSE_MODE) {
-  //   text("PAUSED", width/2, height/2);
-  // }
-  // if (cameraMode === 1) {
-  //   textSize(24);
-  //   text("Scroll speed: " + E.params.scrollSpeed.toFixed(2), width/2, height/2 + 60);
-  // }
 
   let firstLineY = 2 * height / 9;
   let secondLineY = 3 * height / 9;
@@ -219,7 +214,6 @@ function drawPauseScreen() {
     // text("Score: " + trial_block.score.toFixed(0) + " out of " + trial_block.trials.length, width / 2, secondLineY + 40);
   } else if (gameMode == READY_MODE) {
     if (trial_block.block_count === 0) {
-      // fill('black');
       text("Welcome!", width / 2, firstLineY);
     } else {
       text("Great job!", width / 2, firstLineY);
@@ -237,10 +231,8 @@ function drawPauseScreen() {
     //   showJet();
     // }
     textSize(32);
-    // fill('black');
   } else if (gameMode == COMPLETE_MODE) {
     text("EXPERIMENT COMPLETE", width / 2, firstLineY);
-    // fill('black');
     textSize(32);
     text("Thank you!", width / 2, secondLineY + 0);
   } else {
