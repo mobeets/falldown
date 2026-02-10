@@ -8,6 +8,8 @@ let gravity;
 let ballAccel;      // acceleration added by pressing key
 let modeSwitchCooldown; // min levels per cameraMode
 let levelWidth;     // total width in pixels
+let levelStartX;    // x value where levels start (to center them)
+let levelEndX;      // x value where levels end
 let levelSpacing;   // vertical distance between levels
 let ball;
 let experiment;
@@ -38,12 +40,14 @@ function preload() {
 }
 
 function setup() {
-  let windowSize = min(windowWidth, windowHeight);
-  let cnv = createCanvas(windowSize, windowSize);
+  let cnv = createCanvas(windowWidth, windowHeight);
   cnv.parent('canvas-container'); // attach to the centered div
   textFont(myFont);
-  levelWidth = width;
   E = new Experiment(config);
+  
+  levelWidth = E.params.levelWidthProportion * windowWidth;
+  levelStartX = (windowWidth - levelWidth) / 2;
+  levelEndX = levelStartX + levelWidth;
   
   cameraMode = E.params.startCameraMode;
 
@@ -56,29 +60,28 @@ function setup() {
   ballAccel = E.params.relativeBallAccel * (height / 600);
 
   // set level spacing so that the same number of levels are visible
-  levelSpacing = width / E.params.nLevelsVisible;
+  levelSpacing = height / E.params.nLevelsVisible;
 
-  let gapSize = windowSize / E.params.nSegments;
+  let gapSize = windowWidth / E.params.nSegments;
   ball = new Ball(width/2, 100, 0.1*gapSize);
   E.gameInfo = getGameInfo();
   newGame(false);
 }
 
 function newGame(restartGame = false, goBack = false) {
+  if (trial_block !== undefined) {
+    lastScore = `${trial_block.trials.length} of ${trial_block.block_config.levels.length}`;
+  }
+  trial_block = E.next_block(restartGame, goBack);
+  console.log("Current block config:", trial_block);
+  if (trial_block === undefined) { gameMode = COMPLETE_MODE; return; }
+  gameMode = READY_MODE;
+  
   // Set ball position
   ball.x = width/2;
   ball.y = 100;
   cameraY = 0;
   modeSwitchCooldown = E.params.minLevelsPerMode;
-
-  if (trial_block !== undefined) {
-    lastScore = `${trial_block.trials.length} of ${trial_block.block_config.levels.length}`;
-  }
-
-  trial_block = E.next_block(restartGame, goBack);
-  console.log("Current block config:", trial_block);
-  if (trial_block === undefined) { gameMode = COMPLETE_MODE; return; }
-  gameMode = READY_MODE;
   
   // Create initial levels
   levels = [];
@@ -90,7 +93,7 @@ function newGame(restartGame = false, goBack = false) {
     let y = height + i * levelSpacing;
     levelIndex++;
 
-    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, y, cameraMode, E.params.modeRectColors[cameraMode], false));
+    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, levelStartX, y, cameraMode, E.params.modeRectColors[cameraMode], false));
     prevTrial = trial;
   }
 }
@@ -119,6 +122,9 @@ function decisionEvent(level) {
 function draw() {
   frameRate(E.params.FPS);
   background(40);
+  fill(0); noStroke(); rect(0, 0, levelStartX, height);
+  fill(0); noStroke(); rect(levelEndX, 0, windowWidth - levelEndX, height);
+
   controls.update();
   checkUserButtonPresses();
 
@@ -174,7 +180,7 @@ function draw() {
         let modeInfo = checkForModeSwitch(modeIndex, E.params.modeSwitchRates[modeIndex]);
         
         // Create new level
-        levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
+        levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, levelStartX,newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
       }
     }
     // Render ball
@@ -195,8 +201,8 @@ function draw() {
 
 function drawPauseScreen() {
   textAlign(CENTER, CENTER);
-  fill(color(50, 50, 50, 200));
-  rect(0, 0, width, height);
+  // fill(color(50, 50, 50, 200));
+  // rect(0, 0, width, height);
   fill('white');
   textSize(48);
 
@@ -264,7 +270,7 @@ function checkUserButtonPresses() {
       eventMsg = 'pause';
       gameMode = PAUSE_MODE;
     }
-  } else if (user.pause) {
+  } else if (user.pause && gameMode != COMPLETE_MODE) {
     // unpause game
     eventMsg = 'unpause';
     gameMode = PLAY_MODE;
@@ -303,6 +309,9 @@ function getGameInfo() {
   return {
     width: width,
     height: height,
+    levelWidth: levelWidth,
+    levelStartX: levelStartX,
+    levelEndX: levelEndX,
     ballRadius: ball.r,
     ballAccel: ballAccel,
     gravity: gravity,

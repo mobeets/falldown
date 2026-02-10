@@ -24,8 +24,8 @@ class Ball {
     this.vx *= E.params.friction;
 
     // Keep inside screen
-    if (this.x < this.r) { this.x = this.r; this.vx = 0; }
-    if (this.x > width - this.r) { this.x = width - this.r; this.vx = 0; }
+    if (this.x - levelStartX < this.r) { this.x = levelStartX + this.r; this.vx = 0; }
+    if (this.x - levelStartX > levelWidth - this.r) { this.x = levelStartX + levelWidth - this.r; this.vx = 0; }
   }
 
   render() {
@@ -106,13 +106,14 @@ collideRectCircle = function (rx, ry, rw, rh, cx, cy, diameter) {
 // Level class
 // ======================
 class Level {
-  constructor(index, nSegments, width, height, trial, y, modeIndex, color, isModeSwitch) {
+  constructor(index, nSegments, width, height, trial, x, y, modeIndex, color, isModeSwitch) {
     this.index = index;
     this.nSegments = nSegments;
     this.width = width;
     this.height = height;
     this.trial = trial;
     this.hole_locations = this.trial.hole_locations;
+    this.x = x;
     this.y = y;
     this.holeUsed = -1;
     this.ballTouched = false;
@@ -128,7 +129,7 @@ class Level {
     for (let i = 0; i < this.nSegments; i++) {
       if (!this.hole_locations.includes(i)) {
         this.segmentExists.push(1);
-        this.segments.push(new RectSegment(i, i * segW, y, segW, this.height, this.color));
+        this.segments.push(new RectSegment(i, this.x + i * segW, y, segW, this.height, this.color));
       } else {
         this.segmentExists.push(0);
       }
