@@ -13,3 +13,5 @@ for trial in trials:
 
 experiment_config = [{'params': {}, 'levels': levels}]
 json.dump(experiment_config, open(out_path, 'w'))
+
+# %%
