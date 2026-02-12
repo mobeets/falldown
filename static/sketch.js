@@ -90,7 +90,7 @@ function newGame(restartGame = false, goBack = false) {
   for (let i = 0; i < 10; i++) {
     trial = trial_block.next_trial();
 
-    let y = height + i * levelSpacing;
+    let y = height/2 + i * levelSpacing;
     levelIndex++;
 
     levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, levelStartX, y, cameraMode, E.params.modeRectColors[cameraMode], false));
@@ -180,7 +180,7 @@ function draw() {
         let modeInfo = checkForModeSwitch(modeIndex, E.params.modeSwitchRates[modeIndex]);
         
         // Create new level
-        levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, levelStartX,newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
+        levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, levelStartX, newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
       }
     }
     // Render ball

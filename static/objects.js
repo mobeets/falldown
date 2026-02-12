@@ -166,7 +166,7 @@ class Level {
 
       // Compute horizontal grid index of the ball
       let segWidth = this.width / this.nSegments;
-      this.holeUsed = floor(ball.x / segWidth);
+      this.holeUsed = floor((ball.x - this.x) / segWidth);
 
       // Verify that this grid index is actually a hole
       if (!this.hole_locations.includes(this.holeUsed)) {
