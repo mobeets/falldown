@@ -6,11 +6,11 @@
 
 To start the server, run the following in a terminal:
 
-`uv run python server.py --log_dir logs --save_name SUBJECT_ID`
-
-This will save all trial data, mouse clicks, and key presses locally to the file `logs/SUBJECT_ID.jsonl`.
+`uv run python server.py`
 
 To start the task, open a Chrome browser and navigate to `http://0.0.0.0:8000?subject=SUBJECT_ID`.
+
+This will save all trial data, mouse clicks, and key presses locally to files named `logs/SUBJECT_ID-....jsonl` and `logs/SUBJECT_ID-....json`.
 
 ## Experiment details
 
@@ -32,5 +32,3 @@ All task controls can be found in `static/task_controls.js`.
 ## Debugging
 
 It is recommended to keep the Web Inspector in Chrome open in a separate window so you can make sure the WebSocket remains connected.
-
-Also note that you can save a copy of the experimental data manually by pausing and pressing 's'.
