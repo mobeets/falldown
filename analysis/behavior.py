@@ -18,13 +18,18 @@ def get_choices(data):
                 hole_locs = sorted(trial['holes']['hole_locations'])
             elif 'events' in trial and len(trial['events']) > 0:
                 hole_locs = sorted(trial['events'][0]['hole_locations'])
+            else:
+                print('no choice')
+                continue
             if len(hole_locs) == 2:
                 if 'holeUsed' in trial:
                     h_cur = trial['holeUsed']
                     h_prev = trials[i-1]['holeUsed']
-                elif 'events' in trial and len(trial['events']) > 0:
+                elif 'events' in trial and len(trial['events']) > 0 and 'events' in trials[i-1] and len(trials[i-1]['events']) > 0:
                     h_cur = trial['events'][0]['holeUsed']
                     h_prev = trials[i-1]['events'][0]['holeUsed']
+                else:
+                    continue
                 dist_L = np.abs(hole_locs[0] - h_prev)
                 dist_R = np.abs(hole_locs[1] - h_prev)
                 choice = hole_locs.index(h_cur)
@@ -110,13 +115,42 @@ def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to ho
 fnm = '../logs/unknown-2026-01-30T20-34-28-374Z-jr71.json'
 fnm = '../logs/unknown-2026-02-10T20-42-37-419Z-99s9.json'
 fnm = '../analysis/2-11-trial1.json'
+fnm = '../logs/unknown-2026-02-12T19-44-31-094Z-suyb.json'
+fnm = '../logs/unknown-2026-02-12T19-51-47-046Z-10wy.json'
+fnm = '../logs/unknown-2026-02-12T20-22-35-192Z-wip8.json'
 data = load(fnm)
+
+#%% visualize task
+
+plt.figure(figsize=(1,6), dpi=300)
+for block in data['blocks']:
+    trials = block['trials']
+    for i, trial in enumerate(trials[:100]):
+        hole_locs = sorted(trial['hole_locations'])
+        segments = np.ones(12)
+        for hole in hole_locs:
+            segments[hole] = 0
+        for j,s in enumerate(segments):
+            if s == 0:
+                continue
+            plt.plot([j-0.5, j+0.5], [i,i], 'k-')
+        if 'events' in trial and len(trial['events']) > 0:
+            hole_used = [event['holeUsed'] for event in trial['events'] if 'holeUsed' in event]
+            if len(hole_used) == 0:
+                continue
+            plt.plot(hole_used[0], i, 'r.', markersize=2)
+        else:
+            plt.plot(np.arange(len(segments)), np.full(len(segments), i), 'b-', markersize=2, alpha=0.5)
+# flip y-axis
+plt.gca().invert_yaxis()
+plt.axis('off')
 
 #%% plot psychometric curve (greedy)
 
 # plot psychometric curve
 choices = get_choices(data)
 X = choices[:,0] - choices[:,1]
+X = choices[:,2] - choices[:,3]
 y = choices[:,-1]
 plot_psychometric_curve(X, y)
 

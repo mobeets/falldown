@@ -85,10 +85,10 @@ plot_psychometric_curve(X, y)
 plt.figure(figsize=(3,3), dpi=300)
 # plt.tricontourf(choices[:,0], choices[:,1], choices[:,2], levels=10, cmap='viridis')
 
-# xs = choices[:,0]
-# ys = choices[:,1]
-xs = choices[:,2]
-ys = choices[:,3]
+xs = choices[:,0]
+ys = choices[:,1]
+# xs = choices[:,2]
+# ys = choices[:,3]
 # xs = choices[:,0] - choices[:,1]
 # ys = choices[:,2] - choices[:,3]
 zs = choices[:,-1]
