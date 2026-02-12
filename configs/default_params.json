@@ -1,8 +1,8 @@
 {
 	"scrollSpeed": 2.2,
 	"relativeGravity": 0.75,
-	"relativeBallAccel": 0.4,
-	"friction": 0.95,
+	"relativeBallAccel": 0.8,
+	"friction": 0.92,
 	"levelWidthProportion": 0.8,
 	"nSegments": 12,
 	"nLevelsVisible": 7,
