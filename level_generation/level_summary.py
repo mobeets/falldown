@@ -3,10 +3,9 @@
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-
-#%%
-
 import random
+
+#%% generate levels
 
 def generate_levels(num_trials=100, screen_width=1, 
                     greedy_func=calculate_greedy_cost, 
@@ -285,9 +284,8 @@ def prune_levels(levels):
 
 #%%
 
-# fnm = '../configs/default_experiment1.json'
-# data = load_experiment(fnm)
-# levels = data[0]['levels']
+out_path = '../configs/default_experiment1.json'
+levels_per_block = 300
 
 trials = generate_levels(num_trials=10000)
 # trials = downsample_trials(trials, mode='greedy', percentile=80)
@@ -299,6 +297,9 @@ levels = trials_to_levels(trials)
 dists = calculate_distances(levels)
 make_heatmaps(dists)
 
-out_path = '../configs/default_experiment1.json'
-experiment_config = [{'params': {}, 'levels': levels}]
-json.dump(experiment_config, open(out_path, 'w'))
+# split up levels (a list) into blocks of size levels_per_block
+blocks = []
+for i in range(0, len(levels), levels_per_block):
+    block_levels = levels[i:i+levels_per_block]
+    blocks.append({'params': {}, 'levels': block_levels})
+json.dump(blocks, open(out_path, 'w'))

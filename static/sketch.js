@@ -1,6 +1,7 @@
 let levels = [];
 let levelIndex = 0;
 let cameraY = 0;
+let cameraYTarget = 0;
 let planningDepth = 2;
 let cameraMode; // options: 0 = 'follow', 1 = 'drift'
 
@@ -140,13 +141,23 @@ function draw() {
     ball.vx = constrain(ball.vx, -15*ballAccel, 15*ballAccel);
     E.log_states(ball); // logs ball and camera states
     ball.update();
-    
+
     // Set y offset based on camera mode
     if (cameraMode === 0) {
       // keep ball halfway up screen, but smooth movements
       cameraY = 0.25*(ball.y - height/2) + 0.75*cameraY;
-    } else {
+      cameraYTarget = cameraY;
+    } else if (cameraMode === 1) {
       cameraY += E.params.scrollSpeed;
+    } else {
+      // if ball is in lower part of screen, keep camera fixed on ball so that ball can't go lower, but continue to update cameraYTarget so that when ball goes back up it will be back in the right place
+      if (ball.y - cameraYTarget > 3*height/5) {
+        cameraY = 0.1*(ball.y - 3*height/5) + 0.9*cameraY;
+        cameraYTarget = cameraY;
+      } else {
+        cameraY = cameraYTarget;
+      }      
+      cameraYTarget += E.params.scrollSpeed;
     }
     
     // Update and render levels
@@ -269,6 +280,8 @@ function checkUserButtonPresses() {
       // pause game
       eventMsg = 'pause';
       gameMode = PAUSE_MODE;
+      // save experiment to json
+      wsLogger.saveJson(E);
     }
   } else if (user.pause && gameMode != COMPLETE_MODE) {
     // unpause game
