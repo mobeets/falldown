@@ -2,7 +2,7 @@
 
 import json
 trials_path = '../level_generation/trials_output.json'
-out_path = '../configs/default_experiment.json'
+out_path = '../configs/default_experiment1.json'
 trials = json.load(open(trials_path))
 
 levels = []

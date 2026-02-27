@@ -88,10 +88,10 @@ plt.figure(figsize=(3,3), dpi=300)
 
 xs = choices[:,0]
 ys = choices[:,1]
-# xs = choices[:,2]
-# ys = choices[:,3]
-# xs = choices[:,0] - choices[:,1]
-# ys = choices[:,2] - choices[:,3]
+xs = choices[:,2]
+ys = choices[:,3]
+xs = choices[:,0] - choices[:,1]
+ys = choices[:,2] - choices[:,3]
 zs = choices[:,-1]
 
 xs_all = np.unique(xs)
@@ -143,11 +143,25 @@ X1 = choices[:,0] - choices[:,1]
 X2 = choices[:,2] - choices[:,3]
 X = X1 * X2 # positive if greedy and rollout agree, negative if they disagree
 y = choices[:,4]
+# ignore RTs that are too long or negative
+ix = (choices[:,4] < 4000) & (choices[:,4] > 0)
+X = X[ix]
+y = y[ix]
+
 plot_psychometric_curve(X, y, fig=fig, color='r')
 plt.xscale('symlog')
 # plt.yscale('log')
 plt.xlabel('Agreement between Greedy and Rollout (L-R)')
 plt.ylabel('Reaction Time (ms)')
+
+# print mean ± SE of RT for agreement vs disagreement, and perform t-test
+agree_ix = X > 0
+disagree_ix = X < 0
+print(f'RT for agreement: {np.mean(y[agree_ix]):.1f} ± {np.std(y[agree_ix]) / np.sqrt(sum(agree_ix)):.1f}')
+print(f'RT for disagreement: {np.mean(y[disagree_ix]):.1f} ± {np.std(y[disagree_ix]) / np.sqrt(sum(disagree_ix)):.1f}')
+from scipy.stats import ttest_ind
+t_stat, p_val = ttest_ind(y[agree_ix], y[disagree_ix])
+print(f'T-test: t={t_stat:.3f}, p={p_val:.3f}')
 
 #%% fit logistic regression to predict choice from distances
 # report score on held-out test set using 5-fold cross-validation

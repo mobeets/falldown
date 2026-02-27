@@ -117,7 +117,9 @@ fnm = '../logs/unknown-2026-02-10T20-42-37-419Z-99s9.json'
 fnm = '../analysis/2-11-trial1.json'
 fnm = '../logs/unknown-2026-02-12T19-44-31-094Z-suyb.json'
 fnm = '../logs/unknown-2026-02-12T19-51-47-046Z-10wy.json'
-fnm = '../logs/unknown-2026-02-12T20-22-35-192Z-wip8.json'
+# fnm = '../logs/unknown-2026-02-12T20-45-28-597Z-ash0.json'
+fnm = '../logs//RAH-2026-02-15T15-42-43-790Z-oopr.json'
+fnm = '../logs/EMU/YFV-2026-02-20T20-13-23-929Z-iel9.json'
 data = load(fnm)
 
 #%% visualize task
@@ -141,6 +143,7 @@ for block in data['blocks']:
             plt.plot(hole_used[0], i, 'r.', markersize=2)
         else:
             plt.plot(np.arange(len(segments)), np.full(len(segments), i), 'b-', markersize=2, alpha=0.5)
+    break
 # flip y-axis
 plt.gca().invert_yaxis()
 plt.axis('off')
@@ -150,7 +153,7 @@ plt.axis('off')
 # plot psychometric curve
 choices = get_choices(data)
 X = choices[:,0] - choices[:,1]
-X = choices[:,2] - choices[:,3]
+# X = choices[:,2] - choices[:,3]
 y = choices[:,-1]
 plot_psychometric_curve(X, y)
 
