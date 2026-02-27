@@ -1,4 +1,3 @@
-#%%
 
 import json
 import numpy as np
@@ -51,6 +50,7 @@ def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to ho
 	xs = np.unique(X)
 	ys = []
 	ses = []
+
 	for x in xs:
 		ix = X == x
 		ymu = np.nanmean(y[ix])
@@ -69,6 +69,7 @@ def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to ho
 #%% load data
 
 fnm = '../logs/jah_20251206_1350.json'
+fnm = '../logs/unknown-2026-02-16T22-27-24-428Z-egn2.json'
 data = load(fnm)
 
 #%% plot psychometric curve (greedy)
