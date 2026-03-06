@@ -305,12 +305,10 @@ plt.show()
 # %%
 choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
 
-# 2. Extract 2-step distances and Reaction Time
 dist_L2 = choices[:, 2]
 dist_R2 = choices[:, 3]
 rts = choices[:, 4]
 
-# 3. Define your variables
 conflicts = np.abs(dist_L2 - dist_R2) 
 trial_nums = np.arange(len(rts))
 
