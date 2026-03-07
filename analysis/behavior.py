@@ -168,6 +168,46 @@ def plot_rt_over_time_by_conflict(trial_nums, conflicts, rts, window_size=10, fi
     plt.tight_layout()
     
     return fig
+
+def plot_rt_vs_distance(choices, step=1):
+    dist_L1 = choices[:, 0]
+    dist_R1 = choices[:, 1]
+    dist_L2 = choices[:, 2]
+    dist_R2 = choices[:, 3]
+    rt = choices[:, 4]
+    choice_made = choices[:, 5]
+
+    valid_mask = rt>0
+    
+    if step == 1:
+        chosen_dist = np.where(choice_made == 0, dist_L1, dist_R1)
+        xlabel = '1-Step Distance Traveled'
+    elif step == 2:
+        chosen_dist = np.where(choice_made == 0, dist_L2, dist_R2)
+        xlabel = 'Total 2-Step Path Distance'
+    else:
+        raise ValueError("The 'step' parameter must be 1 or 2.")
+
+    x_data = chosen_dist[valid_mask]
+    y_data = rt[valid_mask]
+    choices_valid = choice_made[valid_mask]
+
+    fig = plt.figure(figsize=(7, 5), dpi=300)
+    
+    idx_L = choices_valid == 0
+    idx_R = choices_valid == 1
+    
+    plt.scatter(x_data[idx_L], y_data[idx_L], alpha=0.4, label='Chose Left', color='blue')
+    plt.scatter(x_data[idx_R], y_data[idx_R], alpha=0.4, label='Chose Right', color='orange')
+    
+    plt.xlabel(xlabel)
+    plt.ylabel('Reaction Time (ms)')
+    plt.title(f'Reaction Time vs. {xlabel}')
+    plt.legend()
+    plt.tight_layout()
+    
+    return fig
+
 #%% load data
 
 fnm = '../logs/unknown-2026-01-30T20-34-28-374Z-jr71.json'
@@ -307,6 +347,8 @@ choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
 
 dist_L2 = choices[:, 2]
 dist_R2 = choices[:, 3]
+dist_L1 = choices[:, 0]
+dist_R1 = choices[:, 1]
 rts = choices[:, 4]
 
 conflicts = np.abs(dist_L2 - dist_R2) 
@@ -314,3 +356,10 @@ trial_nums = np.arange(len(rts))
 
 plot_rt_over_time_by_conflict(trial_nums, conflicts, rts, window_size=20)
 plt.show()
+
+# %%
+plot_rt_vs_distance(choices, step = 2)
+plt.show()
+plot_rt_vs_distance(choices, step = 1)
+plt.show()
+# %%
