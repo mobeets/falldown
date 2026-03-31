@@ -24,14 +24,20 @@ def get_choices(data):
 			choices.append((dist_L, dist_R, rt, choice))
 	return np.vstack(choices)
 
-def compare_greedy_vs_rollout(data):
+def compare_greedy_vs_rollout(data, mode='decision'):
 	trials = data['trials']
 	choices = []
 	for i, trial in enumerate(trials):
 		if i == 0 or trials[i]['gameIndex'] != trials[i-1]['gameIndex']:
 			continue
-		# if trial['holes']['plan_depth'] == 2 and trial['holes']['layer_index'] == 1:
-		if len(trial['holes']['hole_locations']) == 2 and len(trials[i+1]['holes']['hole_locations']) == 1 and len(trials[i-1]['holes']['hole_locations']) == 1:
+		if i+1 == len(trials):
+			continue
+		
+		is_decision = len(trial['holes']['hole_locations']) == 2 and len(trials[i+1]['holes']['hole_locations']) == 1 and len(trials[i-1]['holes']['hole_locations']) == 1
+
+		is_fixed = len(trial['holes']['hole_locations']) == 1 and len(trials[i-1]['holes']['hole_locations']) == 1
+
+		if mode == 'decision' and is_decision:
 			h_prev = trials[i-1]['holeUsed']
 			h_cur = trial['holeUsed']
 			hole_locs = sorted(trial['holes']['hole_locations'])
@@ -43,8 +49,21 @@ def compare_greedy_vs_rollout(data):
 			dist_R2 = dist_R1 + np.abs(hole_locs[1] - h_next)
 			
 			choice = hole_locs.index(h_cur)
+
 			rt = trial['timePassedThru'] - trials[i-1]['timePassedThru']
 			choices.append((dist_L1, dist_R1, dist_L2, dist_R2, rt, choice))
+		
+		elif mode == 'fixed' and is_fixed:
+			h_prev = trials[i-1]['holeUsed']
+			hole_locs = sorted(trial['holes']['hole_locations'])
+			dist_L1 = np.abs(hole_locs[0] - h_prev)
+			dist_R1 = dist_L1
+			dist_L2 = dist_L1
+			dist_R2 = dist_L1
+			choice = 0
+			rt = trial['timePassedThru'] - trials[i-1]['timePassedThru']
+			choices.append((dist_L1, dist_R1, dist_L2, dist_R2, rt, choice))
+
 	return np.vstack(choices)
 
 def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to hole (L - R)', label='_'):
@@ -135,7 +154,9 @@ X = choices[:,2] - choices[:,3]
 y = choices[:,-1]
 plot_psychometric_curve(X, y, fig=fig, color='b')
 
-#%% plot RT
+#%% plot RT on congruent vs incongruent choices
+
+choices = compare_greedy_vs_rollout(data)
 
 fig = plt.figure(figsize=(3,3), dpi=300)
 X1 = choices[:,0] - choices[:,1]
@@ -161,6 +182,49 @@ print(f'RT for disagreement: {np.mean(y[disagree_ix]):.1f} ± {np.std(y[disagree
 from scipy.stats import ttest_ind
 t_stat, p_val = ttest_ind(y[agree_ix], y[disagree_ix])
 print(f'T-test: t={t_stat:.3f}, p={p_val:.3f}')
+
+#%% plot RT vs distance for different groups
+
+# mode = 'decision'
+mode = 'fixed'
+choices = compare_greedy_vs_rollout(data, mode=mode)
+
+fig = plt.figure(figsize=(3,3), dpi=300)
+actions = choices[:,-1].astype(int)
+X = np.array([choices[i,a] for i,a in enumerate(actions)])
+y = choices[:,4]
+
+# ignore RTs that are too long or negative
+ix = (choices[:,4] < 4000) & (choices[:,4] > 0)
+X = X[ix]
+y = y[ix]
+
+if mode == 'decision':
+	# compare RTs for congruent (black) vs incongruent (red) decisions
+	G1 = choices[:,0] - choices[:,1]
+	G2 = choices[:,2] - choices[:,3]
+	G = G1 * G2 # positive if greedy and rollout agree, negative if they disagree
+	G = G[ix]
+
+	clrs = {True: 'k', False: 'r'}
+	for do_cong in [True, False]:
+		ixc = G > 0 if do_cong else G < 0
+		plot_psychometric_curve(X[ixc], y[ixc], fig=fig, color=clrs[do_cong])
+else:
+	# compare RTs for no-choice (black) vs choice (red) trials
+	plot_psychometric_curve(X, y, fig=fig, color='k')
+
+	choices = compare_greedy_vs_rollout(data, mode='decision')
+	actions = choices[:,-1].astype(int)
+	X = np.array([choices[i,a] for i,a in enumerate(actions)])
+	y = choices[:,4]
+	ix = (choices[:,4] < 4000) & (choices[:,4] > 0)
+	X = X[ix]
+	y = y[ix]
+	plot_psychometric_curve(X, y, fig=fig, color='r')
+
+plt.xlabel('Distance traveled')
+plt.ylabel('Reaction Time (ms)')
 
 #%% fit logistic regression to predict choice from distances
 # report score on held-out test set using 5-fold cross-validation
