@@ -15,7 +15,7 @@ function loadConfig() {
     participantId: 'unknown',
     assignmentId: 'unknown',
     projectId: 'unknown',
-    params_name: 'default_params',
+    params_name: 'unknown',
     experiment: 'default_experiment'
   };
 
@@ -45,8 +45,10 @@ function loadConfig() {
 
   // If subject_id has participantId, assignmentId, and projectId, this must be a CloudResearch study
   let params_name = finalParams.params_name;
-  if (isCloudStudy === 2) {
+  if (isCloudStudy === 2 && params_name === 'unknown') {
     params_name = 'cloudresearch_params';
+  } else {
+    params_name = 'default_params';
   }
 
   // Build path to params and experiment files
