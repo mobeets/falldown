@@ -12,7 +12,9 @@ function loadConfig() {
   // call inside preload
 
   const defaults = {
-    subject: 'unknown',
+    participantId: 'unknown',
+    assignmentId: 'unknown',
+    projectId: 'unknown',
     params_name: 'default_params',
     experiment: 'default_experiment'
   };
@@ -23,10 +25,29 @@ function loadConfig() {
 
   // Safe destructuring with fallback defaults
   const {
-    subject = 'unknown',
-    params_name ='default_params',
+    participantId = 'unknown',
+    assignmentId = 'unknown',
+    projectId = 'unknown',
     experiment = 'default_experiment'
   } = finalParams;
+
+  // Create subject ID
+  let subject_id = participantId;
+  let isCloudStudy = 0;
+  if (assignmentId !== 'unknown') {
+    subject_id += '-' + assignmentId;
+    isCloudStudy += 1;
+  }
+  if (projectId !== 'unknown') {
+    subject_id += '-' + projectId;
+    isCloudStudy += 1;
+  }
+
+  // If subject_id has participantId, assignmentId, and projectId, this must be a CloudResearch study
+  let params_name = finalParams.params_name;
+  if (isCloudStudy === 2) {
+    params_name = 'cloudresearch_params';
+  }
 
   // Build path to params and experiment files
   const params_path = `configs/${params_name}.json`;
@@ -36,7 +57,7 @@ function loadConfig() {
   const params = loadJSON(params_path);
   const block_configs = loadJSON(experiment_path);
 
-  return {subject, params_path, experiment_path, params, block_configs};
+  return {subject_id, params_path, experiment_path, params, block_configs};
 }
 
 class Experiment {

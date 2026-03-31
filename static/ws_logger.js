@@ -16,12 +16,20 @@ class WSLogger {
 
   _generateFilename() {
     const params = new URLSearchParams(window.location.search);
-    const subj_id = params.get("participantId") || "unknown";
-    const assignment_id = params.get("assignmentId") || "unknown";
-    const project_id = params.get("projectId") || "unknown";
+    let participantId = params.get("participantId") || "unknown";
+    let assignmentId = params.get("assignmentId") || "unknown";
+    let projectId = params.get("projectId") || "unknown";
+    let subjectId = participantId;
+    if (assignmentId !== 'unknown') {
+      subjectId += '-' + assignmentId;
+    }
+    if (projectId !== 'unknown') {
+      subjectId += '-' + projectId;
+    }
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const rand = Math.random().toString(36).slice(2, 6);
-    return `${subj_id}-${assignment_id}-${project_id}-${timestamp}-${rand}.jsonl`;
+    return `${subjectId}-${timestamp}-${rand}.jsonl`;
   }
 
   connect() {
