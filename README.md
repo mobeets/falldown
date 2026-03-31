@@ -14,7 +14,7 @@ To start the server, run the following in a terminal:
 
 `uv run python server.py`
 
-To start the task, open a Chrome browser and navigate to `http://0.0.0.0:8000?subject=SUBJECT_ID`.
+To start the task, open a Chrome browser and navigate to `http://0.0.0.0:8000?participantId=SUBJECT_ID`.
 
 This will save all trial data, mouse clicks, and key presses locally to files named `logs/SUBJECT_ID-....jsonl` and `logs/SUBJECT_ID-....json`.
 
@@ -26,12 +26,16 @@ This will save all trial data, mouse clicks, and key presses locally to files na
 ## Controls
 
 On the experimenter's side:
-- `p` or spacebar to pause
+- `p` or SPACEBAR to pause
 - `s` to manually save json
 
 On the patient's side (with USB controller connected):
 - Left analog stick controls position (left and right only)
-- START button to pause
+- START button or SPACEBAR to pause
+
+For patients with a keyboard:
+- Left and right arrow keys control position
+- SPACEBAR to pause
 
 All task controls can be found in `static/task_controls.js`.
 
