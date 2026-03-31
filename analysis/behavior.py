@@ -110,6 +110,104 @@ def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to ho
 	plt.ylabel('Prob. of choosing Right Hole')
 	return fig
 
+def plot_rt_vs_conflict(X, y, fig=None, color='purple', xlabel='Degree of Conflict', label='_'):
+    xs = np.unique(X)
+    ys = []
+    ses = []
+    
+    for x in xs:
+        ix = X == x
+        ymu = np.nanmean(y[ix])
+        ys.append(ymu)
+        ses.append(np.nanstd(y[ix]) / np.sqrt(np.sum(ix)))
+
+    if fig is None:
+        fig = plt.figure(figsize=(3,3), dpi=300)
+        
+    for x, y_val, se in zip(xs, ys, ses):
+        plt.plot([x, x], [y_val - se, y_val + se], '-', color=color, alpha=0.3)
+        
+    plt.plot(xs, ys, '.-', color=color, label=label)
+    
+    plt.xlabel(xlabel)
+    plt.ylabel('Reaction Time (units?)')
+    
+    if label != '_':
+        plt.legend()
+        
+    return fig
+
+def plot_rt_over_time_by_conflict(trial_nums, conflicts, rts, window_size=10, fig=None):
+    sort_idx = np.argsort(trial_nums)
+    c_sorted = conflicts[sort_idx]
+    rt_sorted = rts[sort_idx]
+
+    unique_conflicts = np.unique(c_sorted)
+
+    if fig is None:
+        fig = plt.figure(figsize=(8, 5), dpi=300)
+
+    for c in unique_conflicts:
+        ix = c_sorted == c
+        rt_c = rt_sorted[ix]
+        
+        local_trials = np.arange(1, len(rt_c) + 1)
+        
+        if len(rt_c) >= window_size:
+            moving_avg = np.convolve(rt_c, np.ones(window_size)/window_size, mode='valid')
+            t_moving_avg = local_trials[window_size - 1:]
+            
+            plt.plot(t_moving_avg, moving_avg, linewidth=2.5, linestyle='-', label=f'Conflict: {c:.2f}')
+
+    plt.xlabel('Trial Number')
+    plt.ylabel('Reaction Time (units?)')
+    plt.title(f'(Rxn time by conflict)')
+    
+    # Place legend outside the plot
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    
+    return fig
+
+def plot_rt_vs_distance(choices, step=1):
+    dist_L1 = choices[:, 0]
+    dist_R1 = choices[:, 1]
+    dist_L2 = choices[:, 2]
+    dist_R2 = choices[:, 3]
+    rt = choices[:, 4]
+    choice_made = choices[:, 5]
+
+    valid_mask = rt>0
+    
+    if step == 1:
+        chosen_dist = np.where(choice_made == 0, dist_L1, dist_R1)
+        xlabel = '1-Step Distance Traveled'
+    elif step == 2:
+        chosen_dist = np.where(choice_made == 0, dist_L2, dist_R2)
+        xlabel = 'Total 2-Step Path Distance'
+    else:
+        raise ValueError("The 'step' parameter must be 1 or 2.")
+
+    x_data = chosen_dist[valid_mask]
+    y_data = rt[valid_mask]
+    choices_valid = choice_made[valid_mask]
+
+    fig = plt.figure(figsize=(7, 5), dpi=300)
+    
+    idx_L = choices_valid == 0
+    idx_R = choices_valid == 1
+    
+    plt.scatter(x_data[idx_L], y_data[idx_L], alpha=0.4, label='Chose Left', color='blue')
+    plt.scatter(x_data[idx_R], y_data[idx_R], alpha=0.4, label='Chose Right', color='orange')
+    
+    plt.xlabel(xlabel)
+    plt.ylabel('Reaction Time (ms)')
+    plt.title(f'Reaction Time vs. {xlabel}')
+    plt.legend()
+    plt.tight_layout()
+    
+    return fig
+
 #%% load data
 
 fnm = '../logs/unknown-2026-01-30T20-34-28-374Z-jr71.json'
@@ -120,6 +218,7 @@ fnm = '../logs/unknown-2026-02-12T19-51-47-046Z-10wy.json'
 # fnm = '../logs/unknown-2026-02-12T20-45-28-597Z-ash0.json'
 fnm = '../logs//RAH-2026-02-15T15-42-43-790Z-oopr.json'
 fnm = '../logs/EMU/YFV-2026-02-20T20-13-23-929Z-iel9.json'
+fnm = 'real_trial1.json'
 data = load(fnm)
 
 #%% visualize task
@@ -231,4 +330,36 @@ for d in range(len(names)):
 
 plt.legend(fontsize=6)
 
-#%%
+# %%
+choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
+
+dist_L2 = choices[:, 2]
+dist_R2 = choices[:, 3]
+rt = choices[:, 4]
+
+X = np.abs(dist_L2 - dist_R2) 
+y = rt
+
+plot_rt_vs_conflict(X, y)
+plt.show()
+# %%
+choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
+
+dist_L2 = choices[:, 2]
+dist_R2 = choices[:, 3]
+dist_L1 = choices[:, 0]
+dist_R1 = choices[:, 1]
+rts = choices[:, 4]
+
+conflicts = np.abs(dist_L2 - dist_R2) 
+trial_nums = np.arange(len(rts))
+
+plot_rt_over_time_by_conflict(trial_nums, conflicts, rts, window_size=20)
+plt.show()
+
+# %%
+plot_rt_vs_distance(choices, step = 2)
+plt.show()
+plot_rt_vs_distance(choices, step = 1)
+plt.show()
+# %%
