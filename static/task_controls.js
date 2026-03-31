@@ -4,7 +4,7 @@ class TaskControls {
   }
 
   get pause() {
-    return this.u.justPressedKey('p') || this.u.justPressedButton("START");
+    return this.u.justPressedKey(' ') || this.u.justPressedKey('p') || this.u.justPressedButton("START");
   }
 
   get save() {
