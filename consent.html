@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- <script src="static/p5.min.js"></script> -->
+    <!-- <link rel="stylesheet" type="text/css" href="static/style.css"> -->
+    <meta charset="utf-8" />
+
+  </head>
+  <body style="
+  	width: 50%; margin-left:auto;
+        margin-right:auto;">
+<h1>Study Consent</h1>
+
+Please read this consent agreement carefully before deciding whether to participate in this research study. This study is being conducted by Baylor College of Medicine, and the lead investigator is Jay Hennig.
+<br/><br/>
+<b>Purpose of the research:</b> To examine the way people learn to make optimal decisions in response to a sequence of stimuli, and update those decisions based on feedback.
+<br/><br/>
+<b>What you will do in this research:</b> In this task, you will see different images on your computer screen (such as images of animals, food, etc) and then respond with a decision in the form of a key or mouse press. After each choice you will receive positive and negative feedback in the form of virtual "points" on the screen, so that you can learn which decisions are most rewarded for each stimulus.
+<br/><br/>
+<b>Time required:</b> This experiment will take about 45 minutes to complete (not including breaks), but you may take as many breaks as you need with no penalty).
+<br/><br/>
+<b>Risks:</b> This study does not pose any risks or side effects greater than those that would be encountered in everyday life. Our behavioral study involves no more risk than comes from using a computer (viewing innocuous stimuli and making decisions using a keyboard and mouse).
+<br/><br/>
+<b>Benefits:</b> This research provides no benefits to the individual participant. The results of this study may contribute to our understanding of learning and adaptive decision-making, which could inform strategies to improve educational outcomes and help individuals make better-informed choices in everyday life.
+<br/><br/>
+<b>Compensation:</b> You will receive $15 for completing the experiment.
+<br/><br/>
+<b>Confidentiality:</b> Your participation in this study will remain confidential. No personally identifiable information will be associated with your data. The research team will only receive your study responses along with a randomized participant ID. Your study responses will be kept in a password-protected, HIPAA-compliant, BCM-IT secured network storage platform such as Box, OnceDrive, or Dropbox. We will have no access to your name, contact information, or other identifying data. Therefore, the risk of loss of confidentiality from this research study specifically is minimal.
+<br/><br/>
+<b>Participation and withdrawal:</b> Your participation in this study is completely voluntary and you may refuse to participate or you may choose to withdraw at any time without penalty or loss of benefits to which you are otherwise entitled.
+<br/><br/>
+<b>How to contact the researcher:</b> If you have any questions about this study, please contact Jay Hennig, jay.hennig@bcm.edu. If you have additional questions about your rights as a research subject, please contact the Institutional Review Board for Human Subject Research for Baylor College of Medicine & Affiliated Hospitals at (713) 798-6970. Please print or save a copy of this form for your records.
+<br/><br/>
+<b>Agreement:</b> The nature and purpose of this research have been sufficiently explained and I agree to participate in this study. I understand that I am free to withdraw at any time without incurring any penalty. <b>Please consent by checking the box below and clicking continue. Otherwise, please exit the study at this time.</b>
+<br/><br/>
+<input type="checkbox" id="vehicle1" name="vehicle1" value="Bike">
+<label for="vehicle1"> I consent to participating in this study.</label><br>
+<button type="button" onclick="
+  if (document.getElementById('vehicle1').checked) {
+    window.location.href = '/' + window.location.search;
+  } else {
+    alert('Please check the consent box before continuing.');
+  }
+">Continue</button>
+
+</body>
+</html>

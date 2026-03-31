@@ -49,6 +49,11 @@ app.mount("/configs", StaticFiles(directory=os.path.join(BASE_DIR, "configs")), 
 async def get_index():
     return FileResponse(os.path.join(BASE_DIR, "index.html"))
 
+# Serve your consent.html at the root
+@app.get("/consent")
+async def get_index():
+    return FileResponse(os.path.join(BASE_DIR, "consent.html"))
+
 @app.get("/favicon.ico")
 async def favicon():
     return FileResponse("static/favicon.ico")
