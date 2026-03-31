@@ -297,17 +297,20 @@ function checkUserButtonPresses() {
     // unpause game
     eventMsg = 'unpause';
     gameMode = PLAY_MODE;
-  } else if (user.next_block && gameMode != COMPLETE_MODE) {
-    // go to the next block
-    eventMsg = 'new game (going to next block)';
-    newGame(false);
-  } else if (user.back_block && gameMode != COMPLETE_MODE) {
-    // go back a block
-    eventMsg = 'new game (going back a block)';
-    newGame(false, true);
-  } else if (user.restart_block) {
-    eventMsg = 'restart block';
-    newGame(true);
+  } else if (!E.params.isCloudStudy) {
+    // the following are unavailable controls in a cloud study
+    if (user.next_block && gameMode != COMPLETE_MODE) {
+      // go to the next block
+      eventMsg = 'new game (going to next block)';
+      newGame(false);
+    } else if (user.back_block && gameMode != COMPLETE_MODE) {
+      // go back a block
+      eventMsg = 'new game (going back a block)';
+      newGame(false, true);
+    } else if (user.restart_block) {
+      eventMsg = 'restart block';
+      newGame(true);
+    }
   } else if (user.save) {
     wsLogger.saveJson(E);
   }
@@ -318,8 +321,10 @@ function checkUserButtonPresses() {
 
 // for discrete events that we want to timestamp
 function markEvent() {
-  photodiode.trigger(50);
-  clickSound.play();
+  if (!E.params.isCloudStudy) {
+    photodiode.trigger(50);
+    clickSound.play();
+  }
 }
 
 // hook up to universal controls
