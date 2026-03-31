@@ -12,5 +12,6 @@
 	"startCameraMode": 0,
 	"modeSwitchRates": [0.0, 0.0],
 	"minLevelsPerMode": 10,
-	"modeRectColors": ["gray", "gray"]
+	"modeRectColors": ["gray", "gray"],
+	"redirectUrl": ""
 }

@@ -4,6 +4,7 @@ let cameraY = 0;
 let cameraYTarget = 0;
 let planningDepth = 2;
 let cameraMode; // options: 0 = 'follow', 1 = 'drift'
+let cloudResearchRedirect = 'https://example.com/';
 
 let gravity;
 let ballAccel;      // acceleration added by pressing key
@@ -260,6 +261,8 @@ function drawPauseScreen() {
     text("EXPERIMENT COMPLETE", width / 2, firstLineY);
     textSize(32);
     text("Thank you!", width / 2, secondLineY + 0);
+    redirectAtStudyCompletion(E.params.redirectUrl);
+    
   } else {
     console.log("Invalid gameMode");
   }
@@ -271,6 +274,13 @@ function drawPauseScreen() {
       text("'S' to save game data", width / 2, secondLineY + 160);
     }
   }
+}
+
+function redirectAtStudyCompletion(url) {
+  if (!url) { return; }
+  setTimeout(() => {
+    window.location.href = url;
+  }, 1000); // redirect in 1000ms = 1 second
 }
 
 function checkUserButtonPresses() {

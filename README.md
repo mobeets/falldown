@@ -26,7 +26,7 @@ This will save all trial data, mouse clicks, and key presses locally to files na
 ## Controls
 
 On the experimenter's side:
-- `p` to pause
+- `p` or spacebar to pause
 - `s` to manually save json
 
 On the patient's side (with USB controller connected):
