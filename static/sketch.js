@@ -240,7 +240,9 @@ function drawPauseScreen() {
     //   showInstructions(secondLineY + 100);
     //   showImages(secondLineY + 300);
     // }
-    showText(["Press spacebar to continue."], thirdLineY);
+    if (E.params.isCloudStudy) {
+      showText(["Press spacebar to continue."], thirdLineY);
+    }
   } else if (gameMode == STARTING_MODE) {
     text("GAME COMPLETE", width / 2, firstLineY);
 
@@ -270,7 +272,9 @@ function drawPauseScreen() {
     //   showImages(secondLineY + 300);
     //   showJet();
     // }
-    showText(["Press spacebar to continue."], thirdLineY);
+    if (E.params.isCloudStudy) {
+      showText(["Press spacebar to continue."], thirdLineY);
+    }
     textSize(32);
   } else if (gameMode == COMPLETE_MODE) {
     text("EXPERIMENT COMPLETE", width / 2, firstLineY);
