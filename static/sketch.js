@@ -251,7 +251,8 @@ function drawPauseScreen() {
     controlInstruction = "Press the left and right arrow keys";
     nextButton = "spacebar";
   }
-  let instructionStrs = [controlInstruction + " to move the ball through the maze as quickly as possible.", "Press " + nextButton + " to continue."];
+  let firstInstStr = "In each game you will attempt to move a ball through a maze as quickly as possible.";
+  let instructionStrs = [controlInstruction + " to move the ball.", "Press " + nextButton + " to continue."];
 
   if (gameMode == PAUSE_MODE) {
     text("PAUSED", width / 2, firstLineY);
@@ -271,26 +272,16 @@ function drawPauseScreen() {
   } else if (gameMode == READY_MODE) {
     if (trial_block.block_count === 0) {
       text("Welcome!", width / 2, firstLineY);
+      showInstructions([firstInstStr], secondLineY);
     } else {
       text("Great job!", width / 2, firstLineY);
       // if (lastScore !== undefined) {
       //   textSize(24);
       //   text(`Completed ${lastScore}`, width / 2, firstLineY + 50);
       // }
+      textSize(32);
+      text("Game " + (E.block_index+1).toFixed(0) + " of " + Object.keys(E.block_configs).length.toFixed(0), width / 2, secondLineY + 0);
     }
-    // fill('black');
-    textSize(32);
-    text("Game " + (E.block_index+1).toFixed(0) + " of " + Object.keys(E.block_configs).length.toFixed(0), width / 2, secondLineY + 0);
-    // if (trial_block.is_practice) {
-    //   fill('#9e442f');
-    //   text("Practice round!", width / 2, secondLineY + 40);
-    // }
-    // if (trial_block.instructions) {
-    //   showInstructions(secondLineY + 100);
-    //   showImages(secondLineY + 300);
-    //   showJet();
-    // }
-    
     showInstructions(instructionStrs, thirdLineY);
     textSize(32);
   } else if (gameMode == COMPLETE_MODE) {
