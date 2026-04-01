@@ -2,9 +2,7 @@ let levels = [];
 let levelIndex = 0;
 let cameraY = 0;
 let cameraYTarget = 0;
-let planningDepth = 2;
 let cameraMode; // options: 0 = 'follow', 1 = 'drift'
-let cloudResearchRedirect = 'https://example.com/';
 
 let gravity;
 let ballAccel;      // acceleration added by pressing key
@@ -80,10 +78,14 @@ function newGame(restartGame = false, goBack = false) {
   gameMode = READY_MODE;
   
   // Set ball position
-  ball.x = width/2;
+  ball.x = levelWidth/2;
   ball.y = 100;
+  ball.vx = 0;
+  ball.vy = 0;
   cameraY = 0;
+  cameraYTarget = 0;
   modeSwitchCooldown = E.params.minLevelsPerMode;
+  cameraMode = E.params.startCameraMode;
   
   // Create initial levels
   levels = [];
@@ -91,6 +93,7 @@ function newGame(restartGame = false, goBack = false) {
   let prevTrial;
   for (let i = 0; i < 10; i++) {
     trial = trial_block.next_trial();
+    if (trial === undefined) continue;
 
     let y = height/2 + i * levelSpacing;
     levelIndex++;
@@ -159,6 +162,12 @@ function draw() {
         cameraY = cameraYTarget;
       }      
       cameraYTarget += E.params.scrollSpeed;
+    }
+
+    // Check for any block instructions
+    if (trial_block.block_config.params.instructions) {
+      let instStr = trial_block.block_config.params.instructions;
+      showInstructions([instStr], 50);
     }
     
     // Update and render levels
@@ -242,7 +251,7 @@ function drawPauseScreen() {
     controlInstruction = "Press the left and right arrow keys";
     nextButton = "spacebar";
   }
-  let instructionStrs = [controlInstruction + " to move the ball through the maze as quickly as possible.", "Press " + nextButton + " to continue"];
+  let instructionStrs = [controlInstruction + " to move the ball through the maze as quickly as possible.", "Press " + nextButton + " to continue."];
 
   if (gameMode == PAUSE_MODE) {
     text("PAUSED", width / 2, firstLineY);
@@ -264,10 +273,10 @@ function drawPauseScreen() {
       text("Welcome!", width / 2, firstLineY);
     } else {
       text("Great job!", width / 2, firstLineY);
-      if (lastScore !== undefined) {
-        textSize(24);
-        text(`Completed ${lastScore}`, width / 2, firstLineY + 50);
-      }
+      // if (lastScore !== undefined) {
+      //   textSize(24);
+      //   text(`Completed ${lastScore}`, width / 2, firstLineY + 50);
+      // }
     }
     // fill('black');
     textSize(32);
