@@ -211,6 +211,18 @@ function draw() {
   photodiode.render();
 }
 
+
+function showText(text_lines, yOffset) {
+
+  textSize(20);
+  textFont('arial');
+  fill('white');
+  for (var i = 0; i < text_lines.length; i++) {
+    text(text_lines[i], width / 2, yOffset + 40*i);
+  }
+  textFont(myFont);
+}
+
 function drawPauseScreen() {
   textAlign(CENTER, CENTER);
   // fill(color(50, 50, 50, 200));
@@ -219,7 +231,8 @@ function drawPauseScreen() {
   textSize(48);
 
   let firstLineY = 2 * height / 9;
-  let secondLineY = 4 * height / 9;
+  let secondLineY = 3 * height / 9;
+  let thirdLineY = 4 * height / 9;
 
   if (gameMode == PAUSE_MODE) {
     text("PAUSED", width / 2, firstLineY);
@@ -227,6 +240,7 @@ function drawPauseScreen() {
     //   showInstructions(secondLineY + 100);
     //   showImages(secondLineY + 300);
     // }
+    showText(["Press spacebar to continue."], thirdLineY);
   } else if (gameMode == STARTING_MODE) {
     text("GAME COMPLETE", width / 2, firstLineY);
 
@@ -256,6 +270,7 @@ function drawPauseScreen() {
     //   showImages(secondLineY + 300);
     //   showJet();
     // }
+    showText(["Press spacebar to continue."], thirdLineY);
     textSize(32);
   } else if (gameMode == COMPLETE_MODE) {
     text("EXPERIMENT COMPLETE", width / 2, firstLineY);
