@@ -212,13 +212,15 @@ function draw() {
 }
 
 
-function showText(text_lines, yOffset) {
-
+function showInstructions(text_lines, yOffset) {
   textSize(20);
   textFont('arial');
   fill('white');
   for (var i = 0; i < text_lines.length; i++) {
-    text(text_lines[i], width / 2, yOffset + 40*i);
+    // text wrapping seems to ignore centering
+    // so to get a width/2 text box centered in screen
+    //  we constrain width to width/2, and start text at width/4
+    text(text_lines[i], width / 4, yOffset + 60*i, width / 2);
   }
   textFont(myFont);
 }
@@ -233,6 +235,14 @@ function drawPauseScreen() {
   let firstLineY = 2 * height / 9;
   let secondLineY = 3 * height / 9;
   let thirdLineY = 4 * height / 9;
+  
+  let controlInstruction = "Use the left joystick";
+  let nextButton = "START";
+  if (E.params.isCloudStudy) {
+    controlInstruction = "Press the left and right arrow keys";
+    nextButton = "spacebar";
+  }
+  let instructionStrs = [controlInstruction + " to move the ball through the maze as quickly as possible.", "Press " + nextButton + " to continue"];
 
   if (gameMode == PAUSE_MODE) {
     text("PAUSED", width / 2, firstLineY);
@@ -240,9 +250,8 @@ function drawPauseScreen() {
     //   showInstructions(secondLineY + 100);
     //   showImages(secondLineY + 300);
     // }
-    if (E.params.isCloudStudy) {
-      showText(["Press spacebar to continue."], thirdLineY);
-    }
+    
+    showInstructions(instructionStrs, thirdLineY);
   } else if (gameMode == STARTING_MODE) {
     text("GAME COMPLETE", width / 2, firstLineY);
 
@@ -272,9 +281,8 @@ function drawPauseScreen() {
     //   showImages(secondLineY + 300);
     //   showJet();
     // }
-    if (E.params.isCloudStudy) {
-      showText(["Press spacebar to continue."], thirdLineY);
-    }
+    
+    showInstructions(instructionStrs, thirdLineY);
     textSize(32);
   } else if (gameMode == COMPLETE_MODE) {
     text("EXPERIMENT COMPLETE", width / 2, firstLineY);
