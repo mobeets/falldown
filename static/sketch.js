@@ -165,9 +165,9 @@ function draw() {
     }
 
     // Check for any block instructions
-    if (trial_block.block_config.params.instructions) {
-      let instStr = trial_block.block_config.params.instructions;
-      showInstructions([instStr], 50);
+    let blockInstrs = trial_block.block_config.params.instructions;
+    if (blockInstrs.length > 0) {
+      showInstructions(blockInstrs, 50);
     }
     
     // Update and render levels
@@ -251,38 +251,37 @@ function drawPauseScreen() {
     controlInstruction = "Press the left and right arrow keys";
     nextButton = "spacebar";
   }
-  let firstInstStr = "In each game you will attempt to move a ball through a maze as quickly as possible.";
-  let instructionStrs = [controlInstruction + " to move the ball.", "Press " + nextButton + " to continue."];
+  let gameInstrStr = "In this task you will attempt to move a ball through different mazes as quickly as possible.";
+  let nextInstrStr = "Press " + nextButton + " to continue.";
+  let welcomeInstrStrs = [gameInstrStr, controlInstruction + " to move the ball.", nextInstrStr];
+  let pauseInstStrs = [nextInstrStr];
 
   if (gameMode == PAUSE_MODE) {
     text("PAUSED", width / 2, firstLineY);
-    // if (trial_block.instructions) {
-    //   showInstructions(secondLineY + 100);
-    //   showImages(secondLineY + 300);
-    // }
     
-    showInstructions(instructionStrs, thirdLineY);
+    showInstructions(pauseInstStrs, thirdLineY);
   } else if (gameMode == STARTING_MODE) {
     text("GAME COMPLETE", width / 2, firstLineY);
 
-    // fill('black');
     textSize(32);
     text("Game " + (E.block_index+1).toFixed(0) + " of " + Object.keys(E.block_configs).length.toFixed(0), width / 2, secondLineY + 0);
-    // text("Score: " + trial_block.score.toFixed(0) + " out of " + trial_block.trials.length, width / 2, secondLineY + 40);
   } else if (gameMode == READY_MODE) {
     if (trial_block.block_count === 0) {
       text("Welcome!", width / 2, firstLineY);
-      showInstructions([firstInstStr], secondLineY);
+      showInstructions(welcomeInstrStrs, secondLineY);
     } else {
       text("Great job!", width / 2, firstLineY);
-      // if (lastScore !== undefined) {
-      //   textSize(24);
-      //   text(`Completed ${lastScore}`, width / 2, firstLineY + 50);
-      // }
       textSize(32);
       text("Game " + (E.block_index+1).toFixed(0) + " of " + Object.keys(E.block_configs).length.toFixed(0), width / 2, secondLineY + 0);
+
+      // Check for any pre-block instructions
+      let blockInstrs = trial_block.block_config.params.pre_instructions;
+      if (blockInstrs.length > 0) {
+      } else {
+        blockInstrs = [];
+      }
+      showInstructions(blockInstrs.concat(pauseInstStrs), thirdLineY);
     }
-    showInstructions(instructionStrs, thirdLineY);
     textSize(32);
   } else if (gameMode == COMPLETE_MODE) {
     text("EXPERIMENT COMPLETE", width / 2, firstLineY);
