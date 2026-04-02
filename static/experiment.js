@@ -73,22 +73,6 @@ class Experiment {
     this.block_index = -1;
 		this.block_count = -1;
     this.blocks = [];
-    this.game_states = {time: [], ball_x: [], ball_y: [], ball_vx: [], ball_vy: [], camera_y: []};
-    this.user_inputs = {time: [], input: []};
-  }
-
-  log_user_input(input) {
-    this.user_inputs.time.push(performance.now());
-    this.user_inputs.input.push(input);
-  }
-
-  log_states(ball) {
-    this.game_states.time.push(performance.now());
-    this.game_states.ball_x.push(ball.x);
-    this.game_states.ball_y.push(ball.y);
-    this.game_states.ball_vx.push(ball.vx);
-    this.game_states.ball_vy.push(ball.vy);
-    this.game_states.camera_y.push(cameraY);
   }
 
   next_block(restartGame, goBack) {
@@ -112,6 +96,7 @@ class Experiment {
 
 		this.block_count++;
 		let block = new TrialBlock(this.block_index, this.block_count, this.block_configs[this.block_index]);
+    block.log(true);
 		this.blocks.push(block);
 		return block;
   }
@@ -143,16 +128,31 @@ class TrialBlock {
     this.block_config = block_config;
     this.trials = [];
     this.trial_index = -1;
+
     this.pause_times = {starts: [], ends: []};
+    this.game_states = {time: [], ball_x: [], ball_y: [], ball_vx: [], ball_vy: [], camera_y: []};
+    this.user_inputs = {time: [], input: []};
   }
 
-  pause_start() {
-    console.log('pause start');
+  log_user_input(input) {
+    this.user_inputs.time.push(performance.now());
+    this.user_inputs.input.push(input);
+  }
+
+  log_states(ball) {
+    this.game_states.time.push(performance.now());
+    this.game_states.ball_x.push(ball.x);
+    this.game_states.ball_y.push(ball.y);
+    this.game_states.ball_vx.push(ball.vx);
+    this.game_states.ball_vy.push(ball.vy);
+    this.game_states.camera_y.push(cameraY);
+  }
+
+  log_pause_start() {
     this.pause_times.starts.push(performance.now());
   }
 
-  pause_end() {
-    console.log('pause end');
+  log_pause_end() {
     this.pause_times.ends.push(performance.now());
   }
 

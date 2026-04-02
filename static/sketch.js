@@ -136,14 +136,14 @@ function draw() {
   if (gameMode == PLAY_MODE) {
     if (user.moveLeft) {
       ball.vx -= ballAccel;
-      E.log_user_input(-1);
+      trial_block.log_user_input(-1);
     }
     if (user.moveRight) {
       ball.vx += ballAccel;
-      E.log_user_input(1);
+      trial_block.log_user_input(1);
     }
     ball.vx = constrain(ball.vx, -15*ballAccel, 15*ballAccel);
-    E.log_states(ball); // logs ball and camera states
+    trial_block.log_states(ball); // logs ball and camera states
     ball.update();
 
     // Set y offset based on camera mode
@@ -317,13 +317,13 @@ function checkUserButtonPresses() {
       gameMode = PAUSE_MODE;
       // save experiment to json
       wsLogger.saveJson(E);
-      if (trial_block !== undefined) trial_block.pause_start();
+      if (trial_block !== undefined) trial_block.log_pause_start();
     }
   } else if (user.pause && gameMode != COMPLETE_MODE) {
     // unpause game
     eventMsg = 'unpause';
     gameMode = PLAY_MODE;
-    if (trial_block !== undefined) trial_block.pause_end();
+    if (trial_block !== undefined) trial_block.log_pause_end();
   } else if (!E.params.isCloudStudy) {
     // the following are unavailable controls in a cloud study
     if (user.next_block && gameMode != COMPLETE_MODE) {
