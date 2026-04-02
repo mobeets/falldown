@@ -137,6 +137,83 @@ def plot_rt_vs_conflict(X, y, fig=None, color='purple', xlabel='Degree of Confli
         
     return fig
 
+def plot_rt_residuals_vs_conflict(choices, fig=None):
+    # 1. Extract columns from the compare_greedy_vs_rollout output
+    # Columns: (dist_L1, dist_R1, dist_L2, dist_R2, rt, choice)
+    dist_L1 = choices[:, 0]
+    dist_R1 = choices[:, 1]
+    dist_L2 = choices[:, 2]
+    dist_R2 = choices[:, 3]
+    rts = choices[:, 4]
+    choice_made = choices[:, 5]
+
+    # Filter out trials with NaN reaction times
+    valid_mask = ~np.isnan(rts)
+    dist_L1, dist_R1 = dist_L1[valid_mask], dist_R1[valid_mask]
+    dist_L2, dist_R2 = dist_L2[valid_mask], dist_R2[valid_mask]
+    rts = rts[valid_mask]
+    choice_made = choice_made[valid_mask]
+
+    # 2. Identify the total distance traveled over 2-steps based on the user's choice
+    chosen_dist_2 = np.where(choice_made == 0, dist_L2, dist_R2)
+
+    # 3. Regress the reaction time vs the chosen 2-step distance
+    slope, intercept = np.polyfit(chosen_dist_2, rts, 1)
+    predicted_rts = (slope * chosen_dist_2) + intercept
+
+    # 4. Collect residuals (Actual RT - Predicted RT)
+    residuals = rts - predicted_rts
+
+    # 5. Define Conflict (1-step vs 2-step)
+    # Calculated as the difference in magnitude between the 1-step delta and 2-step delta
+    conflict_1step = np.abs(dist_L1 - dist_R1)
+    conflict_2step = np.abs(dist_L2 - dist_R2)
+    conflicts = np.abs(conflict_1step - conflict_2step)
+    
+    # Round slightly to prevent floating-point precision issues from creating too many bins
+    conflicts = np.round(conflicts, decimals=5)
+    unique_conflicts = np.unique(conflicts)
+
+    if fig is None:
+        fig = plt.figure(figsize=(8, 5), dpi=300)
+
+    # Plot raw trial residuals in the background
+    plt.scatter(conflicts, residuals, alpha=0.2, color='gray', label='Trial Residuals')
+
+    # Calculate and plot mean residuals (with standard error) for each conflict level
+    mean_residuals = []
+    ses = []
+    
+    for c in unique_conflicts:
+        ix = conflicts == c
+        res_c = residuals[ix]
+        
+        mean_val = np.mean(res_c)
+        se_val = np.std(res_c) / np.sqrt(len(res_c)) if len(res_c) > 0 else 0
+        
+        mean_residuals.append(mean_val)
+        ses.append(se_val)
+        
+        # Error bar
+        plt.plot([c, c], [mean_val - se_val, mean_val + se_val], '-', color='blue', alpha=0.7)
+
+    # Line connecting the means
+    plt.plot(unique_conflicts, mean_residuals, 'o-', color='blue', linewidth=2, markersize=6, label='Mean Residual')
+
+    # Baseline at 0 (representing the exact regression prediction)
+    plt.axhline(0, color='black', linestyle='--', linewidth=1.5, label='Expected RT (Baseline)')
+
+    # Labels and Formatting
+    plt.xlabel('Conflict Margin (|1-Step Diff - 2-Step Diff|)')
+    plt.ylabel('Reaction Time Residual (ms)')
+    plt.title('RT Residuals (Controlling for 2-Step Distance) vs. Conflict')
+    
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    
+    return fig
+
+
 def plot_rt_over_time_by_conflict(trial_nums, conflicts, rts, window_size=10, fig=None):
     sort_idx = np.argsort(trial_nums)
     c_sorted = conflicts[sort_idx]
@@ -164,6 +241,69 @@ def plot_rt_over_time_by_conflict(trial_nums, conflicts, rts, window_size=10, fi
     plt.title(f'(Rxn time by conflict)')
     
     # Place legend outside the plot
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    
+    return fig
+
+def plot_rt_residuals_over_time(choices, window_size=10, fig=None):
+    # 1. Extract columns from the compare_greedy_vs_rollout output
+    dist_L1 = choices[:, 0]
+    dist_R1 = choices[:, 1]
+    dist_L2 = choices[:, 2]
+    dist_R2 = choices[:, 3]
+    rts = choices[:, 4]
+    choice_made = choices[:, 5]
+
+    # Filter out trials with NaN reaction times
+    valid_mask = ~np.isnan(rts)
+    dist_L1, dist_R1 = dist_L1[valid_mask], dist_R1[valid_mask]
+    dist_L2, dist_R2 = dist_L2[valid_mask], dist_R2[valid_mask]
+    rts = rts[valid_mask]
+    choice_made = choice_made[valid_mask]
+
+    # 2. Regress RT vs the chosen 2-step distance to get residuals
+    chosen_dist_2 = np.where(choice_made == 0, dist_L2, dist_R2)
+    slope, intercept = np.polyfit(chosen_dist_2, rts, 1)
+    predicted_rts = (slope * chosen_dist_2) + intercept
+    residuals = rts - predicted_rts
+
+    # 3. Define Conflict (1-step vs 2-step)
+    conflict_1step = np.abs(dist_L1 - dist_R1)
+    conflict_2step = np.abs(dist_L2 - dist_R2)
+    conflicts = np.abs(conflict_1step - conflict_2step)
+    
+    # Round slightly to group similar conflict levels
+    conflicts = np.round(conflicts, decimals=5)
+    unique_conflicts = np.unique(conflicts)
+
+    if fig is None:
+        fig = plt.figure(figsize=(8, 5), dpi=300)
+
+    # Add a baseline at 0 to show the "expected" reaction time
+    plt.axhline(0, color='black', linestyle='--', linewidth=1.5, label='Expected RT (0 Residual)')
+
+    # 4. Plot moving average for each degree of conflict independently
+    for c in unique_conflicts:
+        ix = conflicts == c
+        res_c = residuals[ix]
+        
+        # Because we read the array top-to-bottom, the data is naturally chronological.
+        # We just count the local encounters for this specific conflict.
+        local_trials = np.arange(1, len(res_c) + 1)
+        
+        # Calculate and plot the moving average trendline
+        if len(res_c) >= window_size:
+            moving_avg = np.convolve(res_c, np.ones(window_size)/window_size, mode='valid')
+            t_moving_avg = local_trials[window_size - 1:]
+            
+            plt.plot(t_moving_avg, moving_avg, linewidth=2.5, linestyle='-', label=f'Conflict: {c:.2f}')
+
+    # Labels and Formatting
+    plt.xlabel('Number of Encounters (Local Trial Count)')
+    plt.ylabel('Reaction Time Residual (ms)')
+    plt.title(f'RT Residuals by Conflict Exposure ({window_size}-Trial Moving Avg)')
+    
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
     
@@ -361,5 +501,11 @@ plt.show()
 plot_rt_vs_distance(choices, step = 2)
 plt.show()
 plot_rt_vs_distance(choices, step = 1)
+plt.show()
+# %%
+plot_rt_residuals_vs_conflict(choices)
+
+# %%
+plot_rt_residuals_over_time(choices, window_size= 30)
 plt.show()
 # %%
