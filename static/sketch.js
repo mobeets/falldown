@@ -166,7 +166,7 @@ function draw() {
 
     // Check for any block instructions
     let blockInstrs = trial_block.block_config.params.instructions;
-    if (blockInstrs.length > 0) {
+    if (blockInstrs !== undefined && blockInstrs.length > 0) {
       showInstructions(blockInstrs, 50);
     }
     
@@ -276,8 +276,7 @@ function drawPauseScreen() {
 
       // Check for any pre-block instructions
       let blockInstrs = trial_block.block_config.params.pre_instructions;
-      if (blockInstrs.length > 0) {
-      } else {
+      if (!blockInstrs) {
         blockInstrs = [];
       }
       showInstructions(blockInstrs.concat(pauseInstStrs), thirdLineY);
