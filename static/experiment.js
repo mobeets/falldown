@@ -143,6 +143,17 @@ class TrialBlock {
     this.block_config = block_config;
     this.trials = [];
     this.trial_index = -1;
+    this.pause_times = {starts: [], ends: []};
+  }
+
+  pause_start() {
+    console.log('pause start');
+    this.pause_times.starts.push(performance.now());
+  }
+
+  pause_end() {
+    console.log('pause end');
+    this.pause_times.ends.push(performance.now());
   }
 
   is_complete() {

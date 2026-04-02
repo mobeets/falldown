@@ -317,11 +317,13 @@ function checkUserButtonPresses() {
       gameMode = PAUSE_MODE;
       // save experiment to json
       wsLogger.saveJson(E);
+      if (trial_block !== undefined) trial_block.pause_start();
     }
   } else if (user.pause && gameMode != COMPLETE_MODE) {
     // unpause game
     eventMsg = 'unpause';
     gameMode = PLAY_MODE;
+    if (trial_block !== undefined) trial_block.pause_end();
   } else if (!E.params.isCloudStudy) {
     // the following are unavailable controls in a cloud study
     if (user.next_block && gameMode != COMPLETE_MODE) {
