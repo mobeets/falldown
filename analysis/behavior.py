@@ -509,3 +509,88 @@ plot_rt_residuals_vs_conflict(choices)
 plot_rt_residuals_over_time(choices, window_size= 30)
 plt.show()
 # %%
+
+def plot_rt_min_residuals_vs_conflict(choices, fig=None):
+    # 1. Extract columns from the compare_greedy_vs_rollout output
+    dist_L1 = choices[:, 0]
+    dist_R1 = choices[:, 1]
+    dist_L2 = choices[:, 2]
+    dist_R2 = choices[:, 3]
+    rts = choices[:, 4]
+    choice_made = choices[:, 5]
+
+    # Filter out trials with NaN reaction times
+    valid_mask = ~np.isnan(rts)
+    dist_L1, dist_R1 = dist_L1[valid_mask], dist_R1[valid_mask]
+    dist_L2, dist_R2 = dist_L2[valid_mask], dist_R2[valid_mask]
+    rts = rts[valid_mask]
+    choice_made = choice_made[valid_mask]
+
+    # 2. Identify the total distance traveled over 2-steps
+    chosen_dist_2 = np.where(choice_made == 0, dist_L2, dist_R2)
+
+    # 3. Calculate the new "Residual" (Actual RT - Minimum RT for that distance)
+    residuals = np.zeros_like(rts)
+    unique_distances = np.unique(chosen_dist_2)
+    
+    for d in unique_distances:
+        # Find all trials where the user traveled exactly this distance
+        idx = chosen_dist_2 == d
+        
+        # Find their absolute fastest reaction time for this distance
+        min_rt_for_d = np.min(rts[idx])
+        
+        # The residual is how much slower this specific trial was compared to their best
+        residuals[idx] = rts[idx] - min_rt_for_d
+
+    # 4. Define Conflict (1-step vs 2-step margin difference)
+    conflict_1step = np.abs(dist_L1 - dist_R1)
+    conflict_2step = np.abs(dist_L2 - dist_R2)
+    conflicts = np.abs(conflict_1step - conflict_2step)
+    
+    conflicts = np.round(conflicts, decimals=5)
+    unique_conflicts = np.unique(conflicts)
+
+    if fig is None:
+        fig = plt.figure(figsize=(8, 5), dpi=300)
+
+    # Plot raw trial residuals in the background
+    plt.scatter(conflicts, residuals, alpha=0.2, color='gray', label='Trial Residuals')
+
+    # Calculate and plot mean residuals for each conflict level
+    mean_residuals = []
+    ses = []
+    
+    for c in unique_conflicts:
+        ix = conflicts == c
+        res_c = residuals[ix]
+        
+        mean_val = np.mean(res_c)
+        se_val = np.std(res_c) / np.sqrt(len(res_c)) if len(res_c) > 0 else 0
+        
+        mean_residuals.append(mean_val)
+        ses.append(se_val)
+        
+        # Error bar
+        plt.plot([c, c], [mean_val - se_val, mean_val + se_val], '-', color='purple', alpha=0.7)
+
+    # Line connecting the means
+    plt.plot(unique_conflicts, mean_residuals, 'o-', color='purple', linewidth=2, markersize=6, label='Mean Delay')
+
+    # Baseline at 0 (representing the absolute minimum time)
+    plt.axhline(0, color='black', linestyle='--', linewidth=1.5, label='Theoretical Minimum (0 Delay)')
+
+    # Labels and Formatting
+    plt.xlabel('Conflict Margin (|1-Step Diff - 2-Step Diff|)')
+    plt.ylabel('Delay above Minimum RT (ms)')
+    plt.title('Cognitive Delay vs. Decision Conflict')
+    
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    
+    return fig
+
+# %%
+plot_rt_min_residuals_vs_conflict(choices)
+
+# %%
