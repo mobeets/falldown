@@ -483,7 +483,7 @@ y = rt
 plot_rt_vs_conflict(X, y)
 plt.show()
 # %%
-choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
+choices = compare_greedy_vs_rollout(data, only_use_disagreements=True)
 
 dist_L2 = choices[:, 2]
 dist_R2 = choices[:, 3]
@@ -506,7 +506,7 @@ plt.show()
 plot_rt_residuals_vs_conflict(choices)
 
 # %%
-plot_rt_residuals_over_time(choices, window_size= 30)
+plot_rt_residuals_over_time(choices, window_size= 10)
 plt.show()
 # %%
 
@@ -542,6 +542,8 @@ def plot_rt_min_residuals_vs_conflict(choices, fig=None):
         
         # The residual is how much slower this specific trial was compared to their best
         residuals[idx] = rts[idx] - min_rt_for_d
+    
+    #plt.scatter(unique_distances)
 
     # 4. Define Conflict (1-step vs 2-step margin difference)
     conflict_1step = np.abs(dist_L1 - dist_R1)
