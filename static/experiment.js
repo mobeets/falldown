@@ -16,7 +16,7 @@ function loadConfig() {
     assignmentId: 'unknown',
     projectId: 'unknown',
     params_name: 'unknown',
-    experiment: 'default_experiment'
+    experiment: 'modified_experiment'
   };
 
   // Merge defaults with URL params
@@ -98,6 +98,8 @@ class Experiment {
 		let block = new TrialBlock(this.block_index, this.block_count, this.block_configs[this.block_index]);
     block.log(true);
 		this.blocks.push(block);
+
+
 		return block;
   }
 

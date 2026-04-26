@@ -1,7 +1,7 @@
 #%%
 
 import json
-trials_path = '../level_generation/trials_output.json'
+trials_path = '../level_generation/trials_new.json'
 out_path = '../configs/default_experiment1.json'
 trials = json.load(open(trials_path))
 

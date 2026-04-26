@@ -31,6 +31,8 @@ const READY_MODE = 3;
 const COMPLETE_MODE = 4;
 let gameMode = READY_MODE;
 
+let blockStartTime = 0;
+
 // todo: track pause times
 
 function preload() {
@@ -134,6 +136,7 @@ function draw() {
   checkUserButtonPresses();
 
   if (gameMode == PLAY_MODE) {
+
     if (user.moveLeft) {
       ball.vx -= ballAccel;
       trial_block.log_user_input(-1);
@@ -208,9 +211,12 @@ function draw() {
     ball.render();
     
     // Game over condition
-    if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
+if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
       newGame(false);
     }
+    
+    drawHUD();
+
   } else {
     drawPauseScreen();
   }
@@ -218,6 +224,39 @@ function draw() {
   // render photodiode last
   photodiode.update();
   photodiode.render();
+}
+
+function drawHUD() {
+  fill(255); 
+  noStroke();
+  textSize(20);
+  textAlign(LEFT, TOP);
+  
+  let elapsedTime = millis() - blockStartTime; 
+  let seconds = floor(elapsedTime / 1000);
+  let timerText = "Time: " + seconds + " seconds";
+  text(timerText, 20, 20); 
+
+
+  let totalTrials = trial_block.block_config.levels.length;
+
+  let currentTrial = levelIndex - levels.length;
+  
+  let progressPct = 0;
+  if (totalTrials > 0) {
+      progressPct = constrain(currentTrial / totalTrials, 0, 1);
+  }
+
+  let barWidth = 600;
+  let barHeight = 20;
+  let barX = windowWidth / 2 - barWidth / 2;
+  let barY = 20;
+  
+  fill(255,255,255);
+  rect(barX, barY, barWidth, barHeight);
+  
+  fill(0, 255, 0);
+  rect(barX, barY, barWidth * progressPct, barHeight);
 }
 
 
@@ -322,6 +361,7 @@ function checkUserButtonPresses() {
   } else if (user.pause && gameMode != COMPLETE_MODE) {
     // unpause game
     eventMsg = 'unpause';
+    blockStartTime = millis();
     gameMode = PLAY_MODE;
     if (trial_block !== undefined) trial_block.log_pause_end();
   } else if (!E.params.isCloudStudy) {
