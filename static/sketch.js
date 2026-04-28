@@ -31,8 +31,6 @@ const READY_MODE = 3;
 const COMPLETE_MODE = 4;
 let gameMode = READY_MODE;
 
-let blockStartTime = 0;
-
 // todo: track pause times
 
 function preload() {
@@ -181,6 +179,7 @@ function draw() {
       if (lvl.passedThrough(ball)) {
         // trial_block.add_trial(lvl);
         lvl.trial.trigger(decisionEvent(lvl));
+        trial_block.ntrials_complete += 1;
         markEvent(); // trigger photodiode and play sound
         // toggle mode when we pass through
         if (lvl.isModeSwitch) cameraMode = lvl.modeIndex; //int(!cameraMode);
@@ -211,7 +210,7 @@ function draw() {
     ball.render();
     
     // Game over condition
-if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
+    if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
       newGame(false);
     }
     
@@ -226,37 +225,58 @@ if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
   photodiode.render();
 }
 
-function drawHUD() {
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+  const tenth = Math.floor((seconds % 1) * 10);
+  return `${m}:${s}.${tenth}`;
+}
+
+function drawTimer(elapsedTimeMsecs) {
+  if (isNaN(elapsedTimeMsecs) || elapsedTimeMsecs === undefined) {
+    return;
+  }
   fill(255); 
   noStroke();
   textSize(20);
-  textAlign(LEFT, TOP);
-  
-  let elapsedTime = millis() - blockStartTime; 
-  let seconds = floor(elapsedTime / 1000);
-  let timerText = "Time: " + seconds + " seconds";
-  text(timerText, 20, 20); 
+  textAlign(CENTER, CENTER);
+  const cx = levelStartX / 2;
+  const cy = 20;
+  let timerText = formatTime(elapsedTimeMsecs / 1000);
+  text(timerText, cx, cy);
+}
 
+function drawCompletionWedge(pct) {
+  const cx = levelStartX / 2;
+  const cy = cx;
+  const r = Math.floor(levelStartX / 4);
+
+  const startAngle = -HALF_PI; // 12 o'clock
+  const endAngle = -HALF_PI + TWO_PI * (pct / 100);
+
+  // Green wedge
+  fill(0, 200, 100);
+  noStroke();
+  arc(cx, cy, r * 2, r * 2, startAngle, endAngle, PIE);
+
+  // White border (circle outline only)
+  noFill();
+  stroke(255);
+  strokeWeight(3);
+  ellipse(cx, cy, r * 2, r * 2);
+}
+
+function drawHUD() {
+  let elapsedTimeMsecs = trial_block.get_elapsed_time();
+  drawTimer(elapsedTimeMsecs);
 
   let totalTrials = trial_block.block_config.levels.length;
-
-  let currentTrial = levelIndex - levels.length;
-  
+  let currentTrial = trial_block.ntrials_complete;
   let progressPct = 0;
   if (totalTrials > 0) {
       progressPct = constrain(currentTrial / totalTrials, 0, 1);
   }
-
-  let barWidth = 600;
-  let barHeight = 20;
-  let barX = windowWidth / 2 - barWidth / 2;
-  let barY = 20;
-  
-  fill(255,255,255);
-  rect(barX, barY, barWidth, barHeight);
-  
-  fill(0, 255, 0);
-  rect(barX, barY, barWidth * progressPct, barHeight);
+  drawCompletionWedge(progressPct * 100);
 }
 
 
@@ -361,9 +381,10 @@ function checkUserButtonPresses() {
   } else if (user.pause && gameMode != COMPLETE_MODE) {
     // unpause game
     eventMsg = 'unpause';
-    blockStartTime = millis();
     gameMode = PLAY_MODE;
-    if (trial_block !== undefined) trial_block.log_pause_end();
+    if (trial_block !== undefined) {
+      trial_block.log_pause_end();
+    }
   } else if (!E.params.isCloudStudy) {
     // the following are unavailable controls in a cloud study
     if (user.next_block && gameMode != COMPLETE_MODE) {

@@ -16,7 +16,7 @@ function loadConfig() {
     assignmentId: 'unknown',
     projectId: 'unknown',
     params_name: 'unknown',
-    experiment: 'modified_experiment'
+    experiment: 'default_experiment'
   };
 
   // Merge defaults with URL params
@@ -98,8 +98,6 @@ class Experiment {
 		let block = new TrialBlock(this.block_index, this.block_count, this.block_configs[this.block_index]);
     block.log(true);
 		this.blocks.push(block);
-
-
 		return block;
   }
 
@@ -130,7 +128,9 @@ class TrialBlock {
     this.block_config = block_config;
     this.trials = [];
     this.trial_index = -1;
+    this.ntrials_complete = 0;
 
+    this.start_time;
     this.pause_times = {starts: [], ends: []};
     this.game_states = {time: [], ball_x: [], ball_y: [], ball_vx: [], ball_vy: [], camera_y: []};
     this.user_inputs = {time: [], input: []};
@@ -155,7 +155,20 @@ class TrialBlock {
   }
 
   log_pause_end() {
-    this.pause_times.ends.push(performance.now());
+    let now = performance.now();
+    if (this.start_time === undefined) {
+      this.start_time = now;
+    }
+    this.pause_times.ends.push(now);
+  }
+
+  get_elapsed_time() {
+    let t = performance.now() - this.start_time;
+    // now subtract all pause durations
+    for (var i = this.pause_times.starts.length - 1; i >= 0; i--) {
+      t -= (this.pause_times.ends[i+1] - this.pause_times.starts[i]);
+    }
+    return t;
   }
 
   is_complete() {
