@@ -16,7 +16,7 @@ function loadConfig() {
     assignmentId: 'unknown',
     projectId: 'unknown',
     params_name: 'unknown',
-    experiment: 'YFW_experiment2'
+    experiment: 'default_experiment'
   };
 
   // Merge defaults with URL params
@@ -172,7 +172,7 @@ class TrialBlock {
   }
 
   is_complete() {
-		return this.trials.length >= this.block_config.levels.length;
+		return this.ntrials_complete >= this.block_config.levels.length;
 	}
   
   log(isNew = true) {
@@ -182,7 +182,7 @@ class TrialBlock {
 	}
 
   next_trial() {
-		if (this.is_complete()) {
+		if (this.trials.length >= this.block_config.levels.length) {
 			return;
 		}
 		

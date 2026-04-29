@@ -194,7 +194,9 @@ function draw() {
       levelIndex++;
       let trial = trial_block.next_trial();
       if (trial === undefined) {
+        if (trial_block.is_complete()) { // all levels have been completed
           newGame(false);
+        }
       } else {
         let newY = levels[levels.length - 1].y + levelSpacing;
         let modeIndex = levels[levels.length - 1].modeIndex;
