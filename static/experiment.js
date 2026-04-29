@@ -16,7 +16,7 @@ function loadConfig() {
     assignmentId: 'unknown',
     projectId: 'unknown',
     params_name: 'unknown',
-    experiment: 'default_experiment'
+    experiment: 'YFW_experiment'
   };
 
   // Merge defaults with URL params
