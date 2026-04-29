@@ -187,7 +187,7 @@ function draw() {
     }
   
     // Remove levels that went off top and add new ones at bottom
-    if (levels[0].y - cameraY < -50) {
+    if (levels.length > 0 && levels[0].y - cameraY < -50) {
       levels.shift();
       
       // Set params for new level
@@ -269,6 +269,7 @@ function drawCompletionWedge(pct) {
 }
 
 function drawHUD() {
+  if (trial_block === undefined) return;
   let elapsedTimeMsecs = trial_block.get_elapsed_time();
   drawTimer(elapsedTimeMsecs);
 
