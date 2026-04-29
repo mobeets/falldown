@@ -17,3 +17,6 @@ data/*
 logs/*
 !logs/.gitkeep
 
+papers/
+
+analysis/figures/schematics.ai
