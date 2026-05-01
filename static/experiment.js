@@ -128,7 +128,7 @@ class TrialBlock {
     this.block_config = block_config;
     this.trials = [];
     this.trial_index = -1;
-    this.ntrials_complete = 0;
+    this.last_trial_completed = 0;
 
     this.start_time;
     this.pause_times = {starts: [], ends: []};
@@ -172,7 +172,7 @@ class TrialBlock {
   }
 
   is_complete() {
-		return this.ntrials_complete >= this.block_config.levels.length;
+		return this.last_trial_completed+1 >= this.block_config.levels.length;
 	}
   
   log(isNew = true) {

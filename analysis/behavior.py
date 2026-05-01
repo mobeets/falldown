@@ -359,6 +359,7 @@ fnm = '../logs/unknown-2026-02-12T19-51-47-046Z-10wy.json'
 fnm = '../logs//RAH-2026-02-15T15-42-43-790Z-oopr.json'
 fnm = '../logs/EMU/YFV-2026-02-20T20-13-23-929Z-iel9.json'
 fnm = 'real_trial1.json'
+fnm = '../logs/EMU/YFW-2026-04-29T17-01-30-883Z-ikoe.json'
 data = load(fnm)
 
 #%% visualize task
@@ -595,4 +596,138 @@ def plot_rt_min_residuals_vs_conflict(choices, fig=None):
 # %%
 plot_rt_min_residuals_vs_conflict(choices)
 
-# %%
+#%% load choice times
+
+def get_chosen_hole(trial):
+    if 'events' in trial and len(trial['events']) > 0:
+        assert len(trial['events']) == 1, "Expected exactly one event per trial for RT analysis"
+        event = trial['events'][0]
+        return event.get('holeUsed', None)
+    elif 'holeUsed' in trial:
+        return trial['holeUsed']
+    return None
+
+def get_time_passed_thru(trial):
+    if 'events' in trial and len(trial['events']) > 0:
+        assert len(trial['events']) == 1, "Expected exactly one event per trial for RT analysis"
+        event = trial['events'][0]
+        return event.get('time', None)
+    elif 'timePassedThru' in trial:
+        return trial['timePassedThru']
+    return None
+
+total_trial_index = 0
+results = []
+nfailed = 0
+ngood = 0
+for block in data['blocks']:
+    trials = block['trials']
+    if len(trials) < 10:
+        continue
+
+    has_decisions = any('hole_locations' in trial and len(trial['hole_locations']) == 2 for trial in trials)
+    pct_cors = []
+    for i, trial in enumerate(trials):
+        total_trial_index += 1
+        if i == 0 or trials[i]['block_index'] != trials[i-1]['block_index']:
+            continue
+        if i+1 == len(trials):
+            continue
+        
+        is_decision = len(trial['hole_locations']) == 2 and len(trials[i-1]['hole_locations']) == 1
+        is_fixed = len(trial['hole_locations']) == 1 and len(trials[i-1]['hole_locations']) == 1
+        if not (is_decision or is_fixed):
+            continue
+
+        curHole = get_chosen_hole(trial)
+        origHole = get_chosen_hole(trials[i-1])
+        distTraveled = np.abs(curHole - origHole) if curHole is not None and origHole is not None else np.nan
+
+        if has_decisions and is_decision:
+            nonchosenHole = [h for h in trial['hole_locations'] if h != curHole][0]
+            distToNonchosen = np.abs(nonchosenHole - origHole)
+            if distToNonchosen > distTraveled:
+                pct_cors.append(1)
+            else:
+                pct_cors.append(0)
+
+        rt = get_time_passed_thru(trial) - get_time_passed_thru(trials[i-1])
+        if rt < 0:
+            # print(trials[i-1])
+            # print('-----')
+            # print(trials[i])
+            # print('========')
+            nfailed += 1
+            continue
+        else:
+            ngood += 1
+        results.append({'rel_trial_index': i, 'trial_index': total_trial_index, 'block_index': trial['block_index'], 'decision_block': has_decisions, 'rt': rt, 'origHole': origHole, 'curHole': curHole, 'distTraveled': distTraveled, 'is_decision': is_decision})
+    
+    if has_decisions:
+        print(f"Block {block['block_index']} had {len(trials)} trials with decisions, pct correct: {np.mean(pct_cors):.2f}, mean RT: {np.mean([r['rt']/1000 for r in results if r['block_index'] == block['block_index']]):.2f} s")
+
+print(f"Extracted RTs for {ngood} valid trial pairs, skipped {nfailed} pairs with negative RTs.")
+
+#%%
+
+# for each distTraveled, plot the distribution of RTs (e.g. boxplot or violin plot)
+# separately for decision_blocks vs non-decision blocks
+
+plt.figure(figsize=(6,4), dpi=300)
+for decision_block in [False, True]:
+    
+    dists = []
+    rts = []
+    for res in results:
+        if res['decision_block'] == decision_block and not np.isnan(res['distTraveled']) and not np.isnan(res['rt']):
+            if res['rt'] > 5000:
+                continue
+            dists.append(res['distTraveled'])
+            rts.append(res['rt'])
+
+    # plot violin plot of RTs for each distance traveled
+    unique_dists = np.unique(dists)
+    data_to_plot = [ [rts[i] for i in range(len(rts)) if dists[i] == ud] for ud in unique_dists ]
+    plt.violinplot(data_to_plot, positions=unique_dists, showmeans=True)
+
+    plt.xlabel('Distance Traveled')
+    plt.ylabel('Reaction Time (ms)')
+    plt.tight_layout()
+plt.show()
+
+#%%
+
+# for each (origHole, curHole) pair, compare RTs during decision blocks vs non-decision blocks (e.g. bar plot with error bars)
+
+rt_holes = {}
+for res in results:
+    if not np.isnan(res['origHole']) and not np.isnan(res['curHole']) and not np.isnan(res['rt']):
+        if res['rt'] > 5000:
+            continue
+        key = (res['origHole'], res['curHole'])
+        if key not in rt_holes:
+            rt_holes[key] = {'decision': [], 'non_decision': []}
+        if res['decision_block']:
+            rt_holes[key]['decision'].append(res['rt'])
+        else:
+            rt_holes[key]['non_decision'].append(res['rt'])
+
+plt.figure(figsize=(3,3), dpi=300)
+for key, rt_dict in rt_holes.items():
+    decision_rts = rt_dict['decision']
+    non_decision_rts = rt_dict['non_decision']
+    if len(decision_rts) > 0 and len(non_decision_rts) > 0:
+        means = [np.mean(non_decision_rts), np.mean(decision_rts)]
+        ses = [np.std(non_decision_rts)/np.sqrt(len(non_decision_rts)), np.std(decision_rts)/np.sqrt(len(decision_rts))]
+        # decision on x, non-decision on y
+        plt.plot(means[0], means[1], '.', color='blue')
+
+ymx = 3000
+plt.axis('square')
+plt.plot([0, ymx], [0, ymx], 'k-', zorder=-1, alpha=0.5)
+plt.xlim([0, ymx])
+plt.ylim([0, ymx])
+plt.xlabel('Mean RT (Non-Decision Blocks)')
+plt.ylabel('Mean RT (Decision Blocks)')
+plt.tight_layout()
+plt.show()

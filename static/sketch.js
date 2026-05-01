@@ -179,7 +179,7 @@ function draw() {
       if (lvl.passedThrough(ball)) {
         // trial_block.add_trial(lvl);
         lvl.trial.trigger(decisionEvent(lvl));
-        trial_block.ntrials_complete += 1;
+        trial_block.last_trial_completed = lvl.trial.index;
         markEvent(); // trigger photodiode and play sound
         // toggle mode when we pass through
         if (lvl.isModeSwitch) cameraMode = lvl.modeIndex; //int(!cameraMode);
@@ -274,7 +274,7 @@ function drawHUD() {
   drawTimer(elapsedTimeMsecs);
 
   let totalTrials = trial_block.block_config.levels.length;
-  let currentTrial = trial_block.ntrials_complete;
+  let currentTrial = trial_block.last_trial_completed;
   let progressPct = 0;
   if (totalTrials > 0) {
       progressPct = constrain(currentTrial / totalTrials, 0, 1);
