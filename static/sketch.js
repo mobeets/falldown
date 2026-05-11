@@ -136,13 +136,25 @@ function draw() {
   if (gameMode == PLAY_MODE) {
 
     if (user.moveLeft) {
-      ball.vx -= ballAccel;
+      if (E.params.isMomentum === true || E.params.isMomentum === undefined) {
+        ball.vx -= ballAccel;
+      } else {
+        ball.vx = -15*ballAccel;
+      }
       trial_block.log_user_input(-1);
-    }
-    if (user.moveRight) {
-      ball.vx += ballAccel;
+    } else if (user.moveRight) {
+      if (E.params.isMomentum === true || E.params.isMomentum === undefined) {
+        ball.vx += ballAccel;
+      } else {
+        ball.vx = 15*ballAccel;
+      }
       trial_block.log_user_input(1);
+    } else {
+      if (!E.params.isMomentum) {
+        ball.vx = 0;
+      }
     }
+
     ball.vx = constrain(ball.vx, -15*ballAccel, 15*ballAccel);
     trial_block.log_states(ball); // logs ball and camera states
     ball.update();

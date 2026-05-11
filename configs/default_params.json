@@ -3,6 +3,7 @@
 	"relativeGravity": 0.75,
 	"relativeBallAccel": 0.8,
 	"friction": 0.92,
+	"isMomentum": true,
 	"levelWidthProportion": 0.8,
 	"nSegments": 12,
 	"nLevelsVisible": 7,
