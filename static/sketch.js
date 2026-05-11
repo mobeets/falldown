@@ -8,9 +8,11 @@ let gravity;
 let ballAccel;      // acceleration added by pressing key
 let modeSwitchCooldown; // min levels per cameraMode
 let levelWidth;     // total width in pixels
+let levelHeight;   // vertical height of each level (i.e. vertical distance between platforms)
 let levelStartX;    // x value where levels start (to center them)
 let levelEndX;      // x value where levels end
 let levelSpacing;   // vertical distance between levels
+let scrollSpeed;     // speed at which camera drifts up in scroll mode
 let ball;
 let experiment;
 let trial_block;
@@ -46,6 +48,7 @@ function setup() {
   E = new Experiment(config);
   
   levelWidth = E.params.levelWidthProportion * windowWidth;
+  levelHeight = E.params.levelHeight * (levelWidth / 600);
   levelStartX = (windowWidth - levelWidth) / 2;
   levelEndX = levelStartX + levelWidth;
   
@@ -57,7 +60,8 @@ function setup() {
 
   // adjust gravity and ballAccel relative to 600x600 window
   gravity = E.params.relativeGravity * (levelWidth / 600);
-  ballAccel = E.params.relativeBallAccel * (height / 600);
+  ballAccel = E.params.relativeBallAccel * (levelWidth / 600);
+  scrollSpeed = E.params.scrollSpeed * (height / 600);
 
   // set level spacing so that the same number of levels are visible
   levelSpacing = height / E.params.nLevelsVisible;
@@ -98,7 +102,7 @@ function newGame(restartGame = false, goBack = false) {
     let y = height/2 + i * levelSpacing;
     levelIndex++;
 
-    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, levelStartX, y, cameraMode, E.params.modeRectColors[cameraMode], false));
+    levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, levelHeight, trial, levelStartX, y, cameraMode, E.params.modeRectColors[cameraMode], false));
     prevTrial = trial;
   }
 }
@@ -139,14 +143,14 @@ function draw() {
       if (E.params.isMomentum === true || E.params.isMomentum === undefined) {
         ball.vx -= ballAccel;
       } else {
-        ball.vx = -15*ballAccel;
+        ball.vx = -E.params.maxBallAccelScale*ballAccel;
       }
       trial_block.log_user_input(-1);
     } else if (user.moveRight) {
       if (E.params.isMomentum === true || E.params.isMomentum === undefined) {
         ball.vx += ballAccel;
       } else {
-        ball.vx = 15*ballAccel;
+        ball.vx = E.params.maxBallAccelScale*ballAccel;
       }
       trial_block.log_user_input(1);
     } else {
@@ -155,7 +159,7 @@ function draw() {
       }
     }
 
-    ball.vx = constrain(ball.vx, -15*ballAccel, 15*ballAccel);
+    ball.vx = constrain(ball.vx, -E.params.maxBallAccelScale*ballAccel, E.params.maxBallAccelScale*ballAccel);
     trial_block.log_states(ball); // logs ball and camera states
     ball.update();
 
@@ -165,7 +169,7 @@ function draw() {
       cameraY = 0.25*(ball.y - height/2) + 0.75*cameraY;
       cameraYTarget = cameraY;
     } else if (cameraMode === 1) {
-      cameraY += E.params.scrollSpeed;
+      cameraY += scrollSpeed;
     } else {
       // if ball is in lower part of screen, keep camera fixed on ball so that ball can't go lower, but continue to update cameraYTarget so that when ball goes back up it will be back in the right place
       if (ball.y - cameraYTarget > 3*height/5) {
@@ -174,7 +178,7 @@ function draw() {
       } else {
         cameraY = cameraYTarget;
       }      
-      cameraYTarget += E.params.scrollSpeed;
+      cameraYTarget += scrollSpeed;
     }
 
     // Check for any block instructions
@@ -191,7 +195,7 @@ function draw() {
       if (lvl.passedThrough(ball)) {
         // trial_block.add_trial(lvl);
         lvl.trial.trigger(decisionEvent(lvl));
-        trial_block.last_trial_completed = lvl.trial.index;
+        trial_block.last_trial_completed = lvl.trial.index+1;
         markEvent(); // trigger photodiode and play sound
         // toggle mode when we pass through
         if (lvl.isModeSwitch) cameraMode = lvl.modeIndex; //int(!cameraMode);
@@ -217,7 +221,7 @@ function draw() {
         let modeInfo = checkForModeSwitch(modeIndex, E.params.modeSwitchRates[modeIndex]);
         
         // Create new level
-        levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, E.params.levelHeight, trial, levelStartX, newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
+        levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, levelHeight, trial, levelStartX, newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
       }
     }
     // Render ball
@@ -441,11 +445,13 @@ function getGameInfo() {
     width: width,
     height: height,
     levelWidth: levelWidth,
+    levelHeight: levelHeight,
     levelStartX: levelStartX,
     levelEndX: levelEndX,
     ballRadius: ball.r,
     ballAccel: ballAccel,
     gravity: gravity,
+    scrollSpeed: scrollSpeed,
     levelSpacing: levelSpacing,
   };
 }

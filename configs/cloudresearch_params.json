@@ -1,9 +1,10 @@
 {
 	"scrollSpeed": 2.2,
 	"relativeGravity": 0.75,
-	"relativeBallAccel": 0.8,
+	"relativeBallAccel": 0.6,
+	"maxBallAccelScale": 10,
 	"friction": 0.92,
-	"isMomentum": true,
+	"isMomentum": false,
 	"levelWidthProportion": 0.8,
 	"nSegments": 12,
 	"nLevelsVisible": 7,
