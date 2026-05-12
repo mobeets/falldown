@@ -28,6 +28,7 @@ function loadConfig() {
     participantId = 'unknown',
     assignmentId = 'unknown',
     projectId = 'unknown',
+    params_name = 'unknown',
     experiment = 'default_experiment'
   } = finalParams;
 
