@@ -15,7 +15,7 @@ function loadConfig() {
     participantId: 'unknown',
     assignmentId: 'unknown',
     projectId: 'unknown',
-    params_name: 'default_drift_params',
+    params_name: 'default_params',
     experiment: 'default_experiment'
   };
 
