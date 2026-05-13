@@ -134,7 +134,7 @@ class TrialBlock {
 
     this.start_time;
     this.pause_times = {starts: [], ends: []};
-    this.game_states = {time: [], ball_x: [], ball_y: [], ball_vx: [], ball_vy: [], camera_y: []};
+    this.game_states = {time: [], ball_x: [], ball_y: [], ball_vx: [], ball_vy: [], camera_y: [], scroll_speeds: []};
     this.user_inputs = {time: [], input: []};
   }
 
@@ -150,6 +150,7 @@ class TrialBlock {
     this.game_states.ball_vx.push(ball.vx);
     this.game_states.ball_vy.push(ball.vy);
     this.game_states.camera_y.push(cameraY);
+    this.game_states.scroll_speeds.push(scrollSpeed);
   }
 
   log_pause_start() {
@@ -174,7 +175,7 @@ class TrialBlock {
   }
 
   is_complete() {
-		return this.last_trial_completed+1 >= this.block_config.levels.length;
+		return this.last_trial_completed >= this.block_config.levels.length;
 	}
   
   log(isNew = true) {

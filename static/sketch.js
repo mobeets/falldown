@@ -131,6 +131,7 @@ function decisionEvent(level) {
   event.ballX = ball.x;
   event.ballY = ball.y;
   event.cameraY = cameraY;
+  event.scrollSpeed = scrollSpeed;
   return event;
 }
 
@@ -175,8 +176,7 @@ function draw() {
       cameraY = 0.25*(ball.y - height/2) + 0.75*cameraY;
       cameraYTarget = cameraY;
     } else if (cameraMode === 1) {
-      cameraY += scrollSpeed;
-    } else {
+      // cameraY += scrollSpeed;      
       // if ball is in lower part of screen, keep camera fixed on ball so that ball can't go lower, but continue to update cameraYTarget so that when ball goes back up it will be back in the right place
       if (ball.y - cameraYTarget > 3*height/5) {
         cameraY = 0.1*(ball.y - 3*height/5) + 0.9*cameraY;
@@ -219,11 +219,7 @@ function draw() {
       // Set params for new level
       levelIndex++;
       let trial = trial_block.next_trial();
-      if (trial === undefined) {
-        if (trial_block.is_complete()) { // all levels have been completed
-          newGame(false);
-        }
-      } else {
+      if (trial !== undefined) {
         let newY = levels[levels.length - 1].y + levelSpacing;
         let modeIndex = levels[levels.length - 1].modeIndex;
   
@@ -234,6 +230,10 @@ function draw() {
         levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, levelHeight, trial, levelStartX, newY, modeInfo.modeIndex, E.params.modeRectColors[modeInfo.modeIndex], modeInfo.doModeSwitch));
       }
     }
+    if (trial_block.is_complete()) { // all levels have been completed
+      newGame(false);
+    }
+
     // Render ball
     ball.render();
     
