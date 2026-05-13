@@ -94,7 +94,12 @@ function newGame(restartGame = false, goBack = false) {
   cameraY = 0;
   cameraYTarget = 0;
   modeSwitchCooldown = E.params.minLevelsPerMode;
-  cameraMode = E.params.startCameraMode;
+  
+  cameraMode = trial_block.block_config.params.startCameraMode;
+  if (cameraMode === undefined) {
+    cameraMode = E.params.startCameraMode;
+  }
+
   scrollSpeed = initScrollSpeed;
   
   // Create initial levels
