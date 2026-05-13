@@ -148,10 +148,13 @@ function draw() {
     ball.update();
 
     // Set y offset based on camera mode
+    /*
     if (cameraMode === 0) {
       // keep ball halfway up screen, but smooth movements
       cameraY = 0.25*(ball.y - height/2) + 0.75*cameraY;
       cameraYTarget = cameraY;
+    
+
     } else if (cameraMode === 1) {
       cameraY += E.params.scrollSpeed;
     } else {
@@ -164,6 +167,30 @@ function draw() {
       }      
       cameraYTarget += E.params.scrollSpeed;
     }
+    */
+
+    //NEW CODE
+    /// LIMIT FUTURE VISION BY HAVING THE BALL REALLY LOW ON THE SCREEN
+    let targetScreenY = (E.params && E.params.showFewerLevels) ? (height * 0.85) : (height / 2);
+    let driftLimitY = (E.params && E.params.showFewerLevels) ? (height * 0.85) : (3 * height / 5);
+
+    if (cameraMode === 0) {
+
+      cameraY = 0.25 * (ball.y - targetScreenY) + 0.75 * cameraY;
+      cameraYTarget = cameraY;
+    } else if (cameraMode === 1) {
+      cameraY += E.params.scrollSpeed;
+    } else {
+
+      if (ball.y - cameraYTarget > driftLimitY) {
+        cameraY = 0.1 * (ball.y - driftLimitY) + 0.9 * cameraY;
+        cameraYTarget = cameraY;
+      } else {
+        cameraY = cameraYTarget;
+      }      
+      cameraYTarget += E.params.scrollSpeed;
+    }
+    /// END NEW CODE
 
     // Check for any block instructions
     let blockInstrs = trial_block.block_config.params.instructions;

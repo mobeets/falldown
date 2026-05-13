@@ -1,11 +1,11 @@
 {
-	"scrollSpeed": 2.2,
-	"relativeGravity": 0.75,
+	"scrollSpeed": 1,
+	"relativeGravity": 0.8,
 	"relativeBallAccel": 0.8,
 	"friction": 0.92,
 	"levelWidthProportion": 0.8,
 	"nSegments": 12,
-	"nLevelsVisible": 7,
+	"nLevelsVisible": 5,
 	"levelHeight": 10,
 	"FPS": 60,
 	"photodiode": {"size": 120},
@@ -14,5 +14,6 @@
 	"minLevelsPerMode": 10,
 	"modeRectColors": ["gray", "gray"],
 	"redirectUrl": "",
-	"isCloudStudy": false
+	"isCloudStudy": false,
+	"showFewerLevels": true
 }
