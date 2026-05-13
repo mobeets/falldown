@@ -19,5 +19,5 @@
 	"modeRectColors": ["gray", "gray"],
 	"redirectUrl": "",
 	"isCloudStudy": false,
-	"showFewerLevels": true
+	"showFewerLevels": false
 }

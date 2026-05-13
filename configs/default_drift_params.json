@@ -18,5 +18,6 @@
 	"minLevelsPerMode": 10,
 	"modeRectColors": ["gray", "gray"],
 	"redirectUrl": "",
-	"isCloudStudy": false
+	"isCloudStudy": false,
+	"showFewerLevels": true
 }
