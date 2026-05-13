@@ -13,6 +13,9 @@ let levelStartX;    // x value where levels start (to center them)
 let levelEndX;      // x value where levels end
 let levelSpacing;   // vertical distance between levels
 let scrollSpeed;     // speed at which camera drifts up in scroll mode
+let initScrollSpeed; // initial scroll speed, used for calculating acceleration of scroll speed if applicable
+let maxScrollSpeed;  // max scroll speed, used if scrollSpeed increases over time
+
 let ball;
 let experiment;
 let trial_block;
@@ -61,7 +64,9 @@ function setup() {
   // adjust gravity and ballAccel relative to 600x600 window
   gravity = E.params.relativeGravity * (levelWidth / 600);
   ballAccel = E.params.relativeBallAccel * (levelWidth / 600);
-  scrollSpeed = E.params.scrollSpeed * (height / 600);
+  initScrollSpeed = E.params.scrollSpeed * (height / 600);
+  maxScrollSpeed = E.params.maxScrollSpeed * (height / 600);
+  deltaScrollSpeed = (maxScrollSpeed - initScrollSpeed) / (E.params.scrollSpeedSecsToMax * E.params.FPS);
 
   // set level spacing so that the same number of levels are visible
   levelSpacing = height / E.params.nLevelsVisible;
@@ -90,6 +95,7 @@ function newGame(restartGame = false, goBack = false) {
   cameraYTarget = 0;
   modeSwitchCooldown = E.params.minLevelsPerMode;
   cameraMode = E.params.startCameraMode;
+  scrollSpeed = initScrollSpeed;
   
   // Create initial levels
   levels = [];
@@ -180,6 +186,10 @@ function draw() {
       }      
       cameraYTarget += scrollSpeed;
     }
+    if (cameraMode >= 1 && scrollSpeed < maxScrollSpeed) {
+      scrollSpeed += deltaScrollSpeed;
+    }
+    scrollSpeed = constrain(scrollSpeed, initScrollSpeed, maxScrollSpeed);
 
     // Check for any block instructions
     let blockInstrs = trial_block.block_config.params.instructions;
@@ -451,7 +461,8 @@ function getGameInfo() {
     ballRadius: ball.r,
     ballAccel: ballAccel,
     gravity: gravity,
-    scrollSpeed: scrollSpeed,
+    initScrollSpeed: initScrollSpeed,
+    maxScrollSpeed: maxScrollSpeed,
     levelSpacing: levelSpacing,
   };
 }

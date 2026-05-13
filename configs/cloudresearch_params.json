@@ -1,5 +1,7 @@
 {
 	"scrollSpeed": 2.2,
+	"maxScrollSpeed": 3.5,
+	"scrollSpeedSecsToMax": 120,
 	"relativeGravity": 0.75,
 	"relativeBallAccel": 0.6,
 	"maxBallAccelScale": 10,

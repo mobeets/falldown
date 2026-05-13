@@ -13,7 +13,7 @@
 	"levelHeight": 10,
 	"FPS": 60,
 	"photodiode": {"size": 120},
-	"startCameraMode": 0,
+	"startCameraMode": 1,
 	"modeSwitchRates": [0.0, 0.0],
 	"minLevelsPerMode": 10,
 	"modeRectColors": ["gray", "gray"],
