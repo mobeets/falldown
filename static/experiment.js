@@ -15,8 +15,8 @@ function loadConfig() {
     participantId: 'unknown',
     assignmentId: 'unknown',
     projectId: 'unknown',
-    params_name: 'unknown',
-    experiment: 'YFW_experiment'
+    params_name: undefined,
+    experiment: 'default_experiment'
   };
 
   // Merge defaults with URL params
@@ -43,13 +43,15 @@ function loadConfig() {
     isCloudStudy += 1;
   }
 
-  // If subject_id has participantId, assignmentId, and projectId, this must be a CloudResearch study
+  // If subject_id has assignmentId and projectId, this must be a CloudResearch study
   let params_name = finalParams.params_name;
-  if (isCloudStudy === 2 && params_name === 'unknown') {
-    // this will only occur if params_name was not passed in by url (or if user for some reason provided params_name=unknown, despite unknown not being a valid params_name
-    params_name = 'cloudresearch_params';
-  } else {
-    params_name = 'default_params';
+  if (params_name === undefined) {
+    // n.b. we will get here if params_name was not passed in by url
+    if (isCloudStudy === 2) {
+      params_name = 'cloudresearch_params';
+    } else {
+      params_name = 'default_params';
+    }
   }
 
   // Build path to params and experiment files
@@ -132,7 +134,7 @@ class TrialBlock {
 
     this.start_time;
     this.pause_times = {starts: [], ends: []};
-    this.game_states = {time: [], ball_x: [], ball_y: [], ball_vx: [], ball_vy: [], camera_y: []};
+    this.game_states = {time: [], ball_x: [], ball_y: [], ball_vx: [], ball_vy: [], camera_y: [], scroll_speeds: []};
     this.user_inputs = {time: [], input: []};
   }
 
@@ -148,6 +150,7 @@ class TrialBlock {
     this.game_states.ball_vx.push(ball.vx);
     this.game_states.ball_vy.push(ball.vy);
     this.game_states.camera_y.push(cameraY);
+    this.game_states.scroll_speeds.push(scrollSpeed);
   }
 
   log_pause_start() {
@@ -172,7 +175,7 @@ class TrialBlock {
   }
 
   is_complete() {
-		return this.last_trial_completed+1 >= this.block_config.levels.length;
+		return this.last_trial_completed >= this.block_config.levels.length;
 	}
   
   log(isNew = true) {

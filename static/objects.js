@@ -160,22 +160,24 @@ class Level {
   
   passedThrough(ball) {
     if (this.holeUsed > -1) return false;
+    if (!this.hole_locations.length) return false;
     
     // Check if the ball has crossed the level vertically
     if (ball.y - 2*ball.r > this.y + this.height) {
 
       // Compute horizontal grid index of the ball
       let segWidth = this.width / this.nSegments;
-      this.holeUsed = floor((ball.x - this.x) / segWidth);
 
-      // Verify that this grid index is actually a hole
-      if (!this.hole_locations.includes(this.holeUsed)) {
-        // Ball didn’t pass through a hole, ignore
-        this.holeUsed = -1;
-      }
-      return this.holeUsed > -1;
+      // Compute which segment the ball was just in based on its previous x position
+      let ballSegment = floor((ball.xprev - this.x) / segWidth);
+
+      // find nearest hole location to ballSegment
+      this.holeUsed = this.hole_locations.reduce((nearest, hole) =>
+        abs(hole - ballSegment) < abs(nearest - ballSegment) ? hole : nearest
+      );
+      return true;
     }
-    return this.holeUsed > -1;
+    return false;
   }
   
   toJSON() {
