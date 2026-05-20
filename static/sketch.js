@@ -201,12 +201,25 @@ function draw() {
     let targetScreenY = (E.params && E.params.showFewerLevels) ? (height * 0.85) : (height / 2);
     let driftLimitY = (E.params && E.params.showFewerLevels) ? (height * 0.85) : (3 * height / 5);
 
+    if (E.block_index % 2 == 1 && E.block_index > 0) {
+      cameraMode = 1
+    } else { cameraMode = 0 }
+
     if (cameraMode === 0) {
 
       cameraY = 0.25 * (ball.y - targetScreenY) + 0.75 * cameraY;
       cameraYTarget = cameraY;
     } else if (cameraMode === 1) {
+
+      if (ball.y - cameraY > 2*height/5){
+        cameraY += E.params.scrollSpeed * (ball.y - cameraYTarget)/height * 0.03
+      }
+      if (ball.y - cameraY > 3*height/5){
+        cameraY += E.params.scrollSpeed * (ball.y - cameraYTarget)/height * 0.04
+      }
+
       cameraY += E.params.scrollSpeed;
+
     } else {
 
       if (ball.y - cameraYTarget > driftLimitY) {
