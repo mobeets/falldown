@@ -78,10 +78,16 @@ function setup() {
 }
 
 function newGame(restartGame = false, goBack = false) {
+  levelIndex_disp = 0;
+  repeat_instructions = false;
+  levelPassedThrough_disp = -1;
+
   if (trial_block !== undefined) {
     lastScore = `${trial_block.trials.length} of ${trial_block.block_config.levels.length}`;
   }
+
   trial_block = E.next_block(restartGame, goBack);
+
   console.log("Current block config:", trial_block);
   if (trial_block === undefined) { gameMode = COMPLETE_MODE; return; }
   gameMode = READY_MODE;
@@ -201,7 +207,7 @@ function draw() {
     let targetScreenY = (E.params && E.params.showFewerLevels) ? (height * 0.85) : (height / 2);
     let driftLimitY = (E.params && E.params.showFewerLevels) ? (height * 0.85) : (3 * height / 5);
 
-    if (E.block_index % 2 == 1 && E.block_index > 0) {
+    if (E.block_index % 2 == 1 && E.block_index > 2) {
       cameraMode = 1
     } else { cameraMode = 0 }
 
@@ -244,8 +250,23 @@ function draw() {
       lvl.render();
       lvl.collidesWith(ball);
       if (lvl.passedThrough(ball)) {
+        levelIndex_disp++;
+        levelPassedThrough_disp = lvl.holeUsed;
+
+        // Check if we are in the first block
+        if (E.block_index === 1) {
+            // If they are on level 1 and didn't use hole 10, OR
+            // if they are on level 4 and didn't use hole 4
+            if ((levelIndex_disp === 2 && lvl.holeUsed !== 10) || 
+                (levelIndex_disp === 5 && lvl.holeUsed !== 0)) {
+                
+                repeat_instructions = true;
+            }
+        }
+
         // trial_block.add_trial(lvl);
         lvl.trial.trigger(decisionEvent(lvl));
+
         trial_block.last_trial_completed = lvl.trial.index+1;
         markEvent(); // trigger photodiode and play sound
         // toggle mode when we pass through
@@ -272,7 +293,11 @@ function draw() {
       }
     }
     if (trial_block.is_complete()) { // all levels have been completed
-      newGame(false);
+      if (!repeat_instructions){
+        newGame(false);
+      } else{
+        newGame(true, false)
+      }
     }
 
     // Render ball
@@ -313,6 +338,10 @@ function drawTimer(elapsedTimeMsecs) {
   const cy = 20;
   let timerText = formatTime(elapsedTimeMsecs / 1000);
   text(timerText, cx, cy);
+  text(levelIndex_disp, cx+100, cy)
+  text(levelPassedThrough_disp, cx+200, cy)
+  text(E.block_index, cx+300, cy)
+  text(int(repeat_instructions), cx+400, cy)
 }
 
 function drawCompletionWedge(pct) {
