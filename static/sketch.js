@@ -338,10 +338,10 @@ function drawTimer(elapsedTimeMsecs) {
   const cy = 20;
   let timerText = formatTime(elapsedTimeMsecs / 1000);
   text(timerText, cx, cy);
-  text(levelIndex_disp, cx+100, cy)
-  text(levelPassedThrough_disp, cx+200, cy)
-  text(E.block_index, cx+300, cy)
-  text(int(repeat_instructions), cx+400, cy)
+  //text(levelIndex_disp, cx+100, cy)
+  //text(levelPassedThrough_disp, cx+200, cy)
+  //text(E.block_index, cx+300, cy)
+  //text(int(repeat_instructions), cx+400, cy)
 }
 
 function drawCompletionWedge(pct) {
