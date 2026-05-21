@@ -349,10 +349,10 @@ function drawTimer(elapsedTimeMsecs) {
   const cy = 20;
   let timerText = formatTime(elapsedTimeMsecs / 1000);
   text(timerText, cx, cy);
-  text(levelIndex_disp, cx+100, cy)
-  text(levelPassedThrough_disp, cx+200, cy)
-  text(E.block_index, cx+300, cy)
-  text(int(repeat_instructions), cx+400, cy)
+  //text(levelIndex_disp, cx+100, cy)
+  //text(levelPassedThrough_disp, cx+200, cy)
+  //text(E.block_index, cx+300, cy)
+  //text(int(repeat_instructions), cx+400, cy)
 }
 
 function drawCompletionWedge(pct) {
@@ -398,7 +398,7 @@ function showInstructions(text_lines, yOffset) {
     // text wrapping seems to ignore centering
     // so to get a width/2 text box centered in screen
     //  we constrain width to width/2, and start text at width/4
-    text(text_lines[i], width / 4, yOffset + 60*i, width / 2);
+    text(text_lines[i], width / 4, yOffset + 35*i, width / 2);
   }
   textFont(myFont);
 }
