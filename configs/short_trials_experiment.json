@@ -27,6 +27,11 @@
         "Sometimes, going to the closest hole will make you take longer to complete the level",
         "On this level, take the most effecient possible path",
         "If you take the less effecient paths, you'll be asked to repeat this block"
+      ],
+      "instructions": [
+        "Sometimes, going to the closest hole will make you take longer to complete the level",
+        "On this level, take the most effecient possible path",
+        "If you take the less effecient paths, you'll be asked to repeat this block"
       ]
     },
     "levels": [
@@ -39,7 +44,23 @@
       ],
       [
         9
+      ]
+    ]
+  },
+  {
+    "params": {
+      "pre_instructions": [
+        "Sometimes, going to the closest hole will make you take longer to complete the level",
+        "On this level, take the most effecient possible path",
+        "If you take the less effecient paths, you'll be asked to repeat this block"
       ],
+      "instructions": [
+        "Sometimes, going to the closest hole will make you take longer to complete the level",
+        "On this level, take the most effecient possible path",
+        "If you take the less effecient paths, you'll be asked to repeat this block"
+      ]
+    },
+    "levels": [
       [
         6
       ],
@@ -55,7 +76,33 @@
   {
     "params": {
       "pre_instructions": [
-        "Now we can begin. There are 14 mazes in total.",
+        "Sometimes, going to the closest hole will make you take longer to complete the level",
+        "On this level, take the most effecient possible path",
+        "If you take the less effecient paths, you'll be asked to repeat this block"
+      ],
+      "instructions": [
+        "Sometimes, going to the closest hole will make you take longer to complete the level",
+        "On this level, take the most effecient possible path",
+        "If you take the less effecient paths, you'll be asked to repeat this block"
+      ]
+    },
+    "levels": [
+      [
+        4
+      ],
+      [
+        1,
+        11
+      ],
+      [
+        10
+      ]
+    ]
+  },
+  {
+    "params": {
+      "pre_instructions": [
+        "Now we can begin. There are 40 mazes in total.",
         "Each maze will take around two minutes to complete.",
         "Complete each maze as quickly as possible."
       ]

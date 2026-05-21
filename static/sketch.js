@@ -257,11 +257,20 @@ function draw() {
         if (E.block_index === 1) {
             // If they are on level 1 and didn't use hole 10, OR
             // if they are on level 4 and didn't use hole 4
-            if ((levelIndex_disp === 2 && lvl.holeUsed !== 10) || 
-                (levelIndex_disp === 5 && lvl.holeUsed !== 0)) {
+            if (levelIndex_disp === 2 && lvl.holeUsed !== 10) {
                 
                 repeat_instructions = true;
-            }
+            } 
+        } 
+        if (E.block_index === 2){
+          if (levelIndex_disp === 2 && lvl.holeUsed !== 0){
+            repeat_instructions = true;
+          }
+        }
+                if (E.block_index === 3){
+          if (levelIndex_disp === 2 && lvl.holeUsed !== 11){
+            repeat_instructions = true;
+          }
         }
 
         // trial_block.add_trial(lvl);
