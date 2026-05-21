@@ -35,6 +35,7 @@ const STARTING_MODE = 2;
 const READY_MODE = 3;
 const COMPLETE_MODE = 4;
 let gameMode = READY_MODE;
+repeat_instructions = false;
 
 // todo: track pause times
 
@@ -79,7 +80,7 @@ function setup() {
 
 function newGame(restartGame = false, goBack = false) {
   levelIndex_disp = 0;
-  repeat_instructions = false;
+  //repeat_instructions = false;
   levelPassedThrough_disp = -1;
 
   if (trial_block !== undefined) {
@@ -207,7 +208,7 @@ function draw() {
     let targetScreenY = (E.params && E.params.showFewerLevels) ? (height * 0.85) : (height / 2);
     let driftLimitY = (E.params && E.params.showFewerLevels) ? (height * 0.85) : (3 * height / 5);
 
-    if (E.block_index % 2 == 1 && E.block_index > 2) {
+    if (E.block_index % 2 == 1 && E.block_index > 3) {
       cameraMode = 1
     } else { cameraMode = 0 }
 
@@ -257,19 +258,19 @@ function draw() {
         if (E.block_index === 1) {
             // If they are on level 1 and didn't use hole 10, OR
             // if they are on level 4 and didn't use hole 4
-            if (levelIndex_disp === 2 && lvl.holeUsed !== 10) {
+          if (levelIndex_disp === 2) {
                 
-                repeat_instructions = true;
-            } 
+            repeat_instructions = lvl.holeUsed !== 10;
+          } 
         } 
         if (E.block_index === 2){
-          if (levelIndex_disp === 2 && lvl.holeUsed !== 0){
-            repeat_instructions = true;
+          if (levelIndex_disp === 2){
+            repeat_instructions = lvl.holeUsed !== 0;
           }
         }
                 if (E.block_index === 3){
-          if (levelIndex_disp === 2 && lvl.holeUsed !== 11){
-            repeat_instructions = true;
+          if (levelIndex_disp === 2){
+            repeat_instructions = lvl.holeUsed !== 11;
           }
         }
 
@@ -307,6 +308,7 @@ function draw() {
       } else{
         newGame(true, false)
       }
+      //repeat_instructions = false;
     }
 
     // Render ball
@@ -347,10 +349,10 @@ function drawTimer(elapsedTimeMsecs) {
   const cy = 20;
   let timerText = formatTime(elapsedTimeMsecs / 1000);
   text(timerText, cx, cy);
-  //text(levelIndex_disp, cx+100, cy)
-  //text(levelPassedThrough_disp, cx+200, cy)
-  //text(E.block_index, cx+300, cy)
-  //text(int(repeat_instructions), cx+400, cy)
+  text(levelIndex_disp, cx+100, cy)
+  text(levelPassedThrough_disp, cx+200, cy)
+  text(E.block_index, cx+300, cy)
+  text(int(repeat_instructions), cx+400, cy)
 }
 
 function drawCompletionWedge(pct) {
@@ -437,7 +439,12 @@ function drawPauseScreen() {
       text("Welcome!", width / 2, firstLineY);
       showInstructions(welcomeInstrStrs, secondLineY);
     } else {
-      text("Great job!", width / 2, firstLineY);
+      if (repeat_instructions){
+        text("Try Again", width / 2, firstLineY);
+      } else {
+        text("Great job!", width / 2, firstLineY);
+      }
+      
       textSize(32);
       text("Game " + (E.block_index+1).toFixed(0) + " of " + Object.keys(E.block_configs).length.toFixed(0), width / 2, secondLineY + 0);
 
@@ -513,6 +520,7 @@ function checkUserButtonPresses() {
   if (eventMsg !== undefined) {
     wsLogger.log("interaction", {eventMsg});
   }
+  //if (user.pause && gameMode == READY_MODE){repeat_instructions = false;}
 }
 
 // for discrete events that we want to timestamp
