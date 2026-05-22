@@ -104,8 +104,9 @@
       "pre_instructions": [
         "Now we can begin. There are 40 mazes in total.",
         "Each maze will take around two minutes to complete.",
-        "Complete each maze as quickly as possible."
-      ]
+        "Don't worry about taking the most effecient route, just go as quickly as possible."
+      ],
+      "instructions": ["Go as quickly as possible!"]
     },
     "levels": [
       [
@@ -441,7 +442,11 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "pre_instructions": [
+        "Don't worry about taking the most effecient route, just go as quickly as possible."
+      ],
+      "instructions": ["Go as quickly as possible!"]},
     "levels": [
       [
         8

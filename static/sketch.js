@@ -217,25 +217,38 @@ function draw() {
       cameraY = 0.25 * (ball.y - targetScreenY) + 0.75 * cameraY;
       cameraYTarget = cameraY;
     } else if (cameraMode === 1) {
+      
+      // 1. Define the baseline constant drift for the top 3/4 of the screen.
+      // (I included your level multiplier here so it still scales with the level index!)
+      let baseSpeed = E.params.scrollSpeed + constrain(0.1 * levelIndex_disp * E.params.scrollSpeed, 0, E.params.scrollSpeed);
 
-      if (ball.y - cameraY > 2*height/5){
-        cameraY += E.params.scrollSpeed * (ball.y - cameraYTarget)/height * 0.03
+      // 2. Check where the ball is relative to the camera right now.
+      let currentScreenY = ball.y - cameraY;
+
+      // 3. Define the invisible threshold for the bottom quarter.
+      let pushLine = height * 0.6; 
+
+      let finalSpeed = baseSpeed;
+
+      // 4. If the ball enters the bottom 25%, apply the smooth push.
+      if (currentScreenY > pushLine) {
+        
+        // Calculate exactly how many pixels past the line the ball is.
+        let excess = currentScreenY - pushLine;
+
+        // Square the excess to create a smooth but highly aggressive speed curve.
+        // e.g., 1px past the line = 1^2. 100px past the line = 10,000.
+        let pushMultiplier = 0.001; // Tune this number!
+        let extraSpeed = (excess * excess) * pushMultiplier;
+
+        finalSpeed += extraSpeed;
       }
-      if (ball.y - cameraY > 3*height/5){
-        cameraY += E.params.scrollSpeed * (ball.y - cameraYTarget)/height * 0.04
-      }
 
-      cameraY += E.params.scrollSpeed;
-
-    } else {
-
-      if (ball.y - cameraYTarget > driftLimitY) {
-        cameraY = 0.1 * (ball.y - driftLimitY) + 0.9 * cameraY;
-        cameraYTarget = cameraY;
-      } else {
-        cameraY = cameraYTarget;
-      }      
-      cameraYTarget += E.params.scrollSpeed;
+      // 5. Apply the final calculated speed.
+      cameraY += finalSpeed;
+      
+      // Safety sync: Ensure cameraYTarget stays updated so transitioning back to mode 0 doesn't snap.
+      cameraYTarget = cameraY;
     }
     /// END NEW CODE
 
@@ -349,10 +362,12 @@ function drawTimer(elapsedTimeMsecs) {
   const cy = 20;
   let timerText = formatTime(elapsedTimeMsecs / 1000);
   text(timerText, cx, cy);
-  //text(levelIndex_disp, cx+100, cy)
-  //text(levelPassedThrough_disp, cx+200, cy)
-  //text(E.block_index, cx+300, cy)
-  //text(int(repeat_instructions), cx+400, cy)
+  //text(levelIndex_disp, cx+100, cy);
+  //text(levelPassedThrough_disp, cx+200, cy);
+  //text(E.block_index, cx+300, cy);
+  //text(int(repeat_instructions), cx+400, cy);
+  //text(ballY, cx+500, cy);
+  //text(targetScreenY, cx+600, cy);
 }
 
 function drawCompletionWedge(pct) {
