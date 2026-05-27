@@ -2,7 +2,7 @@
   {
     "params": {
       "instructions": [
-        "[PRACTICE] Complete the maze as quickly as possible."
+        "[PRACTICE] Complete the maze as as quickly and accurately as possible."
       ]
     },
     "levels": [
@@ -24,13 +24,13 @@
   {
     "params": {
       "pre_instructions": [
-        "Sometimes, going to the closest hole will make you take longer to complete the level",
-        "On this level, take the most effecient possible path",
+        "On this level, find the shortest possible path",
+        "Sometimes you will have to look ahead to find the shortest overall path",
         "If you take the less effecient paths, you'll be asked to repeat this block"
       ],
       "instructions": [
-        "Sometimes, going to the closest hole will make you take longer to complete the level",
-        "On this level, take the most effecient possible path",
+        "On this level, find the shortest possible path",
+        "Sometimes you will have to look ahead to find the shortest overall path",
         "If you take the less effecient paths, you'll be asked to repeat this block"
       ]
     },
@@ -50,13 +50,13 @@
   {
     "params": {
       "pre_instructions": [
-        "Sometimes, going to the closest hole will make you take longer to complete the level",
-        "On this level, take the most effecient possible path",
+        "On this level, find the shortest possible path",
+        "Sometimes you will have to look ahead to find the shortest overall path",
         "If you take the less effecient paths, you'll be asked to repeat this block"
       ],
       "instructions": [
-        "Sometimes, going to the closest hole will make you take longer to complete the level",
-        "On this level, take the most effecient possible path",
+        "On this level, find the shortest possible path",
+        "Sometimes you will have to look ahead to find the shortest overall path",
         "If you take the less effecient paths, you'll be asked to repeat this block"
       ]
     },
@@ -76,13 +76,13 @@
   {
     "params": {
       "pre_instructions": [
-        "Sometimes, going to the closest hole will make you take longer to complete the level",
-        "On this level, take the most effecient possible path",
+        "On this level, find the shortest possible path",
+        "Sometimes you will have to look ahead to find the shortest overall path",
         "If you take the less effecient paths, you'll be asked to repeat this block"
       ],
       "instructions": [
-        "Sometimes, going to the closest hole will make you take longer to complete the level",
-        "On this level, take the most effecient possible path",
+        "On this level, find the shortest possible path",
+        "Sometimes you will have to look ahead to find the shortest overall path",
         "If you take the less effecient paths, you'll be asked to repeat this block"
       ]
     },
@@ -103,8 +103,8 @@
     "params": {
       "pre_instructions": [
         "Now we can begin. There are 40 mazes in total.",
-        "Each maze will take around two minutes to complete.",
-        "Don't worry about taking the most effecient route, just go as quickly as possible."
+        "Each maze will take around a minute to complete.",
+        "Try to move as quickly and accurately as you can"
       ],
       "instructions": ["Go as quickly as possible!"]
     },
@@ -444,7 +444,7 @@
   {
     "params": {
       "pre_instructions": [
-        "Don't worry about taking the most effecient route, just go as quickly as possible."
+        "Try to move as quickly and accurately as you can"
       ],
       "instructions": ["Go as quickly as possible!"]},
     "levels": [

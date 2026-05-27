@@ -456,12 +456,14 @@ function drawPauseScreen() {
     } else {
       if (repeat_instructions){
         text("Try Again", width / 2, firstLineY);
+        textSize(24);
+        text("Find The Shortest Possible Path", width / 2, (secondLineY+firstLineY)/2);
       } else {
         text("Great job!", width / 2, firstLineY);
       }
       
       textSize(32);
-      text("Game " + (E.block_index+1).toFixed(0) + " of " + Object.keys(E.block_configs).length.toFixed(0), width / 2, secondLineY + 0);
+      text("Game " + (E.block_index+1).toFixed(0) + " of " + Object.keys(E.block_configs).length.toFixed(0), width / 2, secondLineY + int(repeat_instructions)*15);
 
       // Check for any pre-block instructions
       let blockInstrs = trial_block.block_config.params.pre_instructions;
