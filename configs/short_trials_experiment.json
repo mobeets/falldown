@@ -25,13 +25,11 @@
     "params": {
       "pre_instructions": [
         "On this level, find the shortest possible path",
-        "Sometimes you will have to look ahead to find the shortest overall path",
-        "If you take the less effecient paths, you'll be asked to repeat this block"
+        "Sometimes you will have to look ahead to find the shortest overall path"
       ],
       "instructions": [
         "On this level, find the shortest possible path",
-        "Sometimes you will have to look ahead to find the shortest overall path",
-        "If you take the less effecient paths, you'll be asked to repeat this block"
+        "Sometimes you will have to look ahead to find the shortest overall path"
       ]
     },
     "levels": [
@@ -51,13 +49,11 @@
     "params": {
       "pre_instructions": [
         "On this level, find the shortest possible path",
-        "Sometimes you will have to look ahead to find the shortest overall path",
-        "If you take the less effecient paths, you'll be asked to repeat this block"
+        "Sometimes you will have to look ahead to find the shortest overall path"
       ],
       "instructions": [
         "On this level, find the shortest possible path",
-        "Sometimes you will have to look ahead to find the shortest overall path",
-        "If you take the less effecient paths, you'll be asked to repeat this block"
+        "Sometimes you will have to look ahead to find the shortest overall path"
       ]
     },
     "levels": [
@@ -77,13 +73,11 @@
     "params": {
       "pre_instructions": [
         "On this level, find the shortest possible path",
-        "Sometimes you will have to look ahead to find the shortest overall path",
-        "If you take the less effecient paths, you'll be asked to repeat this block"
+        "Sometimes you will have to look ahead to find the shortest overall path"
       ],
       "instructions": [
         "On this level, find the shortest possible path",
-        "Sometimes you will have to look ahead to find the shortest overall path",
-        "If you take the less effecient paths, you'll be asked to repeat this block"
+        "Sometimes you will have to look ahead to find the shortest overall path"
       ]
     },
     "levels": [
@@ -106,7 +100,7 @@
         "Each maze will take around a minute to complete.",
         "Try to move as quickly and accurately as you can"
       ],
-      "instructions": ["Go as quickly as possible!"]
+      "instructions": ["Go as quickly and accurately as possible!"]
     },
     "levels": [
       [
@@ -446,7 +440,7 @@
       "pre_instructions": [
         "Try to move as quickly and accurately as you can"
       ],
-      "instructions": ["Go as quickly as possible!"]},
+      "instructions": ["Go as quickly and accurately as possible!"]},
     "levels": [
       [
         8
