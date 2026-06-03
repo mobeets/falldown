@@ -34,6 +34,7 @@ const PAUSE_MODE = 1;
 const STARTING_MODE = 2;
 const READY_MODE = 3;
 const COMPLETE_MODE = 4;
+const DRIFT_DEATH = 5;
 let gameMode = READY_MODE;
 repeat_instructions = false;
 
@@ -78,7 +79,7 @@ function setup() {
   newGame(false);
 }
 
-function newGame(restartGame = false, goBack = false, trialIndex = 0) {
+function newGame(restartGame = false, goBack = false, trialIndex = 0, gameOver = false) {
   levelIndex_disp = 0;
   //repeat_instructions = false;
   levelPassedThrough_disp = -1;
@@ -96,8 +97,9 @@ function newGame(restartGame = false, goBack = false, trialIndex = 0) {
 
   console.log("Current block config:", trial_block);
   if (trial_block === undefined) { gameMode = COMPLETE_MODE; return; }
-  gameMode = READY_MODE;
-  
+
+  if(gameOver == true){gameMode = DRIFT_DEATH;} else{gameMode = READY_MODE;}
+
   // Set ball position
   ball.x = levelWidth/2;
   ball.y = 100;
@@ -324,7 +326,7 @@ function draw() {
       if (!repeat_instructions){
         newGame(false);
       } else{
-        newGame(true, false)
+        newGame(true, false);
       }
       //repeat_instructions = false;
     }
@@ -335,7 +337,7 @@ function draw() {
     // Game over condition
     if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
       // this will restart current block at the same trial
-      newGame(true, false, trial_block.trial_index);
+      newGame(true, false, trial_block.trial_index, gameOver = true);
     }
     
     drawHUD();
@@ -374,6 +376,7 @@ function drawTimer(elapsedTimeMsecs) {
   //text(int(repeat_instructions), cx+400, cy);
   //text(ballY, cx+500, cy);
   //text(targetScreenY, cx+600, cy);
+  //text(cameraMode, cx+600, cy);
 }
 
 function drawCompletionWedge(pct) {
@@ -455,6 +458,11 @@ function drawPauseScreen() {
 
     textSize(32);
     text("Game " + (E.block_index+1).toFixed(0) + " of " + Object.keys(E.block_configs).length.toFixed(0), width / 2, secondLineY + 0);
+  } else if(gameMode == DRIFT_DEATH){
+    text("Oops!", width / 2, firstLineY);
+    textSize(24);
+    text("Try not to get caught by the drift!", width / 2, (secondLineY+firstLineY)/2);
+    text("Press " + nextButton + " to pick up where you left off!", width/2, secondLineY);
   } else if (gameMode == READY_MODE) {
     if (trial_block.block_count === 0) {
       text("Welcome!", width / 2, firstLineY);

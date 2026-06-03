@@ -100,7 +100,10 @@
         "Each maze will take around a minute to complete.",
         "Try to move as quickly and accurately as you can"
       ],
-      "instructions": ["Go as quickly and accurately as possible!"]
+      "instructions": [
+        "Go as quickly and accurately as possible!"
+      ],
+      "startCameraMode": 0
     },
     "levels": [
       [
@@ -440,7 +443,11 @@
       "pre_instructions": [
         "Try to move as quickly and accurately as you can"
       ],
-      "instructions": ["Go as quickly and accurately as possible!"]},
+      "instructions": [
+        "Go as quickly and accurately as possible!"
+      ],
+      "startCameraMode": 1
+    },
     "levels": [
       [
         8
@@ -1120,7 +1127,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         8
@@ -1790,7 +1799,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         6
@@ -2470,7 +2481,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         6
@@ -3150,7 +3163,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         7
@@ -3820,7 +3835,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         2
@@ -4500,7 +4517,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         2
@@ -5180,7 +5199,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         8
@@ -5850,7 +5871,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         4
@@ -6530,7 +6553,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         5
@@ -7210,7 +7235,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         2
@@ -7880,7 +7907,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         4
@@ -8560,7 +8589,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         2
@@ -9240,7 +9271,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         8
@@ -9910,7 +9943,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         8
@@ -10590,7 +10625,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         2
@@ -11270,7 +11307,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         4
@@ -11940,7 +11979,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         7
@@ -12620,7 +12661,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         7
@@ -13300,7 +13343,9 @@
     ]
   },
   {
-    "params": {},
+    "params": {
+      "startCameraMode": 1
+    },
     "levels": [
       [
         5
