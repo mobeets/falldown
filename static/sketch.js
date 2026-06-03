@@ -531,11 +531,14 @@ function checkUserButtonPresses() {
     if (trial_block !== undefined) {
       trial_block.log_pause_end();
     }
-  } else if(user.pause &&gameMode == DRIFT_DEATH) {eventMsg = 'unpause';
+  } else if(user.pause && gameMode == DRIFT_DEATH){
+    eventMsg = 'resurrect';
     gameMode = PLAY_MODE;
     if (trial_block !== undefined) {
       trial_block.log_pause_end();
-  } else if (!E.params.isCloudStudy) {
+    }
+  }
+  else if (!E.params.isCloudStudy) {
     // the following are unavailable controls in a cloud study
     if (user.next_block && gameMode != COMPLETE_MODE) {
       // go to the next block
