@@ -17,7 +17,7 @@
 	"modeSwitchRates": [0.0, 0.0],
 	"minLevelsPerMode": 10,
 	"modeRectColors": ["gray", "gray"],
-	"redirectUrl": "",
+	"redirectUrl": "https://connect.cloudresearch.com/participant/project/D2002F5BDE/complete",
 	"isCloudStudy": true,
 	"showFewerLevels": false
 }
