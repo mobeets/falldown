@@ -91,6 +91,7 @@ class Experiment {
 			};
 			this.block_index++;
 		} else if (goBack) {
+      // go to previous block
 			if (this.block_index >= 1) this.block_index--;
 		}
     // log experiment
@@ -185,7 +186,7 @@ class TrialBlock {
 	}
 
   next_trial() {
-		if (this.trials.length >= this.block_config.levels.length) {
+		if (this.trial_index + 1 >= this.block_config.levels.length) {
 			return;
 		}
 		
