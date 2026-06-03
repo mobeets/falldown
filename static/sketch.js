@@ -78,7 +78,7 @@ function setup() {
   newGame(false);
 }
 
-function newGame(restartGame = false, goBack = false) {
+function newGame(restartGame = false, goBack = false, trialIndex = 0) {
   levelIndex_disp = 0;
   //repeat_instructions = false;
   levelPassedThrough_disp = -1;
@@ -88,6 +88,11 @@ function newGame(restartGame = false, goBack = false) {
   }
 
   trial_block = E.next_block(restartGame, goBack);
+  if (restartGame && !goBack && trialIndex > 0) {
+    // restart current block at the specified trial
+    // (subtract 10 here because when we restart, we create the first 10 levels)
+    trial_block.trial_index = max(trialIndex-10, 0);
+  }
 
   console.log("Current block config:", trial_block);
   if (trial_block === undefined) { gameMode = COMPLETE_MODE; return; }
@@ -208,9 +213,9 @@ function draw() {
     let targetScreenY = (E.params && E.params.showFewerLevels) ? (height * 0.85) : (height / 2);
     let driftLimitY = (E.params && E.params.showFewerLevels) ? (height * 0.85) : (3 * height / 5);
 
-    if (E.block_index % 2 == 1 && E.block_index > 3) {
-      cameraMode = 1
-    } else { cameraMode = 0 }
+    // if (E.block_index % 2 == 1 && E.block_index > 3) {
+    //   cameraMode = 1
+    // } else { cameraMode = 0 }
 
     if (cameraMode === 0) {
 
@@ -329,7 +334,8 @@ function draw() {
     
     // Game over condition
     if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
-      newGame(false);
+      // this will restart current block at the same trial
+      newGame(true, false, trial_block.trial_index);
     }
     
     drawHUD();
