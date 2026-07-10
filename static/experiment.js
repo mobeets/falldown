@@ -16,7 +16,7 @@ function loadConfig() {
     assignmentId: 'unknown',
     projectId: 'unknown',
     params_name: 'cloudresearch_params',
-    experiment: 'short_trials_experiment'
+    experiment: 'short_trials_experiment-7-10'
   };
 
   // Merge defaults with URL params
