@@ -335,11 +335,13 @@ def build_deeponet_dataset(participant_data_dict):
         Total_R = np.where(~is_left, processed_data['chosen_2step_dist'], processed_data['unchosen_2step_dist'])
         
         # 3. Build your feature DataFrame with the new difference metrics
+        incoming_dir = processed_data['incoming_direction']
         X = pd.DataFrame({
             'L1_minus_R1': L1 - R1,
             'Total_L_minus_Total_R': Total_L - Total_R,
             'ball_y_at_top': processed_data['ball_y_at_top'],
-            'incoming_direction': processed_data['incoming_direction']
+            'incoming_pos': (incoming_dir == 1).astype(float),
+            'incoming_neg': (incoming_dir == -1).astype(float)
         })
         
         # 4. Convert to DeepONet Inputs
@@ -427,9 +429,9 @@ X_train, X_test, id_train, id_test, y_train, y_test = train_test_split(
 )
 
 # --- THE NEW SCALING LOGIC ---
-# Slice the arrays: Columns 0, 1, 2 are continuous. Column 3 is discrete.
+# Slice the arrays: Columns 0, 1, 2 are continuous. Columns 3, 4 are binary.
 X_train_continuous = X_train[:, :3]
-X_train_discrete = X_train[:, 3:]  # Using 3: keeps it as a 2D column vector
+X_train_discrete = X_train[:, 3:]
 
 X_test_continuous = X_test[:, :3]
 X_test_discrete = X_test[:, 3:]
@@ -439,7 +441,7 @@ scaler = StandardScaler()
 X_train_continuous_scaled = scaler.fit_transform(X_train_continuous)
 X_test_continuous_scaled = scaler.transform(X_test_continuous)
 
-# Re-attach the raw discrete column (-1, 0, 1) to the scaled continuous columns
+# Re-attach the raw binary columns (incoming_pos, incoming_neg) to the scaled continuous columns
 X_train_final = np.hstack((X_train_continuous_scaled, X_train_discrete))
 X_test_final = np.hstack((X_test_continuous_scaled, X_test_discrete))
 # ------------------------------
@@ -455,7 +457,7 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 # 5. Initialize the model
 model = CognitiveDeepONet(
     num_participants=num_participants, 
-    num_features=4, 
+    num_features=5, 
     num_bases=4  
 )
 
@@ -509,8 +511,7 @@ def plot_basis_sweep(model, feature_idx=0, feature_name="L1 - R1"):
     
     sweep_values = np.linspace(-3.0, 3.0, 100)
     
-    # UPDATED: Dummy input array is now 3 columns wide instead of 5
-    dummy_inputs = np.zeros((100, 4))
+    dummy_inputs = np.zeros((100, 5))
     
     # Inject our sweep into the specific column we want to test
     dummy_inputs[:, feature_idx] = sweep_values
@@ -556,7 +557,11 @@ plot_basis_sweep(trained_model, feature_idx=1, feature_name="Total L minus Total
 # 4. See how bases react to the ball's Y position changing (Index 2)
 plot_basis_sweep(trained_model, feature_idx=2, feature_name="Ball Y at Top")
 
-plot_basis_sweep(trained_model, feature_idx = 3, feature_name = "Incoming Direction")
+# 5. See how bases react to the incoming direction being positive (Index 3)
+plot_basis_sweep(trained_model, feature_idx=3, feature_name="Incoming Pos")
+
+# 6. See how bases react to the incoming direction being negative (Index 4)
+plot_basis_sweep(trained_model, feature_idx=4, feature_name="Incoming Neg")
 
 
 # %%
@@ -637,5 +642,5 @@ def plot_3d_basis_sweeps(model, num_features, feature_names=None):
 
 
 # %%
-feature_labels = ["L1 - R1", "Total L - Total R", "Ball Y at Top", "Incoming Direction"]
-plot_3d_basis_sweeps(trained_model, num_features=4, feature_names=feature_labels)
+feature_labels = ["L1 - R1", "Total L - Total R", "Ball Y at Top", "Incoming Pos", "Incoming Neg"]
+plot_3d_basis_sweeps(trained_model, num_features=5, feature_names=feature_labels)

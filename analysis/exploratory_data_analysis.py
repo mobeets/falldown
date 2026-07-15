@@ -2409,10 +2409,11 @@ def fit_dynamic_model(d_greedy_data, d_plan_data, covariates_data, choices_data)
 
 
 # %%
-def run_participant_fits(participant_data_dict):
+def run_participant_fits(participant_data_dict, test_split=0.2):
     """
-    Iterates through all participants, formats their data, fits the model, 
-    and prints their individual metrics.
+    Iterates through all participants, chronologically splits by block,
+    fits the model on training blocks, and reports log likelihood on both
+    training and test splits.
     """
     results_list = []
     
@@ -2427,45 +2428,76 @@ def run_participant_fits(participant_data_dict):
         if len(processed_data) == 0:
             print("Skipping: No valid trials found.")
             continue
+        
+        # 2. Chronological train/test split by block
+        valid_trials_per_block = processed_data.groupby('block_number').size().sort_index()
+        cumulative_trials = valid_trials_per_block.cumsum()
+        total_trials = cumulative_trials.iloc[-1]
+        
+        train_threshold = total_trials * (1 - test_split)
+        train_blocks = set(valid_trials_per_block[cumulative_trials <= train_threshold].index)
+        test_blocks = set(valid_trials_per_block[cumulative_trials > train_threshold].index)
+        
+        if len(test_blocks) == 0 and len(valid_trials_per_block) > 1:
+            test_blocks = {valid_trials_per_block.index[-1]}
+            train_blocks = set(valid_trials_per_block.index[:-1])
+        
+        train_data = processed_data[processed_data['block_number'].isin(train_blocks)]
+        test_data = processed_data[processed_data['block_number'].isin(test_blocks)]
+        
+        print(f"  Train: {len(train_data)} trials ({len(train_blocks)} blocks), Test: {len(test_data)} trials ({len(test_blocks)} blocks)")
+        
+        # 3. Extract training arrays
+        def extract_arrays(df):
+            is_left = df['chosen_left']
+            L1 = np.where(is_left, df['chosen_1step_dist'], df['unchosen_1step_dist'])
+            R1 = np.where(~is_left, df['chosen_1step_dist'], df['unchosen_1step_dist'])
+            d_g = L1 - R1
             
-        # 2. Extract specific arrays
-        is_left = processed_data['chosen_left']
+            Total_L = np.where(is_left, df['chosen_2step_dist'], df['unchosen_2step_dist'])
+            Total_R = np.where(~is_left, df['chosen_2step_dist'], df['unchosen_2step_dist'])
+            d_p = Total_L - Total_R
+            
+            choices = (~is_left).astype(int).values
+            return d_g, d_p, choices
         
-        # Greedy Distance (L1 - R1)
-        L1 = np.where(is_left, processed_data['chosen_1step_dist'], processed_data['unchosen_1step_dist'])
-        R1 = np.where(~is_left, processed_data['chosen_1step_dist'], processed_data['unchosen_1step_dist'])
-        d_greedy = L1 - R1
+        d_greedy_train, d_plan_train, choices_train = extract_arrays(train_data)
         
-        # Plan Distance (Total L - Total R)
-        Total_L = np.where(is_left, processed_data['chosen_2step_dist'], processed_data['unchosen_2step_dist'])
-        Total_R = np.where(~is_left, processed_data['chosen_2step_dist'], processed_data['unchosen_2step_dist'])
-        d_plan = Total_L - Total_R
-        
-        # Covariate (Ball Y)
+        # Fit scaler on training data only
         scaler = StandardScaler()
-        covariate = scaler.fit_transform(processed_data[['ball_y_at_top']]).flatten()
+        covariate_train = scaler.fit_transform(train_data[['ball_y_at_top']]).flatten()
         
-        # Choices: 1 for Right, 0 for Left
-        choices = (~is_left).astype(int).values
-        
-        # 3. Fit the model
-        fit_result = fit_dynamic_model(d_greedy, d_plan, covariate, choices)
+        # 4. Fit the model on training data only
+        fit_result = fit_dynamic_model(d_greedy_train, d_plan_train, covariate_train, choices_train)
         
         if fit_result.success:
             p_lapse, p_plan_base, w1, s_greedy, s_plan = fit_result.x
             
-            acc, ll, ll_mean = evaluate_cognitive_model(fit_result.x, d_greedy, d_plan, covariate, choices)
+            # Evaluate on training set
+            train_acc, train_ll, train_ll_mean = evaluate_cognitive_model(
+                fit_result.x, d_greedy_train, d_plan_train, covariate_train, choices_train
+            )
+            
+            # Evaluate on test set
+            d_greedy_test, d_plan_test, choices_test = extract_arrays(test_data)
+            covariate_test = scaler.transform(test_data[['ball_y_at_top']]).flatten()
+            test_acc, test_ll, test_ll_mean = evaluate_cognitive_model(
+                fit_result.x, d_greedy_test, d_plan_test, covariate_test, choices_test
+            )
             
             print(f"Fit Status:  SUCCESS")
-            print(f"Accuracy:    {acc*100:.2f}%")
-            print(f"Log-Likely:  {ll:.4f}")
-            print(f"Average Log-Likely:  {ll_mean:.4f}")
+            print(f"Train Accuracy:  {train_acc*100:.2f}%  |  Test Accuracy:  {test_acc*100:.2f}%")
+            print(f"Train Log-Likelihood:        {train_ll:.4f}  |  Test Log-Likelihood:        {test_ll:.4f}")
+            print(f"Train Log-Likelihood (pT):   {train_ll_mean:.4f}  |  Test Log-Likelihood (pT):   {test_ll_mean:.4f}")
+            print(f"Neg Log-Likelihood (optimizer):  {fit_result.fun:.4f}")
             print(f"Params -> p_lapse: {p_lapse:.3f} | p_plan_base: {p_plan_base:.3f} | w1: {w1:.3f} | s_greedy: {s_greedy:.1f} | s_plan: {s_plan:.1f}")
             
             results_list.append({
                 'Participant': participant_name,
-                'Accuracy': acc,
-                'LL': ll,
+                'Train_Accuracy': train_acc,
+                'Test_Accuracy': test_acc,
+                'Train_LL': train_ll,
+                'Test_LL': test_ll,
                 'p_lapse': p_lapse,
                 'p_plan_base': p_plan_base,
                 'w1': w1,
