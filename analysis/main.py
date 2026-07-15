@@ -1,5 +1,18 @@
-#%%
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.19.4
+#   kernelspec:
+#     display_name: base
+#     language: python
+#     name: python3
+# ---
 
+# %%
 import json
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,36 +21,48 @@ def load(fnm):
 	return json.load(open(fnm))
 
 def get_choices(data):
+    choices = []
+    for block in data['blocks']:
+        trials = block['trials']
+        for i, trial in enumerate(trials):
+            if i == 0:
+                continue
+            if 'holes' in trial:
+                hole_locs = sorted(trial['holes']['hole_locations'])
+            elif 'events' in trial and len(trial['events']) > 0:
+                hole_locs = sorted(trial['events'][0]['hole_locations'])
+            else:
+                print('no choice')
+                continue
+            if len(hole_locs) == 2:
+                if 'holeUsed' in trial:
+                    h_cur = trial['holeUsed']
+                    h_prev = trials[i-1]['holeUsed']
+                elif 'events' in trial and len(trial['events']) > 0 and 'events' in trials[i-1] and len(trials[i-1]['events']) > 0:
+                    h_cur = trial['events'][0]['holeUsed']
+                    h_prev = trials[i-1]['events'][0]['holeUsed']
+                else:
+                    continue
+                dist_L = np.abs(hole_locs[0] - h_prev)
+                dist_R = np.abs(hole_locs[1] - h_prev)
+                choice = hole_locs.index(h_cur)
+                if 'timePassedThru' in trial:
+                    rt = trial['timePassedThru'] - trials[i-1]['timePassedThru']
+                elif 'events' in trial and len(trial['events']) > 0 and len(trials[i-1]['events']) > 0:
+                    rt = trial['events'][0]['time'] - trials[i-1]['events'][0]['time']
+                else:
+                    rt = np.nan
+                choices.append((dist_L, dist_R, rt, choice))
+        return np.vstack(choices)
+
+def compare_greedy_vs_rollout(data):
 	trials = data['trials']
 	choices = []
 	for i, trial in enumerate(trials):
 		if i == 0 or trials[i]['gameIndex'] != trials[i-1]['gameIndex']:
 			continue
-		hole_locs = sorted(trial['holes']['hole_locations'])
-		if len(hole_locs) == 2:
-			h_cur = trial['holeUsed']
-			h_prev = trials[i-1]['holeUsed']
-			dist_L = np.abs(hole_locs[0] - h_prev)
-			dist_R = np.abs(hole_locs[1] - h_prev)
-			choice = hole_locs.index(h_cur)
-			rt = trial['timePassedThru'] - trials[i-1]['timePassedThru']
-			choices.append((dist_L, dist_R, rt, choice))
-	return np.vstack(choices)
-
-def compare_greedy_vs_rollout(data, mode='decision'):
-	trials = data['trials']
-	choices = []
-	for i, trial in enumerate(trials):
-		if i == 0 or trials[i]['gameIndex'] != trials[i-1]['gameIndex']:
-			continue
-		if i+1 == len(trials):
-			continue
-		
-		is_decision = len(trial['holes']['hole_locations']) == 2 and len(trials[i+1]['holes']['hole_locations']) == 1 and len(trials[i-1]['holes']['hole_locations']) == 1
-
-		is_fixed = len(trial['holes']['hole_locations']) == 1 and len(trials[i-1]['holes']['hole_locations']) == 1
-
-		if mode == 'decision' and is_decision:
+		# if trial['holes']['plan_depth'] == 2 and trial['holes']['layer_index'] == 1:
+		if len(trial['holes']['hole_locations']) == 2 and len(trials[i+1]['holes']['hole_locations']) == 1 and len(trials[i-1]['holes']['hole_locations']) == 1:
 			h_prev = trials[i-1]['holeUsed']
 			h_cur = trial['holeUsed']
 			hole_locs = sorted(trial['holes']['hole_locations'])
@@ -49,21 +74,8 @@ def compare_greedy_vs_rollout(data, mode='decision'):
 			dist_R2 = dist_R1 + np.abs(hole_locs[1] - h_next)
 			
 			choice = hole_locs.index(h_cur)
-
 			rt = trial['timePassedThru'] - trials[i-1]['timePassedThru']
 			choices.append((dist_L1, dist_R1, dist_L2, dist_R2, rt, choice))
-		
-		elif mode == 'fixed' and is_fixed:
-			h_prev = trials[i-1]['holeUsed']
-			hole_locs = sorted(trial['holes']['hole_locations'])
-			dist_L1 = np.abs(hole_locs[0] - h_prev)
-			dist_R1 = dist_L1
-			dist_L2 = dist_L1
-			dist_R2 = dist_L1
-			choice = 0
-			rt = trial['timePassedThru'] - trials[i-1]['timePassedThru']
-			choices.append((dist_L1, dist_R1, dist_L2, dist_R2, rt, choice))
-
 	return np.vstack(choices)
 
 def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to hole (L - R)', label='_'):
@@ -86,32 +98,33 @@ def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to ho
 	plt.ylabel('Prob. of choosing Right Hole')
 	return fig
 
-#%% load data
 
-fnm = '../logs/jah_20251206_1350.json'
-fnm = '../logs/unknown-2026-02-16T22-27-24-428Z-egn2.json'
+
+# %%
+#fnm = '../logs/jah_20251206_1350.json'
+#fnm = '../logs/unknown-2026-02-16T22-27-24-428Z-egn2.json'
+fnm = 'real_trial1.json'
 data = load(fnm)
 
-#%% plot psychometric curve (greedy)
 
+# %%
 # plot psychometric curve
 choices = get_choices(data)
 X = choices[:,0] - choices[:,1]
 y = choices[:,-1]
 plot_psychometric_curve(X, y)
 
-#%% plot 2D choice heatmap (L dist vs R dist, greedy)
-
+# %%
 # heatmap where choices[:,:2] are the coordinates and choices[:,2] is the value
 plt.figure(figsize=(3,3), dpi=300)
 # plt.tricontourf(choices[:,0], choices[:,1], choices[:,2], levels=10, cmap='viridis')
 
 xs = choices[:,0]
 ys = choices[:,1]
-xs = choices[:,2]
-ys = choices[:,3]
-xs = choices[:,0] - choices[:,1]
-ys = choices[:,2] - choices[:,3]
+# xs = choices[:,2]
+# ys = choices[:,3]
+# xs = choices[:,0] - choices[:,1]
+# ys = choices[:,2] - choices[:,3]
 zs = choices[:,-1]
 
 xs_all = np.unique(xs)
@@ -144,8 +157,8 @@ plt.xlabel('Distance to Left Hole')
 plt.ylabel('Distance to Right Hole')
 plt.show()
 
-#%% compare greedy vs rollout heatmaps
 
+# %%
 choices = compare_greedy_vs_rollout(data)
 fig = plt.figure(figsize=(3,3), dpi=300)
 
@@ -156,81 +169,22 @@ X = choices[:,2] - choices[:,3]
 y = choices[:,-1]
 plot_psychometric_curve(X, y, fig=fig, color='b')
 
-#%% plot RT on congruent vs incongruent choices
 
-choices = compare_greedy_vs_rollout(data)
-
+# %%
 fig = plt.figure(figsize=(3,3), dpi=300)
 X1 = choices[:,0] - choices[:,1]
 X2 = choices[:,2] - choices[:,3]
 X = X1 * X2 # positive if greedy and rollout agree, negative if they disagree
 y = choices[:,4]
-# ignore RTs that are too long or negative
-ix = (choices[:,4] < 4000) & (choices[:,4] > 0)
-X = X[ix]
-y = y[ix]
-
 plot_psychometric_curve(X, y, fig=fig, color='r')
 plt.xscale('symlog')
 # plt.yscale('log')
 plt.xlabel('Agreement between Greedy and Rollout (L-R)')
 plt.ylabel('Reaction Time (ms)')
 
-# print mean ± SE of RT for agreement vs disagreement, and perform t-test
-agree_ix = X > 0
-disagree_ix = X < 0
-print(f'RT for agreement: {np.mean(y[agree_ix]):.1f} ± {np.std(y[agree_ix]) / np.sqrt(sum(agree_ix)):.1f}')
-print(f'RT for disagreement: {np.mean(y[disagree_ix]):.1f} ± {np.std(y[disagree_ix]) / np.sqrt(sum(disagree_ix)):.1f}')
-from scipy.stats import ttest_ind
-t_stat, p_val = ttest_ind(y[agree_ix], y[disagree_ix])
-print(f'T-test: t={t_stat:.3f}, p={p_val:.3f}')
 
-#%% plot RT vs distance for different groups
 
-# mode = 'decision'
-mode = 'fixed'
-choices = compare_greedy_vs_rollout(data, mode=mode)
-
-fig = plt.figure(figsize=(3,3), dpi=300)
-actions = choices[:,-1].astype(int)
-X = np.array([choices[i,a] for i,a in enumerate(actions)])
-y = choices[:,4]
-
-# ignore RTs that are too long or negative
-ix = (choices[:,4] < 4000) & (choices[:,4] > 0)
-X = X[ix]
-y = y[ix]
-
-if mode == 'decision':
-	# compare RTs for congruent (black) vs incongruent (red) decisions
-	G1 = choices[:,0] - choices[:,1]
-	G2 = choices[:,2] - choices[:,3]
-	G = G1 * G2 # positive if greedy and rollout agree, negative if they disagree
-	G = G[ix]
-
-	clrs = {True: 'k', False: 'r'}
-	for do_cong in [True, False]:
-		ixc = G > 0 if do_cong else G < 0
-		plot_psychometric_curve(X[ixc], y[ixc], fig=fig, color=clrs[do_cong])
-else:
-	# compare RTs for no-choice (black) vs choice (red) trials
-	plot_psychometric_curve(X, y, fig=fig, color='k')
-
-	choices = compare_greedy_vs_rollout(data, mode='decision')
-	actions = choices[:,-1].astype(int)
-	X = np.array([choices[i,a] for i,a in enumerate(actions)])
-	y = choices[:,4]
-	ix = (choices[:,4] < 4000) & (choices[:,4] > 0)
-	X = X[ix]
-	y = y[ix]
-	plot_psychometric_curve(X, y, fig=fig, color='r')
-
-plt.xlabel('Distance traveled')
-plt.ylabel('Reaction Time (ms)')
-
-#%% fit logistic regression to predict choice from distances
-# report score on held-out test set using 5-fold cross-validation
-
+# %%
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
@@ -254,8 +208,8 @@ plt.ylabel('Weight')
 plt.title('Logistic Regression Weights')
 plt.show()
 
-#%% plot psychometric curves for greedy vs rollout
 
+# %%
 choices = compare_greedy_vs_rollout(data)
 fig = plt.figure(figsize=(3,3), dpi=300)
 clrs = ['g', 'r', 'b', 'm', 'k', 'c']
@@ -276,10 +230,3 @@ for d in range(len(names)):
 
 plt.legend(fontsize=6)
 
-#%%
-
-if __name__ == '__main__':
-	fnm = 'data/falldown_data.json'
-	data = load(fnm)
-	choices = get_choices(data)
-	plot(choices)
