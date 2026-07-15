@@ -17,6 +17,9 @@ data/*
 logs/*
 !logs/.gitkeep
 
-papers/
+*.pdf
 
 analysis/figures/schematics.ai
+
+graphify-out/*
+.graphifyignore
