@@ -1,6 +1,6 @@
 {
-	"scrollSpeed": 1.5,
-	"maxScrollSpeed": 1.5,
+	"scrollSpeed": 1.2,
+	"maxScrollSpeed": 1.2,
 	"scrollSpeedSecsToMax": 120,
 	"relativeGravity": 0.75,
 	"relativeBallAccel": 0.6,
