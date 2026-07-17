@@ -346,82 +346,138 @@ from collections import defaultdict
 
 
 # %%
-def merge_participant_files(folder_path, participant_id):
-    # Find all JSON files for this specific participant
-    search_pattern = os.path.join(folder_path, f"{participant_id}*.json")
-    file_list = glob.glob(search_pattern)
+def merge_participant_files(folder_path, participant_id=None, file_glob=None):
+    """
+    If participant_id is given, matches files with that prefix (old behavior).
+    If file_glob is given (e.g. 'analysis/cloud study data 2/*'), uses glob directly.
+    Otherwise treats folder_path as a directory and groups files by first 30 chars.
+
+    Returns {participant_prefix: merged_data} dict.
+    """
+    # Resolve file list
+    if file_glob is not None:
+        file_list = glob.glob(file_glob)
+    elif participant_id is not None:
+        file_list = glob.glob(os.path.join(folder_path, f"{participant_id}*.json"))
+    else:
+        file_list = glob.glob(os.path.join(folder_path, "*.json"))
 
     if not file_list:
-        print(f"No files found for participant {participant_id}")
-        return {'blocks': []}
+        print("No files found")
+        return {}
 
-    # 1. Deduplicate Phase
-    # Use nested dictionaries so that overlapping trials overwrite each other safely
-    merged_blocks = {}
+    # Group by first 30 characters of basename
+    groups = defaultdict(list)
+    for fp in file_list:
+        prefix = os.path.basename(fp)[:30]
+        groups[prefix].append(fp)
 
-    for file_path in file_list:
-        try:
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-                
+    all_merged = {}
+    for prefix, fp_list in groups.items():
+        merged_blocks = {}
+        total_processed = 0
+        total_repeats = 0
+
+        for file_path in fp_list:
+            try:
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+            except Exception as e:
+                print(f"Error reading {file_path}: {e}")
+                continue
+
             if 'blocks' not in data:
                 continue
-                
+
             for block in data['blocks']:
                 b_idx = block.get('block_index')
                 if b_idx is None:
                     continue
-                    
                 if b_idx not in merged_blocks:
-                    merged_blocks[b_idx] = {}
-                    
+                    merged_blocks[b_idx] = {'meta': {}, 'trials': {}}
+
+                for k, v in block.items():
+                    if k not in ('block_index', 'trials'):
+                        merged_blocks[b_idx]['meta'][k] = v
+
                 if 'trials' not in block:
                     continue
-                    
                 for trial in block['trials']:
                     t_idx = trial.get('index')
                     if t_idx is not None:
-                        merged_blocks[b_idx][t_idx] = trial
-                        
-        except Exception as e:
-            print(f"Error processing {file_path}: {e}")
+                        total_processed += 1
+                        if t_idx in merged_blocks[b_idx]['trials']:
+                            total_repeats += 1
+                        merged_blocks[b_idx]['trials'][t_idx] = trial
 
-    # 2. Strict List Conversion Phase
-    # compare_greedy_vs_rollout requires pure lists to allow for enumerate() and trials[i-1] indexing
-    final_data = {'blocks': []}
-    
-    # Sort blocks to ensure chronological order (0, 1, 2...)
-    for b_idx in sorted(merged_blocks.keys()):
-        block_dict = {
-            'block_index': b_idx,
-            'trials': [] # Force trials to be a pure List
-        }
-        
-        # Sort trials within the block to guarantee chronological sequence
-        for t_idx in sorted(merged_blocks[b_idx].keys()):
-            block_dict['trials'].append(merged_blocks[b_idx][t_idx])
-            
-        final_data['blocks'].append(block_dict)
+        # Convert to sorted list form
+        final_data = {'blocks': []}
+        for b_idx in sorted(merged_blocks.keys()):
+            block_dict = {'block_index': b_idx}
+            block_dict.update(merged_blocks[b_idx]['meta'])
+            block_dict['trials'] = [
+                merged_blocks[b_idx]['trials'][t_idx]
+                for t_idx in sorted(merged_blocks[b_idx]['trials'])
+            ]
+            final_data['blocks'].append(block_dict)
 
-    return final_data
+        unique_trials = sum(len(merged_blocks[b]['trials']) for b in merged_blocks)
+        unique_blocks = len(merged_blocks)
+
+        print(f"Participant {prefix}: {len(fp_list)} files -> {total_repeats} repeated trials, "
+              f"{unique_trials} unique trials, {unique_blocks} unique blocks")
+
+        all_merged[prefix] = final_data
+
+    return all_merged
 
 
 # %%
-clean_participant_data = merge_participant_files('./cloud study data', '09068BB9E6224A029F04C83C05132718')
+def save_merged_participants(merged_dict, output_dir='cloud study data'):
+    """
+    Save each participant's cleaned merged data as a JSON file in output_dir.
+
+    The filename is {prefix}_cleaned.json so it doesn't collide with raw files.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    saved = []
+    for prefix, data in merged_dict.items():
+        out_path = os.path.join(output_dir, f'{prefix}_cleaned.json')
+        with open(out_path, 'w') as f:
+            json.dump(data, f)
+        saved.append(out_path)
+        print(f'Saved {out_path}')
+    print(f'Done — {len(saved)} participant file(s) written to {output_dir}/')
+    return saved
+
+
+# %%
+# Merge all JSON files from the cloud study folder into per-participant data
+all_participant_data = merge_participant_files(
+    'cloud study data 2',
+    file_glob='cloud study data 2/*.json'
+)
+
+# %%
+# Save cleaned versions to /cloud study data/
+save_merged_participants(all_participant_data, 'cloud study data')
 
 # %% [markdown]
 # # Output
 
 # %%
-#fd = "C:/Users/manik/Desktop/Obsidian/General Thoughts/Z Images and Files/Hennig Lab Project/falldown/logs"
-data = load("cloud study data/88AD64F00C6B43489770A02E7A1AE2C2-019e8fd9-16e9-7876-8e3b-d51a48df0526-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-03T23-37-31-300Z-4ecm.json")
+# Pick a participant from the merged data to analyze
+prefixes = list(all_participant_data.keys())
+prefix = prefixes[1] if prefixes else None
+data = all_participant_data[prefix] if prefix else {'blocks': []}
+print(f"Analyzing participant: {prefix}")
 
 # %%
-data['blocks'][0]['trials']
+#data['blocks'][0]['trials']
 
 # %%
-for block in data['blocks']:
-    print(block['block_index'])
+#for block in data['blocks']:
+#    print(block['block_index'])
 
 # %%
 choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
@@ -440,3 +496,5 @@ plot_psychometric_curve(X, y)
 
 # %%
 trials_per_block = plot_trials_per_block(data)
+
+# %%
