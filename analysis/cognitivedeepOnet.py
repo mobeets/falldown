@@ -417,6 +417,12 @@ participant7 = load("cloud study data/CEFD2FE92E6847B2B27FF0175811CE81-019e9464-
 participant8 = load("cloud study data/EC07396CE23248F2855499612FEB8ACA-019e9464-92a5-7d10-b713-7022c5b049fc-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-16-501Z-olib.json")
 participant9 = load("cloud study data/FD2A6686546A4D689BE4A684CD264636-019e946a-96b4-78df-ac42-63e6e82c3209-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-54-42-499Z-j7h3.json")
 
+participant10 = load("cloud study data/EA4EE5B954A749C8BEED8F06A43F58_cleaned.json")
+participant11 = load("cloud study data/C8C4C97C01AA45CA9064DA1A7635A4_cleaned.json")
+participant12 = load("cloud study data/96CA2FB7709946BB8EB38CAB5B713E_cleaned.json")
+participant13 = load("cloud study data/B0525260D0F8488D8D4695DD76FF64_cleaned.json")
+participant14 = load("cloud study data/32FC87F1C127480BA90BCC97640655_cleaned.json")
+
 participants_data = [participant1, participant2, participant3, participant4, participant5, participant6, participant7, participant8, participant9]
 
 # %%
@@ -644,3 +650,5 @@ def plot_3d_basis_sweeps(model, num_features, feature_names=None):
 # %%
 feature_labels = ["L1 - R1", "Total L - Total R", "Ball Y at Top", "Incoming Pos", "Incoming Neg"]
 plot_3d_basis_sweeps(trained_model, num_features=5, feature_names=feature_labels)
+
+# %%

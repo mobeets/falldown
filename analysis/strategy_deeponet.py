@@ -72,22 +72,34 @@ def orthogonality_penalty(bases):
 
 # %%
 class StrategyDeepONet(nn.Module):
-    def __init__(self, num_participants, num_features=5, num_bases=4, num_strategies=3):
+    def __init__(self, num_participants, num_features=5, num_bases=4, num_strategies=3,
+                 shared_bases=False):
         super().__init__()
 
         self.num_strategies = num_strategies
         self.num_bases = num_bases
+        self.shared_bases = shared_bases
 
-        self.basis_nets = nn.ModuleList([
-            nn.Sequential(
+        if shared_bases:
+            self.basis_net = nn.Sequential(
                 nn.Linear(num_features, 16),
                 nn.ReLU(),
                 nn.Linear(16, 16),
                 nn.ReLU(),
                 nn.Linear(16, num_bases),
                 nn.Tanh()
-            ) for _ in range(num_strategies)
-        ])
+            )
+        else:
+            self.basis_nets = nn.ModuleList([
+                nn.Sequential(
+                    nn.Linear(num_features, 16),
+                    nn.ReLU(),
+                    nn.Linear(16, 16),
+                    nn.ReLU(),
+                    nn.Linear(16, num_bases),
+                    nn.Tanh()
+                ) for _ in range(num_strategies)
+            ])
 
         coeff_dim = num_strategies * num_bases
         self.participant_coeffs = nn.Embedding(num_participants, coeff_dim)
@@ -110,7 +122,10 @@ class StrategyDeepONet(nn.Module):
         all_logits = []
         all_bases = []
         for k in range(self.num_strategies):
-            bases_k = self.basis_nets[k](trial_features)
+            if self.shared_bases:
+                bases_k = self.basis_net(trial_features)
+            else:
+                bases_k = self.basis_nets[k](trial_features)
             logit_k = (bases_k * coeffs[:, k, :]).sum(dim=-1)
             all_logits.append(logit_k)
             all_bases.append(bases_k)
@@ -170,8 +185,9 @@ class StrategyDeepONetMultiTask(StrategyDeepONet):
 # %%
 class TimeBinnedStrategyDeepONet(StrategyDeepONet):
     def __init__(self, num_participants, num_time_bins, num_features=5,
-                 num_bases=4, num_strategies=3):
-        super().__init__(num_participants, num_features, num_bases, num_strategies)
+                 num_bases=4, num_strategies=3, shared_bases=False):
+        super().__init__(num_participants, num_features, num_bases, num_strategies,
+                         shared_bases=shared_bases)
         self.num_time_bins = num_time_bins
 
         coeff_dim = self.num_strategies * self.num_bases
@@ -220,11 +236,14 @@ def train_strategy_deeponet(model, dataloader, num_epochs=200, lr=0.001,
                 logits, bases, strategy_weights = model(features, p_ids)
             bce_loss = criterion(logits, true_choices)
 
-            # Orthogonality penalty: average across all K basis nets
+            # Orthogonality penalty: with shared bases, penalize once
             orth_loss = 0.0
-            for k in range(model.num_strategies):
-                orth_loss += orthogonality_penalty(bases[:, k, :])
-            orth_loss /= model.num_strategies
+            if model.shared_bases:
+                orth_loss = orthogonality_penalty(bases[:, 0, :])
+            else:
+                for k in range(model.num_strategies):
+                    orth_loss += orthogonality_penalty(bases[:, k, :])
+                orth_loss /= model.num_strategies
 
             # Entropy bonus: prevent the gate from collapsing to one strategy
             probs = torch.clamp(strategy_weights, min=1e-8)
@@ -273,9 +292,12 @@ def train_strategy_deeponet_multitask(model, dataloader, num_epochs=200, lr=0.00
             mse_loss = rt_criterion(rt_pred, true_rt)
 
             orth_loss = 0.0
-            for k in range(model.num_strategies):
-                orth_loss += orthogonality_penalty(bases[:, k, :])
-            orth_loss /= model.num_strategies
+            if model.shared_bases:
+                orth_loss = orthogonality_penalty(bases[:, 0, :])
+            else:
+                for k in range(model.num_strategies):
+                    orth_loss += orthogonality_penalty(bases[:, k, :])
+                orth_loss /= model.num_strategies
 
             probs = torch.clamp(strategy_weights, min=1e-8)
             entropy = -(probs * torch.log(probs)).sum(dim=-1).mean()
@@ -664,7 +686,8 @@ def run_model(model_type='gated', participant_data_paths=None, num_strategies=3,
 
     if model_type == 'gated':
         model = StrategyDeepONet(num_participants, num_features=5,
-                                 num_bases=num_bases, num_strategies=num_strategies)
+                                 num_bases=num_bases, num_strategies=num_strategies,
+                                 shared_bases= True)
         train_set = MazeDataset(X_train_final, id_train, y_train)
         test_set = MazeDataset(X_test_final, id_test, y_test)
         train_loader = DataLoader(train_set, batch_size=64, shuffle=True)
@@ -674,7 +697,8 @@ def run_model(model_type='gated', participant_data_paths=None, num_strategies=3,
 
     elif model_type == 'multitask':
         model = StrategyDeepONetMultiTask(num_participants, num_features=5,
-                                          num_bases=num_bases, num_strategies=num_strategies)
+                                          num_bases=num_bases, num_strategies=num_strategies,
+                                          shared_bases= True)
         rt_train, rt_test = train_test_split(rt_values, test_size=0.2, random_state=42)
         train_set = MazeDataset(X_train_final, id_train, y_train, rt_train)
         test_set = MazeDataset(X_test_final, id_test, y_test, rt_test)
@@ -686,7 +710,8 @@ def run_model(model_type='gated', participant_data_paths=None, num_strategies=3,
     elif model_type == 'timebinned':
         model = TimeBinnedStrategyDeepONet(num_participants, num_time_bins,
                                            num_features=5, num_bases=num_bases,
-                                           num_strategies=num_strategies)
+                                           num_strategies=num_strategies,
+                                           shared_bases= True)
         bin_ids_train = np.floor(np.linspace(0, num_time_bins - 0.001, len(id_train))).astype(int)
         bin_ids_test = np.floor(np.linspace(0, num_time_bins - 0.001, len(id_test))).astype(int)
         train_set = MazeDataset(X_train_final, id_train, y_train, time_bin_ids=bin_ids_train)
@@ -746,7 +771,7 @@ if len(available_files) >= 3:
         model_type='gated',
         participant_data_paths=participant_paths,
         num_strategies=3,
-        num_bases=4,
+        num_bases=6,
         num_epochs=200
     )
 
