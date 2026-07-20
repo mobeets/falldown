@@ -1,0 +1,4 @@
+# Ignore raw participant JSON files for OpenCode
+analysis/cloud study data/
+*.json
+*.jsonl

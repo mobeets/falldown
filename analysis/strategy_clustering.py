@@ -471,7 +471,7 @@ else:
 # directly to `full_clustering_pipeline()`.
 
 # %%
-MODEL_PATH = os.path.join(PROJECT_ROOT, "graphify-out", "gated_strategy_model.pt")
+MODEL_PATH = os.path.join(_SCRIPT_DIR, "gated_strategy_model.pt")
 
 def load_saved_model(model_path, num_participants, num_strategies=3, num_bases=4):
     from strategy_deeponet import StrategyDeepONet
@@ -480,7 +480,8 @@ def load_saved_model(model_path, num_participants, num_strategies=3, num_bases=4
         num_participants=num_participants,
         num_features=5,
         num_bases=num_bases,
-        num_strategies=num_strategies
+        num_strategies=num_strategies,
+        shared_bases=True
     )
     model.load_state_dict(torch.load(model_path, weights_only=True))
     model.eval()

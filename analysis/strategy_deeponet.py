@@ -149,8 +149,8 @@ class StrategyDeepONet(nn.Module):
 
 # %%
 class StrategyDeepONetMultiTask(StrategyDeepONet):
-    def __init__(self, num_participants, num_features=5, num_bases=4, num_strategies=3):
-        super().__init__(num_participants, num_features, num_bases, num_strategies)
+    def __init__(self, num_participants, num_features=5, num_bases=4, num_strategies=3, shared_bases=False):
+        super().__init__(num_participants, num_features, num_bases, num_strategies, shared_bases=shared_bases)
 
         coeff_dim = self.num_strategies * self.num_bases
         self.rt_coeffs = nn.Embedding(num_participants, coeff_dim)
@@ -344,9 +344,12 @@ def train_time_binned(model, dataloader, num_epochs=200, lr=0.001,
             bce_loss = criterion(logits, true_choices)
 
             orth_loss = 0.0
-            for k in range(model.num_strategies):
-                orth_loss += orthogonality_penalty(bases[:, k, :])
-            orth_loss /= model.num_strategies
+            if model.shared_bases:
+                orth_loss = orthogonality_penalty(bases[:, 0, :])
+            else:
+                for k in range(model.num_strategies):
+                    orth_loss += orthogonality_penalty(bases[:, k, :])
+                orth_loss /= model.num_strategies
 
             probs = torch.clamp(strategy_weights, min=1e-8)
             entropy = -(probs * torch.log(probs)).sum(dim=-1).mean()
@@ -771,7 +774,7 @@ if len(available_files) >= 3:
         model_type='gated',
         participant_data_paths=participant_paths,
         num_strategies=3,
-        num_bases=6,
+        num_bases=4,
         num_epochs=200
     )
 
@@ -788,7 +791,7 @@ if len(available_files) >= 3:
     print(f"\nGated model complete. Accuracy: {gated_metrics['accuracy']*100:.1f}%")
 
     # Save model for later clustering
-    save_dir = os.path.join(_PROJECT_ROOT, "graphify-out")
+    save_dir = os.path.join(_SCRIPT_DIR)
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, "gated_strategy_model.pt")
     torch.save(gated_model.state_dict(), save_path)
