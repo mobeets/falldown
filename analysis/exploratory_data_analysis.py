@@ -28,13 +28,9 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import statsmodels.api as sm
 from scipy.stats import ttest_1samp
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import TensorDataset, DataLoader
-from torch.nn.utils.rnn import pad_sequence
-
 import scipy.stats as stats
+
+from RNN import TinyDecisionRNN, prepare_rnn_tensors, evaluate_model_performance, train_RNN, run_RNN_for_eval
 
 import seaborn as sns
 
@@ -48,6 +44,63 @@ import seaborn as sns
 # %%
 def load(fnm):
 	return json.load(open(fnm))
+
+PARTICIPANT_FILES = {
+    "P1": "cloud study data/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json",
+    "P2": "cloud study data/88AD64F00C6B43489770A02E7A1AE2C2-019e8fd9-16e9-7876-8e3b-d51a48df0526-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-03T23-37-31-300Z-4ecm.json",
+    "P3": "cloud study data/6462D588260B4356936047A04A336EBE-019e9464-f99c-77c5-bf47-327c7a7cf4f1-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-41-26-943Z-c5do.json",
+    "P4": "cloud study data/46331EBA4F494FAD901E83106523FF12-019e9464-9d12-7cc3-8cba-8f0dd00eeb20-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-33-792Z-sop6.json",
+    "P5": "cloud study data/BB4D2ACD4DAB45F5BAB68A472EB2E06C-019e9464-9a85-718c-9964-ec6755cdcd1c-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-17-611Z-i0am.json",
+    "P6": "cloud study data/C47CEEC22AD9448E9F87D0577BA7FC80-019e946e-abeb-723a-8d4d-50881fc0551f-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-59-12-508Z-e1tl.json",
+    "P7": "cloud study data/CEFD2FE92E6847B2B27FF0175811CE81-019e9464-988c-7240-bf66-336f77c05049-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-50-03-371Z-34zm.json",
+    "P8": "cloud study data/EC07396CE23248F2855499612FEB8ACA-019e9464-92a5-7d10-b713-7022c5b049fc-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-16-501Z-olib.json",
+    "P9": "cloud study data/FD2A6686546A4D689BE4A684CD264636-019e946a-96b4-78df-ac42-63e6e82c3209-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-54-42-499Z-j7h3.json",
+
+    "P10": "cloud study data/32FC87F1C127480BA90BCC97640655_cleaned.json",
+    "P11": "cloud study data/96CA2FB7709946BB8EB38CAB5B713E_cleaned.json",
+    "P12": "cloud study data/B0525260D0F8488D8D4695DD76FF64_cleaned.json",
+    "P13": "cloud study data/C8C4C97C01AA45CA9064DA1A7635A4_cleaned.json",
+    "P14": "cloud study data/EA4EE5B954A749C8BEED8F06A43F58_cleaned.json"
+}
+
+def get_participants_data(*ids):
+    """Load participants by ID from PARTICIPANT_FILES. Returns a list of data dicts.
+    
+    Call with no arguments to load all 9 default participants:
+        participants_data = get_participants_data()
+    
+    Call with specific IDs to load a subset:
+        p1, p3 = get_participants_data("P1", "P3")
+    """
+    if not ids:
+        ids = sorted(PARTICIPANT_FILES.keys())
+    return [load(PARTICIPANT_FILES[pid]) for pid in ids]
+
+
+def categorize_by_drift(participants_data):
+    """Categorize participants by whether they have follow (0), drift (1), or both conditions.
+    
+    Returns four lists of indices: (has_both, drift_only, follow_only, no_data).
+    Each element is the index into the original participants_data list.
+    """
+    has_both, drift_only, follow_only, no_data = [], [], [], []
+    for i, p_data in enumerate(participants_data):
+        processed = pre_proccess_data_from_choice_vs_no_choice(p_data)
+        if processed.empty:
+            no_data.append(i)
+            continue
+        has_0 = (processed['block_drift'] == 0).any()
+        has_1 = (processed['block_drift'] == 1).any()
+        if has_0 and has_1:
+            has_both.append(i)
+        elif has_1:
+            drift_only.append(i)
+        elif has_0:
+            follow_only.append(i)
+        else:
+            no_data.append(i)
+    return has_both, drift_only, follow_only, no_data
+
 
 def pre_proccess_data_from_choice_vs_no_choice(data):
     output = []
@@ -175,128 +228,16 @@ def pre_proccess_data_from_choice_vs_no_choice(data):
     return output
 
 
-# %%
-def prepare_rnn_tensors(raw_data, batch_size=1, test_split=0.2):
-    """
-    Processes raw maze data and splits it into chronologically separated 
-    training and testing dataloaders based on a target percentage of total trials.
-    """
-    processed_data = pre_proccess_data_from_choice_vs_no_choice(raw_data)
-    
-    if isinstance(processed_data, list):
-        df_raw = pd.DataFrame(processed_data)
-    else:
-        df_raw = processed_data
-        
-    is_left = df_raw['chosen_left'].astype(bool)
-    
-    L1 = np.where(is_left, df_raw['chosen_1step_dist'], df_raw['unchosen_1step_dist'])
-    R1 = np.where(~is_left, df_raw['chosen_1step_dist'], df_raw['unchosen_1step_dist'])
-    
-    chosen_2step_diff = df_raw['chosen_2step_dist'] - df_raw['chosen_1step_dist']
-    unchosen_2step_diff = df_raw['unchosen_2step_dist'] - df_raw['unchosen_1step_dist']
-    
-    L2 = np.where(is_left, chosen_2step_diff, unchosen_2step_diff)
-    R2 = np.where(~is_left, chosen_2step_diff, unchosen_2step_diff)
-
-    X = pd.DataFrame({
-        'L1-R1': L1 - R1,
-        'L2-R2': L2 - R2,
-        'block_drift': df_raw['block_drift'],
-        'block_number': df_raw['block_number'],
-        'chosen_left': df_raw['chosen_left'],
-        'ball_y': df_raw['ball_y_at_top'],
-        'cost': df_raw['observed_rt']
-    })
-
-    ball_y_mean = X['ball_y'].mean()
-    ball_y_std = X['ball_y'].std()
-
-    X['ball_y'] = (X['ball_y']-ball_y_mean)/ball_y_std
-
-    trials_per_block = X.groupby('block_number').size()
-    large_blocks = trials_per_block[trials_per_block > 4].index
-    
-    if not large_blocks.empty:
-        first_real_block = large_blocks.min()
-        X = X[X['block_number'] >= first_real_block].copy()
-
-    for col in ['L1-R1', 'L2-R2', 'cost']:
-        X[col] = pd.to_numeric(X[col], errors='coerce')
-        
-    X = X.dropna(subset=['L1-R1', 'L2-R2', 'cost', 'chosen_left', 'ball_y'])
-
-    max_time = X['cost'].max()
-    min_time = X['cost'].min()
-    X['cost'] = (X['cost'] - min_time) / (max_time - min_time + 1e-6)
-
-    valid_trials_per_block = X.groupby('block_number').size().sort_index()
-    
-    if test_split > 0.0:
-        cumulative_trials = valid_trials_per_block.cumsum()
-        total_trials = cumulative_trials.iloc[-1]
-        
-        train_threshold = total_trials * (1 - test_split)
-        
-        train_blocks = set(valid_trials_per_block[cumulative_trials <= train_threshold].index)
-        test_blocks = set(valid_trials_per_block[cumulative_trials > train_threshold].index)
-        
-        if len(test_blocks) == 0 and len(valid_trials_per_block) > 1:
-            test_blocks = {valid_trials_per_block.index[-1]}
-            train_blocks = set(valid_trials_per_block.index[:-1])
-    else:
-        train_blocks = set(valid_trials_per_block.index)
-        test_blocks = set()
-
-    feature_cols = ['L1-R1', 'L2-R2', 'block_drift', 'ball_y', 'cost']
-
-    def build_tensors(target_blocks, is_train=True):
-        features_list = []
-        targets_list = []
-        
-        for b in sorted(target_blocks):
-            group = X[X['block_number'] == b].sort_index()
-            features_list.append(torch.tensor(group[feature_cols].values, dtype=torch.float32))
-            targets_list.append(torch.tensor(group['chosen_left'].values, dtype=torch.long))
-            
-        if not features_list:
-            return None, None, None
-            
-        x_pad = pad_sequence(features_list, batch_first=True, padding_value=0.0)
-        y_pad = pad_sequence(targets_list, batch_first=True, padding_value=-1)
-        
-        dataset = TensorDataset(x_pad, y_pad)
-        # We usually shuffle training blocks, but keep test blocks sequential for easier evaluation tracking
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-        return x_pad, y_pad, loader
-
-    # Build the distinct loaders
-    X_train, y_train, train_loader = build_tensors(train_blocks, is_train=True)
-    X_test, y_test, test_loader = build_tensors(test_blocks, is_train=False)
-
-    print(f"-> Extracted {len(train_blocks)} Training Blocks, {len(test_blocks)} Testing Blocks.")
-    
-    if X_train is not None:
-        print(f"-> Train X_padded shape: {X_train.shape} | Train y_padded shape: {y_train.shape}")
-    if X_test is not None:
-        print(f"-> Test X_padded shape:  {X_test.shape} | Test y_padded shape:  {y_test.shape}")
-
-    # Returns two tuples: one for train, one for test
-    return (X_train, y_train, train_loader), (X_test, y_test, test_loader)
-
 
 # %% [markdown]
 # ## Loading
 
 # %%
-data = load("cloud study data/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json")
+data = get_participants_data("P12")[0]
 
 # %%
 processed_data = pd.DataFrame(pre_proccess_data_from_choice_vs_no_choice(data))
 processed_data = processed_data[processed_data['block_number'] > 4]
-
-# %%
-processed_data
 
 # %%
 X = pd.DataFrame({
@@ -326,149 +267,7 @@ X = pd.DataFrame({
 sum((X['L2+L1-R2-R1']*X['L1-R1'])<0)/len(X)
 
 
-# %% [markdown]
-# # RNNs and Training Functions
 
-# %%
-class TinyDecisionRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, num_actions):
-
-        super(TinyDecisionRNN, self).__init__()
-        
-        self.hidden_size = hidden_size
-        
-        self.gru = nn.GRU(input_size=input_size, 
-                          hidden_size=hidden_size, 
-                          batch_first=True)
-
-        self.readout = nn.Linear(in_features=hidden_size, 
-                                 out_features=num_actions)
-
-    def forward(self, x, h_0=None):
-
-        gru_out, h_n = self.gru(x, h_0)
-        
-        logits = self.readout(gru_out)
-        
-        probabilities = torch.softmax(logits, dim=-1)
-        
-        return probabilities, h_n
-    
-def evaluate_model_performance(model, data_loader):
-    model.eval()  # Switch model to evaluation mode
-    
-    total_log_likelihood = 0.0
-    all_predictions = []
-    all_actuals = []
-    
-    with torch.no_grad():
-        for batch_x, batch_y in data_loader:
-            h_0 = torch.zeros(1, batch_x.size(0), model.hidden_size)
-            probabilities, _ = model(batch_x, h_0)
-            
-            for run_idx in range(batch_x.size(0)):
-                run_probs = probabilities[run_idx].view(-1, model.readout.out_features)
-                run_actuals = batch_y[run_idx].view(-1)
-                
-                for step_idx in range(run_probs.size(0)):
-                    actual_action = run_actuals[step_idx].item()
-                    
-                    if actual_action == -1:
-                        break
-                        
-                    if actual_action not in [0, 1]:
-                        continue
-                    
-                    try:
-                        chosen_prob = run_probs[step_idx][actual_action].item()
-
-                        if np.isnan(chosen_prob) or chosen_prob == 0.0:
-                            print(f"Something\'s wrong @ {run_idx}, Step {step_idx}!")
-                        total_log_likelihood += np.log(max(chosen_prob, 1e-7))
-                        
-                        predicted_action = torch.argmax(run_probs[step_idx]).item()
-                        
-                        all_predictions.append(predicted_action)
-                        all_actuals.append(actual_action)
-                        
-                    except IndexError as e:
-                        print(f"Index alignment error at step {step_idx}: {e}")
-                        continue
-                    
-    all_actuals = np.array(all_actuals)
-    all_predictions = np.array(all_predictions)
-           
-    total_steps = len(all_actuals)
-    accuracy = np.sum(all_predictions == all_actuals) / total_steps
-    err_matrix = confusion_matrix(all_actuals, all_predictions, labels=[0, 1])
-
-    
-    return {
-        "log_likelihood": total_log_likelihood/total_steps,
-        "accuracy": accuracy,
-        "error_matrix": err_matrix
-    }
-
-def train_RNN(model, train_loader, num_epochs=150, learning_rate=0.005, l1_lambda=1e-4):
-    """
-    Trains the TinyDecisionRNN model, applying L1 regularization to the 
-    recurrent weights and gradient clipping to prevent explosion.
-    """
-
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    
-
-    criterion = nn.CrossEntropyLoss(ignore_index=-1)
-    
-    model.train()
-    
-    epoch_losses = []
-    
-    for epoch in range(num_epochs):
-        total_epoch_loss = 0.0
-        
-        for batch_x, batch_y in train_loader:
-            optimizer.zero_grad()
-
-            h_0 = torch.zeros(1, batch_x.size(0), model.hidden_size)
-            
-            gru_out, _ = model.gru(batch_x, h_0)
-            logits = model.readout(gru_out) 
-            
-            logits = logits.view(-1, model.readout.out_features)
-            batch_y = batch_y.view(-1)
-            
-            base_loss = criterion(logits, batch_y)
-            
-            l1_norm = sum(p.abs().sum() for name, p in model.named_parameters() if 'gru.weight' in name)
-            loss = base_loss + (l1_lambda * l1_norm)
-            
-            loss.backward()
-            
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            
-            optimizer.step()
-            
-            total_epoch_loss += loss.item()
-            
-        avg_loss = total_epoch_loss / len(train_loader)
-        epoch_losses.append(avg_loss)
-        
-        if (epoch + 1) % 25 == 0:
-            print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {avg_loss:.4f}")
-
-    print("\nTraining Complete!")
-    return model, epoch_losses
-
-def run_RNN_for_eval(participant_data, num_epochs = 400):
-    train_data, test_data = prepare_rnn_tensors(participant_data, batch_size=4, test_split=0.2)
-    X_train, y_train, train_loader = train_data
-    X_test, y_test, test_loader = test_data
-
-    model_participant = TinyDecisionRNN(input_size=5, hidden_size=2, num_actions=2)
-    model_participant, _ = train_RNN(model_participant, train_loader= train_loader, num_epochs= num_epochs)
-
-    return evaluate_model_performance(model_participant, test_loader)
 
 
 # %% [markdown]
@@ -514,22 +313,24 @@ def run_logistic_regression_baseline(X, test_split=0.2):
     train_df['L1+L2-R1-R2'] = (train_df['diff_planning'] - mu_2) / sig_2
     test_df['L1+L2-R1-R2'] = (test_df['diff_planning'] - mu_2) / sig_2
 
-    # Calculate interactions post-scaling
-    for df in [train_df, test_df]:
-        df['Block Drift + L1-R1 Interaction'] = df['L1-R1'] * df['Block Drift']
-        df['Block Drift + L2-R2 Interaction'] = df['L1+L2-R1-R2'] * df['Block Drift']
-        df['Block Drift + Incoming Direction Interaction'] = df['Incoming Direction'] * df['Block Drift']
-    # -------------------------------------------------------------
+    # Only add drift interaction terms if Block Drift actually varies
+    has_drift_variance = train_df['Block Drift'].nunique() > 1
 
-    features = [
-        'L1-R1', 
-        'L1+L2-R1-R2', 
-        #'Block Drift', 
-        #'Block Drift + L1-R1 Interaction', 
-        #'Block Drift + L2-R2 Interaction', 
-        'Incoming Direction',
-        'Block Drift + Incoming Direction Interaction',
-    ]
+    if has_drift_variance:
+        for df in [train_df, test_df]:
+            df['Block Drift + Incoming Direction Interaction'] = df['Incoming Direction'] * df['Block Drift']
+        features = [
+            'L1-R1', 
+            'L1+L2-R1-R2', 
+            'Incoming Direction',
+            'Block Drift + Incoming Direction Interaction',
+        ]
+    else:
+        features = [
+            'L1-R1', 
+            'L1+L2-R1-R2', 
+            'Incoming Direction',
+        ]
     
     X_train = train_df[features]
     y_train = train_df['chosen_left'].astype(int)
@@ -614,95 +415,27 @@ def evaluate_logistic_baseline(raw_data, test_split=0.2, is_data_raw=True):
 # %% [markdown]
 # # Comparing RNN performance to Logistic Regression
 
-# %% [markdown]
-# ## Participant 1
-
 # %%
-participant1 = load("cloud study data/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json")
-run_RNN_for_eval(participant1, num_epochs= 400)
-
-# %%
-evaluate_logistic_baseline(participant1)
-
-# %% [markdown]
-# ## Participant 2
-
-# %%
-participant2 = load("cloud study data/88AD64F00C6B43489770A02E7A1AE2C2-019e8fd9-16e9-7876-8e3b-d51a48df0526-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-03T23-37-31-300Z-4ecm.json")
-run_RNN_for_eval(participant2)
-
-# %%
-evaluate_logistic_baseline(participant2)
-
-# %% [markdown]
-# ## Participant 3
-
-# %%
-participant3 = load("cloud study data/6462D588260B4356936047A04A336EBE-019e9464-f99c-77c5-bf47-327c7a7cf4f1-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-41-26-943Z-c5do.json")
-run_RNN_for_eval(participant3)
-
-# %%
-evaluate_logistic_baseline(participant3)
-
-# %% [markdown]
-# ## Participant 4
-
-# %%
-participant4 = load("cloud study data/46331EBA4F494FAD901E83106523FF12-019e9464-9d12-7cc3-8cba-8f0dd00eeb20-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-33-792Z-sop6.json")
-run_RNN_for_eval(participant4)
-
-# %%
-evaluate_logistic_baseline(participant4)
-
-# %% [markdown]
-# ## Participant 5
-
-# %%
-participant5 = load("cloud study data/BB4D2ACD4DAB45F5BAB68A472EB2E06C-019e9464-9a85-718c-9964-ec6755cdcd1c-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-17-611Z-i0am.json")
-run_RNN_for_eval(participant5)
-
-# %%
-evaluate_logistic_baseline(participant5)
-
-# %% [markdown]
-# ## Participant 6
-
-# %%
-participant6 = load("cloud study data/C47CEEC22AD9448E9F87D0577BA7FC80-019e946e-abeb-723a-8d4d-50881fc0551f-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-59-12-508Z-e1tl.json")
-run_RNN_for_eval(participant6)
-
-# %%
-evaluate_logistic_baseline(participant6)
-
-# %% [markdown]
-# ## Participant 7
-
-# %%
-participant7 = load("cloud study data/CEFD2FE92E6847B2B27FF0175811CE81-019e9464-988c-7240-bf66-336f77c05049-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-50-03-371Z-34zm.json")
-run_RNN_for_eval(participant7)
-
-# %%
-evaluate_logistic_baseline(participant7)
-
-# %% [markdown]
-# ## Participant 8
-
-# %%
-participant8 = load("cloud study data/EC07396CE23248F2855499612FEB8ACA-019e9464-92a5-7d10-b713-7022c5b049fc-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-16-501Z-olib.json")
-run_RNN_for_eval(participant8)
-
-# %%
-evaluate_logistic_baseline(participant8)
-
-# %% [markdown]
-# ## Participant 9
-
-# %%
-participant9 = load("cloud study data/FD2A6686546A4D689BE4A684CD264636-019e946a-96b4-78df-ac42-63e6e82c3209-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-54-42-499Z-j7h3.json")
-run_RNN_for_eval(participant9)
-
-# %%
-evaluate_logistic_baseline(participant9)
+all_participants_data = get_participants_data()
+if False:
+    for i, p_data in enumerate(all_participants_data):
+        print(f"\n{'='*60}")
+        print(f"  Participant {i+1}")
+        print(f"{'='*60}")
+        
+        print("\n  --- RNN ---")
+        rnn_results = run_RNN_for_eval(p_data, num_epochs=400)
+        if rnn_results:
+            print(f"  Log-Likelihood: {rnn_results['log_likelihood']:.4f}")
+            print(f"  Accuracy:       {rnn_results['accuracy']*100:.2f}%")
+            print(f"  Error Matrix:\n{rnn_results['error_matrix']}")
+        
+        print("\n  --- Logistic Regression ---")
+        lr_results = evaluate_logistic_baseline(p_data)
+        if lr_results:
+            print(f"  Log-Likelihood: {lr_results['log_likelihood']:.4f}")
+            print(f"  Accuracy:       {lr_results['accuracy']*100:.2f}%")
+            print(f"  Error Matrix:\n{lr_results['error_matrix']}")
 
 
 # %% [markdown]
@@ -715,9 +448,17 @@ def run_logistic_regression_for_ball_y(X, test_split=0.2):
     matching the RNN's chronological train/test split and metric outputs.
     """
     #print('run_logistic_regression_baseline input', X.shape)
+    if X.empty or len(X) < 5:
+        print(f"  Warning: too few trials ({len(X)}) — skipping regression.")
+        return None
+
     valid_trials_per_block = X.groupby('block_number').size().sort_index()
+    if valid_trials_per_block.empty:
+        print("  Warning: no valid blocks after filtering — skipping regression.")
+        return None
+
     cumulative_trials = valid_trials_per_block.cumsum()
-    total_trials = cumulative_trials.values[-1]
+    total_trials = cumulative_trials.iloc[-1]
     
     train_threshold = total_trials * (1 - test_split)
     
@@ -727,6 +468,9 @@ def run_logistic_regression_for_ball_y(X, test_split=0.2):
     if len(test_blocks) == 0 and len(valid_trials_per_block) > 1:
         test_blocks = [valid_trials_per_block.index[-1]]
         train_blocks = valid_trials_per_block.index[:-1]
+    elif len(test_blocks) == 0:
+        print("  Warning: not enough blocks for train/test split — skipping regression.")
+        return None
 
     train_df = X[X['block_number'].isin(train_blocks)]
     test_df = X[X['block_number'].isin(test_blocks)]
@@ -748,7 +492,11 @@ def run_logistic_regression_for_ball_y(X, test_split=0.2):
     y_test = test_df['chosen_left'].astype(int)
     
     if len(X_test) == 0:
-        print("❌ Error: No out-of-sample data available for testing.")
+        print("  Warning: No out-of-sample data available for testing.")
+        return None
+
+    if len(y_train.unique()) < 2:
+        print(f"  Warning: training data has only one class ({y_train.iloc[0]}) — cannot fit logistic regression.")
         return None
 
     log_reg = LogisticRegression(penalty=None, solver='lbfgs', max_iter=1000)
@@ -852,16 +600,21 @@ def evaluate_logistic_for_ball_y(raw_data, test_split=0.2, is_data_raw = True):
     return baseline_results
 
 # %%
-participants_data = [
-    participant1, participant2, participant3, 
-    participant4, participant5, participant6, 
-    participant7, participant8, participant9
-]
+p10, p11, p12, p13, p14 = get_participants_data("P10", "P11", "P12","P13", "P14")
+
+participants_data = [p10, p11, p12, p13, p14]
+has_both, drift_only, follow_only, no_data = categorize_by_drift(participants_data)
+
+print(f"Drift profiles: {len(has_both)} both, {len(drift_only)} drift-only, {len(follow_only)} follow-only, {len(no_data)} no data")
 
 for i, p_data in enumerate(participants_data):
     input_data = pre_proccess_data_from_choice_vs_no_choice(p_data)
     
-    # Isolate drifting trials
+    if i in follow_only:
+        print(f"\nParticipant {i+1}: no drift trials — skipping ball-y analysis.")
+        continue
+    
+    # Isolate drifting trials (drift-only and both-condition participants have them)
     input_data = input_data[input_data['block_drift'] == 1]
     
     # 1. Calculate thresholds BEFORE plotting
@@ -880,8 +633,6 @@ for i, p_data in enumerate(participants_data):
     plt.legend()
     plt.show()
 
-    # Note: I removed the redundant `& (input_data['block_drift'] == 1)` here 
-    # because input_data was already filtered for drift = 1 at the top of the loop.
     low_pos_X = input_data[(input_data['ball_y_at_top'] < LowY)]
     high_pos_X = input_data[(input_data['ball_y_at_top'] > HighY)]
 
@@ -928,12 +679,6 @@ def extract_spatial_features(df_raw, participant_name):
     X['L2+L1-R2-R1'] = X['L2+L1-R2-R1'].astype(int)
     
     return X
-
-participants_data = [
-    participant1, participant2, participant3, 
-    participant4, participant5, participant6, 
-    participant7, participant8, participant9
-]
 
 all_trials = []
 for i, p_data in enumerate(participants_data):
@@ -1076,22 +821,39 @@ plt.show()
 df_drift_0 = df_combined[df_combined['block_drift'] == 0]
 df_drift_1 = df_combined[df_combined['block_drift'] == 1]
 
-# Create both master pivot tables
-master_pivot_0 = df_drift_0.pivot_table(values='chosen_right', index='L2+L1-R2-R1', columns='L1-R1', aggfunc='mean').sort_index(ascending=False)
-master_pivot_1 = df_drift_1.pivot_table(values='chosen_right', index='L2+L1-R2-R1', columns='L1-R1', aggfunc='mean').sort_index(ascending=False)
+has_0 = not df_drift_0.empty
+has_1 = not df_drift_1.empty
 
-# Plot Both Master Heatmaps Side-by-Side
-fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+# Create master pivot tables for available conditions
+if has_0:
+    master_pivot_0 = df_drift_0.pivot_table(values='chosen_right', index='L2+L1-R2-R1', columns='L1-R1', aggfunc='mean').sort_index(ascending=False)
+if has_1:
+    master_pivot_1 = df_drift_1.pivot_table(values='chosen_right', index='L2+L1-R2-R1', columns='L1-R1', aggfunc='mean').sort_index(ascending=False)
 
-sns.heatmap(master_pivot_0, ax=axes[0], annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
-axes[0].set_title("Heatmap (Drift = 0)\nProbability of Choosing RIGHT")
-axes[0].set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
-axes[0].set_xlabel("L1 - R1 (Tier 1 Diff)")
-
-sns.heatmap(master_pivot_1, ax=axes[1], annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
-axes[1].set_title("Heatmap (Drift = 1)\nProbability of Choosing RIGHT")
-axes[1].set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
-axes[1].set_xlabel("L1 - R1 (Tier 1 Diff)")
+# Plot available heatmaps
+n_plots = has_0 + has_1
+if n_plots == 0:
+    print("No drift-condition data available for heatmaps.")
+elif n_plots == 1:
+    fig, ax = plt.subplots(1, 1, figsize=(10, 7))
+    if has_0:
+        sns.heatmap(master_pivot_0, ax=ax, annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
+        ax.set_title("Heatmap (Drift = 0)\nProbability of Choosing RIGHT")
+    else:
+        sns.heatmap(master_pivot_1, ax=ax, annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
+        ax.set_title("Heatmap (Drift = 1)\nProbability of Choosing RIGHT")
+    ax.set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
+    ax.set_xlabel("L1 - R1 (Tier 1 Diff)")
+else:
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    sns.heatmap(master_pivot_0, ax=axes[0], annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
+    axes[0].set_title("Heatmap (Drift = 0)\nProbability of Choosing RIGHT")
+    axes[0].set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
+    axes[0].set_xlabel("L1 - R1 (Tier 1 Diff)")
+    sns.heatmap(master_pivot_1, ax=axes[1], annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
+    axes[1].set_title("Heatmap (Drift = 1)\nProbability of Choosing RIGHT")
+    axes[1].set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
+    axes[1].set_xlabel("L1 - R1 (Tier 1 Diff)")
 
 plt.tight_layout()
 plt.show()
@@ -1142,9 +904,13 @@ def plot_deviations_for_condition(df_subset, master_pivot, condition_label):
     plt.tight_layout(rect=[0, 0, 1, 0.93])
     plt.show()
 
-# Execute the deviation plots for both conditions
-plot_deviations_for_condition(df_drift_0, master_pivot_0, "0")
-plot_deviations_for_condition(df_drift_1, master_pivot_1, "1")
+# Execute the deviation plots for available conditions
+if has_0:
+    plot_deviations_for_condition(df_drift_0, master_pivot_0, "0")
+if has_1:
+    plot_deviations_for_condition(df_drift_1, master_pivot_1, "1")
+if not has_0 and not has_1:
+    print("No drift-condition data for deviation plots.")
 
 
 # %%
@@ -1219,20 +985,6 @@ plot_individual_drift_effects(df_combined)
 # %% [markdown]
 # # Loading each participant data
 
-# %%
-participant1 = load("cloud study data/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json")
-participant2 = load("cloud study data/88AD64F00C6B43489770A02E7A1AE2C2-019e8fd9-16e9-7876-8e3b-d51a48df0526-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-03T23-37-31-300Z-4ecm.json")
-participant3 = load("cloud study data/6462D588260B4356936047A04A336EBE-019e9464-f99c-77c5-bf47-327c7a7cf4f1-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-41-26-943Z-c5do.json")
-participant4 = load("cloud study data/46331EBA4F494FAD901E83106523FF12-019e9464-9d12-7cc3-8cba-8f0dd00eeb20-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-33-792Z-sop6.json")
-participant5 = load("cloud study data/BB4D2ACD4DAB45F5BAB68A472EB2E06C-019e9464-9a85-718c-9964-ec6755cdcd1c-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-17-611Z-i0am.json")
-participant6 = load("cloud study data/C47CEEC22AD9448E9F87D0577BA7FC80-019e946e-abeb-723a-8d4d-50881fc0551f-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-59-12-508Z-e1tl.json")
-participant7 = load("cloud study data/CEFD2FE92E6847B2B27FF0175811CE81-019e9464-988c-7240-bf66-336f77c05049-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-50-03-371Z-34zm.json")
-participant8 = load("cloud study data/EC07396CE23248F2855499612FEB8ACA-019e9464-92a5-7d10-b713-7022c5b049fc-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-16-501Z-olib.json")
-participant9 = load("cloud study data/FD2A6686546A4D689BE4A684CD264636-019e946a-96b4-78df-ac42-63e6e82c3209-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-54-42-499Z-j7h3.json")
-
-participants_data = [participant1, participant2, participant3, participant4, participant5, participant6, participant7, participant8, participant9]
-
-
 # %% [markdown]
 # ## Overall Participant Coeffecients
 
@@ -1278,10 +1030,11 @@ def plot_all_participant_coefficients(participants_data):
         coefs = results['coefficients']
         p_vals = results['p_values']
         ll = results['log_likelihood']
+        feature_labels = results.get('features', display_features)
         
         # Plot the bars
         colors = ['steelblue' if c > 0 else 'indianred' for c in coefs]
-        bars = ax.bar(display_features, coefs, color=colors, edgecolor='black')
+        bars = ax.bar(feature_labels, coefs, color=colors, edgecolor='black')
         
         # Add asterisks for statistical significance
         max_abs_coef = max(abs(coefs)) if len(coefs) > 0 else 1
@@ -1299,8 +1052,8 @@ def plot_all_participant_coefficients(participants_data):
 
         # Formatting the subplot
         ax.set_title(f"{p_name} (Log Likelihood: {ll:.3f})", fontsize=14, pad=15)
-        ax.axhline(0, color='black', linewidth=1) # Draw the zero line
-        ax.set_xticklabels(display_features, rotation=45, ha='right', fontsize=11)
+        ax.axhline(0, color='black', linewidth=1)
+        ax.set_xticklabels(feature_labels, rotation=45, ha='right', fontsize=11)
         ax.grid(axis='y', linestyle='--', alpha=0.7)
         
         # Ensure the Y-axis stretches enough to fit the asterisks without cutting them off
@@ -1309,23 +1062,44 @@ def plot_all_participant_coefficients(participants_data):
     plt.tight_layout(rect=[0, 0, 1, 0.94])
     plt.show()
 
+CANONICAL_FEATURES = ['L1-R1', 'L1+L2-R1-R2', 'Incoming Direction', 'Block Drift + Incoming Direction Interaction']
+CANONICAL_LABELS = ['L1-R1', 'L1+L2-R1-R2', 'Inc. Dir', '\u0394 Inc. Dir']
+
+def _align_to_canonical(coefficients, features):
+    """Pad missing features with 0 to match CANONICAL_FEATURES order."""
+    aligned = []
+    for feat in CANONICAL_FEATURES:
+        if feat in features:
+            aligned.append(coefficients[features.index(feat)])
+        else:
+            aligned.append(0.0)
+    return np.array(aligned)
+
+def _align_pvalues_to_canonical(pvalues, features):
+    """Pad missing feature p-values with 1.0 to match CANONICAL_FEATURES order."""
+    aligned = []
+    for feat in CANONICAL_FEATURES:
+        if feat in features:
+            aligned.append(pvalues[features.index(feat)])
+        else:
+            aligned.append(1.0)
+    return np.array(aligned)
+
+
 def plot_aggregate_coefficients(participants_data):
     """
     Evaluates all participants, calculates the mean coefficients and standard errors,
     and plots a single aggregate bar chart.
     """
     all_coefs = []
-    feature_names = []
+    feature_names = CANONICAL_FEATURES[:]
     
     # 1. Collect coefficients for all valid participants
     for i, p_data in enumerate(participants_data):
         results = evaluate_logistic_baseline(p_data, test_split=0.2, is_data_raw=True)
         
         if results is not None:
-            all_coefs.append(results['coefficients'])
-            # Capture the feature names from the first valid participant
-            if not feature_names:
-                feature_names = results['features']
+            all_coefs.append(_align_to_canonical(results['coefficients'], results['features']))
                 
     if not all_coefs:
         print("❌ No valid participant data to plot.")
@@ -1341,17 +1115,8 @@ def plot_aggregate_coefficients(participants_data):
     # 3. Group-Level Statistical Significance (1-sample t-test against 0)
     t_stats, p_vals = ttest_1samp(all_coefs, popmean=0, axis=0)
     
-    # 4. Map the raw feature names to your cleaner display labels
-    name_mapping = {
-        'L1-R1': 'L1-R1',
-        'L1+L2-R1-R2': 'L1+L2-R1-R2',
-        'Block Drift': 'Drift',
-        'Block Drift + L1-R1 Interaction': '\u0394 L1-R1',
-        'Block Drift + L1+L2-R1-R2 Interaction': '\u0394 L1+L2-R1-R2',
-        'Incoming Direction': 'Inc. Dir',
-        'Block Drift + Incoming Direction Interaction': '\u0394 Inc. Dir'
-    }
-    display_features = [name_mapping.get(feat, feat) for feat in feature_names]
+    # 4. Use canonical display labels
+    display_features = CANONICAL_LABELS
     
     # 5. Plotting
     fig, ax = plt.subplots(figsize=(10, 7))
@@ -1408,16 +1173,14 @@ def plot_aggregate_coefficients_with_individuals(participants_data):
     overlaid with jittered scatter points representing individual participants.
     """
     all_coefs = []
-    feature_names = []
+    feature_names = CANONICAL_FEATURES[:]
     
     # 1. Collect coefficients for all valid participants
     for i, p_data in enumerate(participants_data):
         results = evaluate_logistic_baseline(p_data, test_split=0.2, is_data_raw=True)
         
         if results is not None:
-            all_coefs.append(results['coefficients'])
-            if not feature_names:
-                feature_names = results['features']
+            all_coefs.append(_align_to_canonical(results['coefficients'], results['features']))
                 
     if not all_coefs:
         print("❌ No valid participant data to plot.")
@@ -1432,16 +1195,7 @@ def plot_aggregate_coefficients_with_individuals(participants_data):
     # 3. Group-Level Statistical Significance (1-sample t-test against 0)
     t_stats, p_vals = ttest_1samp(all_coefs, popmean=0, axis=0)
     
-    name_mapping = {
-        'L1-R1': 'L1-R1',
-        'L2-R2': 'L2-R2',
-        'Block Drift': 'Drift',
-        'Block Drift + L1-R1 Interaction': '\u0394 L1-R1',
-        'Block Drift + L2-R2 Interaction': '\u0394 L2-R2',
-        'Incoming Direction': 'Inc. Dir',
-        'Block Drift + Incoming Direction Interaction': '\u0394 Inc. Dir'
-    }
-    display_features = [name_mapping.get(feat, feat) for feat in feature_names]
+    display_features = CANONICAL_LABELS
     
     # 4. Plotting Setup
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -1514,17 +1268,15 @@ def plot_aggregate_coefficients_with_individuals(participants_data):
     """
     all_coefs = []
     all_pvals = []  # Added to track individual significance
-    feature_names = []
+    feature_names = CANONICAL_FEATURES[:]
     
     # 1. Collect coefficients and p-values for all valid participants
     for i, p_data in enumerate(participants_data):
         results = evaluate_logistic_baseline(p_data, test_split=0.2, is_data_raw=True)
         
         if results is not None:
-            all_coefs.append(results['coefficients'])
-            all_pvals.append(results['p_values'])
-            if not feature_names:
-                feature_names = results['features']
+            all_coefs.append(_align_to_canonical(results['coefficients'], results['features']))
+            all_pvals.append(_align_pvalues_to_canonical(results['p_values'], results['features']))
                 
     if not all_coefs:
         print("❌ No valid participant data to plot.")
@@ -1540,16 +1292,7 @@ def plot_aggregate_coefficients_with_individuals(participants_data):
     # 3. Group-Level Statistical Significance (1-sample t-test against 0)
     t_stats, p_vals = ttest_1samp(all_coefs, popmean=0, axis=0)
     
-    name_mapping = {
-        'L1-R1': 'L1-R1',
-        'L2-R2': 'L2-R2',
-        'Block Drift': 'Drift',
-        'Block Drift + L1-R1 Interaction': '\u0394 L1-R1',
-        'Block Drift + L2-R2 Interaction': '\u0394 L2-R2',
-        'Incoming Direction': 'Inc. Dir',
-        'Block Drift + Incoming Direction Interaction': '\u0394 Inc. Dir'
-    }
-    display_features = [name_mapping.get(feat, feat) for feat in feature_names]
+    display_features = CANONICAL_LABELS
     
     # 4. Plotting Setup
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -1671,21 +1414,30 @@ def get_information_criteria(df_raw):
     X['L1-R1'] = (X['diff_1step'] - X['diff_1step'].mean()) / (X['diff_1step'].std() + 1e-6)
     X['L2-R2'] = (X['diff_2step'] - X['diff_2step'].mean()) / (X['diff_2step'].std() + 1e-6)
 
-    # Calculate Interactions
-    X['Drift x L1-R1'] = X['L1-R1'] * X['Block Drift']
-    X['Drift x L2-R2'] = X['L2-R2'] * X['Block Drift']
-    X['Drift x Inc Dir'] = X['Incoming Direction'] * X['Block Drift']
+    # Only add drift interactions if Block Drift actually varies
+    has_drift_variance = X['Block Drift'].nunique() > 1
 
-    # Define the exact progression of features you requested
-    model_stages = {
-        'Null (Base Rate)': [],
-        '+ Tier 1': ['L1-R1'],
-        '+ Tier 2': ['L1-R1', 'L2-R2'],
-        '+ Inc. Dir': ['L1-R1', 'L2-R2', 'Incoming Direction'],
-        '+ Dir x Drift': ['L1-R1', 'L2-R2', 'Incoming Direction', 'Drift x Inc Dir'],
-        'All Features': ['L1-R1', 'L2-R2', 'Incoming Direction', 'Drift x Inc Dir', 
-                         'Block Drift', 'Drift x L1-R1', 'Drift x L2-R2']
-    }
+    if has_drift_variance:
+        X['Drift x L1-R1'] = X['L1-R1'] * X['Block Drift']
+        X['Drift x L2-R2'] = X['L2-R2'] * X['Block Drift']
+        X['Drift x Inc Dir'] = X['Incoming Direction'] * X['Block Drift']
+
+        model_stages = {
+            'Null (Base Rate)': [],
+            '+ Tier 1': ['L1-R1'],
+            '+ Tier 2': ['L1-R1', 'L2-R2'],
+            '+ Inc. Dir': ['L1-R1', 'L2-R2', 'Incoming Direction'],
+            '+ Dir x Drift': ['L1-R1', 'L2-R2', 'Incoming Direction', 'Drift x Inc Dir'],
+            'All Features': ['L1-R1', 'L2-R2', 'Incoming Direction', 'Drift x Inc Dir', 
+                             'Block Drift', 'Drift x L1-R1', 'Drift x L2-R2']
+        }
+    else:
+        model_stages = {
+            'Null (Base Rate)': [],
+            '+ Tier 1': ['L1-R1'],
+            '+ Tier 2': ['L1-R1', 'L2-R2'],
+            '+ Inc. Dir': ['L1-R1', 'L2-R2', 'Incoming Direction'],
+        }
 
     y = X['chosen_left']
     aic_scores = []
@@ -2316,17 +2068,8 @@ plot_aggregate_ball_y_shifts_separated_bins(participants_data, num_bins=4)
 # # Fitting Custom Model
 
 # %%
-participant1 = load("cloud study data/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json")
-participant2 = load("cloud study data/88AD64F00C6B43489770A02E7A1AE2C2-019e8fd9-16e9-7876-8e3b-d51a48df0526-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-03T23-37-31-300Z-4ecm.json")
-participant3 = load("cloud study data/6462D588260B4356936047A04A336EBE-019e9464-f99c-77c5-bf47-327c7a7cf4f1-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-41-26-943Z-c5do.json")
-participant4 = load("cloud study data/46331EBA4F494FAD901E83106523FF12-019e9464-9d12-7cc3-8cba-8f0dd00eeb20-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-33-792Z-sop6.json")
-participant5 = load("cloud study data/BB4D2ACD4DAB45F5BAB68A472EB2E06C-019e9464-9a85-718c-9964-ec6755cdcd1c-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-17-611Z-i0am.json")
-participant6 = load("cloud study data/C47CEEC22AD9448E9F87D0577BA7FC80-019e946e-abeb-723a-8d4d-50881fc0551f-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-59-12-508Z-e1tl.json")
-participant7 = load("cloud study data/CEFD2FE92E6847B2B27FF0175811CE81-019e9464-988c-7240-bf66-336f77c05049-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-50-03-371Z-34zm.json")
-participant8 = load("cloud study data/EC07396CE23248F2855499612FEB8ACA-019e9464-92a5-7d10-b713-7022c5b049fc-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-16-501Z-olib.json")
-participant9 = load("cloud study data/FD2A6686546A4D689BE4A684CD264636-019e946a-96b4-78df-ac42-63e6e82c3209-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-54-42-499Z-j7h3.json")
-
-participants_data = [participant1, participant2, participant3, participant4, participant5, participant6, participant7, participant8, participant9]
+#participants_data = get_participants_data()
+#participant1, participant2, participant3, participant4, participant5, participant6, participant7, participant8, participant9 = participants_data
 
 # %%
 from scipy.optimize import minimize
@@ -2339,19 +2082,32 @@ participant_data_dict = {f"Participant_{i+1}": data for i, data in enumerate(par
 
 
 # %%
+def safe_logit(p, eps=1e-10):
+    p = np.clip(p, eps, 1 - eps)
+    return np.log(p / (1 - p))
+
+
 def calculate_p_right_dynamic(params, d_greedy, d_plan, covariates):
-    p_lapse, p_plan_base, w1, s_greedy, s_plan = params
-    
+    p_lapse, p_plan_base, w1, s_greedy, s_plan, bias_dir = params
+
+    ball_y = covariates[:, 0] if covariates.ndim == 2 else covariates
+    incoming_dir = covariates[:, 1] if covariates.ndim == 2 else np.zeros_like(ball_y)
+
     prob_greedy = expit(d_greedy / s_greedy)
     prob_plan = expit(d_plan / s_plan)
-    
+
     p_plan_base_safe = np.clip(p_plan_base, 1e-6, 1 - 1e-6)
-    
-    dynamic_p_plan = expit(logit(p_plan_base_safe) + w1 * covariates)
-    
+
+    dynamic_p_plan = expit(logit(p_plan_base_safe) + w1 * ball_y)
+
     model_prob = (1 - dynamic_p_plan) * prob_greedy + dynamic_p_plan * prob_plan
-    final_prob = p_lapse * 0.5 + (1 - p_lapse) * model_prob
-    
+
+    logit_prob = safe_logit(model_prob)
+    logit_biased = logit_prob + bias_dir * incoming_dir
+    biased_prob = expit(logit_biased)
+
+    final_prob = p_lapse * 0.5 + (1 - p_lapse) * biased_prob
+
     return final_prob
 
 def negative_log_likelihood_dynamic(params, d_greedy, d_plan, covariates, choices):
@@ -2386,16 +2142,17 @@ def evaluate_cognitive_model(params, d_greedy, d_plan, covariates, choices):
     return accuracy, ll, ll_mean
 
 def fit_dynamic_model(d_greedy_data, d_plan_data, covariates_data, choices_data):
-    # Initial Guesses: [p_lapse, p_plan_base, w1, s_greedy, s_plan]
-    # We guess a 50% baseline planning rate
-    initial_guess = [0.05, 0.5, 0.0, 10.0, 10.0]
+    # Initial Guesses: [p_lapse, p_plan_base, w1, s_greedy, s_plan, bias_dir]
+    # We guess a 50% baseline planning rate and no stickiness bias
+    initial_guess = [0.05, 0.5, 0.0, 10.0, 10.0, 0.0]
     
     bounds = [
         (0.0, 0.99),    # p_lapse
-        (0.0, 1.0),     # p_plan_base (Now strictly bounded as a probability!)
-        (None, None),   # w1 (Covariate effect remains unconstrained)
+        (0.0, 1.0),     # p_plan_base
+        (None, None),   # w1
         (0.001, None),  # s_greedy
-        (0.001, None)   # s_plan
+        (0.001, None),  # s_plan
+        (None, None),   # bias_dir (stickiness, unconstrained like a LR weight)
     ]
     
     result = minimize(
@@ -2423,7 +2180,7 @@ def run_participant_fits(participant_data_dict, test_split=0.2):
         # 1. Pre-process the data
         processed_data = pre_proccess_data_from_choice_vs_no_choice(raw_data)
         processed_data = processed_data[processed_data['choice_trial'] == True]
-        processed_data = processed_data.dropna(subset=['chosen_1step_dist', 'ball_y_at_top']).reset_index(drop=True)
+        processed_data = processed_data.dropna(subset=['chosen_1step_dist', 'ball_y_at_top', 'incoming_direction']).reset_index(drop=True)
         
         if len(processed_data) == 0:
             print("Skipping: No valid trials found.")
@@ -2463,35 +2220,38 @@ def run_participant_fits(participant_data_dict, test_split=0.2):
         
         d_greedy_train, d_plan_train, choices_train = extract_arrays(train_data)
         
-        # Fit scaler on training data only
+        # Fit scaler on training data only (ball_y only; incoming_dir stays as-is)
         scaler = StandardScaler()
-        covariate_train = scaler.fit_transform(train_data[['ball_y_at_top']]).flatten()
-        
+        ball_y_train = scaler.fit_transform(train_data[['ball_y_at_top']]).flatten()
+        covariate_train = np.column_stack([ball_y_train, train_data['incoming_direction'].values])
+
         # 4. Fit the model on training data only
         fit_result = fit_dynamic_model(d_greedy_train, d_plan_train, covariate_train, choices_train)
-        
+
         if fit_result.success:
-            p_lapse, p_plan_base, w1, s_greedy, s_plan = fit_result.x
-            
+            p_lapse, p_plan_base, w1, s_greedy, s_plan, bias_dir = fit_result.x
+
             # Evaluate on training set
             train_acc, train_ll, train_ll_mean = evaluate_cognitive_model(
                 fit_result.x, d_greedy_train, d_plan_train, covariate_train, choices_train
             )
-            
+
             # Evaluate on test set
             d_greedy_test, d_plan_test, choices_test = extract_arrays(test_data)
-            covariate_test = scaler.transform(test_data[['ball_y_at_top']]).flatten()
+            ball_y_test = scaler.transform(test_data[['ball_y_at_top']]).flatten()
+            covariate_test = np.column_stack([ball_y_test, test_data['incoming_direction'].values])
             test_acc, test_ll, test_ll_mean = evaluate_cognitive_model(
                 fit_result.x, d_greedy_test, d_plan_test, covariate_test, choices_test
             )
-            
+
             print(f"Fit Status:  SUCCESS")
             print(f"Train Accuracy:  {train_acc*100:.2f}%  |  Test Accuracy:  {test_acc*100:.2f}%")
             print(f"Train Log-Likelihood:        {train_ll:.4f}  |  Test Log-Likelihood:        {test_ll:.4f}")
             print(f"Train Log-Likelihood (pT):   {train_ll_mean:.4f}  |  Test Log-Likelihood (pT):   {test_ll_mean:.4f}")
             print(f"Neg Log-Likelihood (optimizer):  {fit_result.fun:.4f}")
-            print(f"Params -> p_lapse: {p_lapse:.3f} | p_plan_base: {p_plan_base:.3f} | w1: {w1:.3f} | s_greedy: {s_greedy:.1f} | s_plan: {s_plan:.1f}")
-            
+            print(f"Params -> p_lapse: {p_lapse:.3f} | p_plan_base: {p_plan_base:.3f} | w1: {w1:.3f} | "
+                  f"s_greedy: {s_greedy:.1f} | s_plan: {s_plan:.1f} | bias_dir: {bias_dir:.3f}")
+
             results_list.append({
                 'Participant': participant_name,
                 'Train_Accuracy': train_acc,
@@ -2502,7 +2262,8 @@ def run_participant_fits(participant_data_dict, test_split=0.2):
                 'p_plan_base': p_plan_base,
                 'w1': w1,
                 's_greedy': s_greedy,
-                's_plan': s_plan
+                's_plan': s_plan,
+                'bias_dir': bias_dir,
             })
 
     # Return a clean DataFrame of all participant parameters
@@ -2514,3 +2275,5 @@ def run_participant_fits(participant_data_dict, test_split=0.2):
 
 # %%
 final_parameters_df = run_participant_fits(participant_data_dict)
+
+# %%
