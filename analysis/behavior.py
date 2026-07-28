@@ -74,11 +74,11 @@ def compare_greedy_vs_rollout(data, only_use_disagreements=False):
 
             dist_L1 = np.abs(hole_locs[0] - h_prev)
             dist_R1 = np.abs(hole_locs[1] - h_prev)
-            dist_L2 = dist_L1 + np.abs(hole_locs[0] - h_next)
-            dist_R2 = dist_R1 + np.abs(hole_locs[1] - h_next)
+            dist_total_L2 = dist_L1 + np.abs(hole_locs[0] - h_next)
+            dist_total_R2 = dist_R1 + np.abs(hole_locs[1] - h_next)
             if only_use_disagreements:
                 # we ignore trials where both greedy and rollout would make the same choice
-                if (dist_L1 < dist_R1 and dist_L2 < dist_R2) or (dist_R1 < dist_L1 and dist_R2 < dist_L2):
+                if (dist_L1 < dist_R1 and dist_total_L2 < dist_total_R2) or (dist_R1 < dist_L1 and dist_total_R2 < dist_total_L2):
                     continue
             
             choice = hole_locs.index(h_cur)
@@ -88,7 +88,7 @@ def compare_greedy_vs_rollout(data, only_use_disagreements=False):
                 rt = trial['events'][0]['time'] - trials[i-1]['events'][0]['time']
             else:
                 rt = np.nan
-            choices.append((dist_L1, dist_R1, dist_L2, dist_R2, rt, choice))
+            choices.append((dist_L1, dist_R1, dist_total_L2, dist_total_R2, rt, choice))
     return np.vstack(choices)
 
 def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to hole (L - R)', label='_'):
@@ -139,23 +139,23 @@ def plot_rt_vs_conflict(X, y, fig=None, color='purple', xlabel='Degree of Confli
 
 def plot_rt_residuals_vs_conflict(choices, fig=None):
     # 1. Extract columns from the compare_greedy_vs_rollout output
-    # Columns: (dist_L1, dist_R1, dist_L2, dist_R2, rt, choice)
+    # Columns: (dist_L1, dist_R1, dist_total_L2, dist_total_R2, rt, choice)
     dist_L1 = choices[:, 0]
     dist_R1 = choices[:, 1]
-    dist_L2 = choices[:, 2]
-    dist_R2 = choices[:, 3]
+    dist_total_L2 = choices[:, 2]
+    dist_total_R2 = choices[:, 3]
     rts = choices[:, 4]
     choice_made = choices[:, 5]
 
     # Filter out trials with NaN reaction times
     valid_mask = ~np.isnan(rts)
     dist_L1, dist_R1 = dist_L1[valid_mask], dist_R1[valid_mask]
-    dist_L2, dist_R2 = dist_L2[valid_mask], dist_R2[valid_mask]
+    dist_total_L2, dist_total_R2 = dist_total_L2[valid_mask], dist_total_R2[valid_mask]
     rts = rts[valid_mask]
     choice_made = choice_made[valid_mask]
 
     # 2. Identify the total distance traveled over 2-steps based on the user's choice
-    chosen_dist_2 = np.where(choice_made == 0, dist_L2, dist_R2)
+    chosen_dist_2 = np.where(choice_made == 0, dist_total_L2, dist_total_R2)
 
     # 3. Regress the reaction time vs the chosen 2-step distance
     slope, intercept = np.polyfit(chosen_dist_2, rts, 1)
@@ -167,7 +167,7 @@ def plot_rt_residuals_vs_conflict(choices, fig=None):
     # 5. Define Conflict (1-step vs 2-step)
     # Calculated as the difference in magnitude between the 1-step delta and 2-step delta
     conflict_1step = np.abs(dist_L1 - dist_R1)
-    conflict_2step = np.abs(dist_L2 - dist_R2)
+    conflict_2step = np.abs(dist_total_L2 - dist_total_R2)
     conflicts = np.abs(conflict_1step - conflict_2step)
     
     # Round slightly to prevent floating-point precision issues from creating too many bins
@@ -250,27 +250,27 @@ def plot_rt_residuals_over_time(choices, window_size=10, fig=None):
     # 1. Extract columns from the compare_greedy_vs_rollout output
     dist_L1 = choices[:, 0]
     dist_R1 = choices[:, 1]
-    dist_L2 = choices[:, 2]
-    dist_R2 = choices[:, 3]
+    dist_total_L2 = choices[:, 2]
+    dist_total_R2 = choices[:, 3]
     rts = choices[:, 4]
     choice_made = choices[:, 5]
 
     # Filter out trials with NaN reaction times
     valid_mask = ~np.isnan(rts)
     dist_L1, dist_R1 = dist_L1[valid_mask], dist_R1[valid_mask]
-    dist_L2, dist_R2 = dist_L2[valid_mask], dist_R2[valid_mask]
+    dist_total_L2, dist_total_R2 = dist_total_L2[valid_mask], dist_total_R2[valid_mask]
     rts = rts[valid_mask]
     choice_made = choice_made[valid_mask]
 
     # 2. Regress RT vs the chosen 2-step distance to get residuals
-    chosen_dist_2 = np.where(choice_made == 0, dist_L2, dist_R2)
+    chosen_dist_2 = np.where(choice_made == 0, dist_total_L2, dist_total_R2)
     slope, intercept = np.polyfit(chosen_dist_2, rts, 1)
     predicted_rts = (slope * chosen_dist_2) + intercept
     residuals = rts - predicted_rts
 
     # 3. Define Conflict (1-step vs 2-step)
     conflict_1step = np.abs(dist_L1 - dist_R1)
-    conflict_2step = np.abs(dist_L2 - dist_R2)
+    conflict_2step = np.abs(dist_total_L2 - dist_total_R2)
     conflicts = np.abs(conflict_1step - conflict_2step)
     
     # Round slightly to group similar conflict levels
@@ -312,8 +312,8 @@ def plot_rt_residuals_over_time(choices, window_size=10, fig=None):
 def plot_rt_vs_distance(choices, step=1):
     dist_L1 = choices[:, 0]
     dist_R1 = choices[:, 1]
-    dist_L2 = choices[:, 2]
-    dist_R2 = choices[:, 3]
+    dist_total_L2 = choices[:, 2]
+    dist_total_R2 = choices[:, 3]
     rt = choices[:, 4]
     choice_made = choices[:, 5]
 
@@ -323,7 +323,7 @@ def plot_rt_vs_distance(choices, step=1):
         chosen_dist = np.where(choice_made == 0, dist_L1, dist_R1)
         xlabel = '1-Step Distance Traveled'
     elif step == 2:
-        chosen_dist = np.where(choice_made == 0, dist_L2, dist_R2)
+        chosen_dist = np.where(choice_made == 0, dist_total_L2, dist_total_R2)
         xlabel = 'Total 2-Step Path Distance'
     else:
         raise ValueError("The 'step' parameter must be 1 or 2.")
@@ -474,11 +474,11 @@ plt.legend(fontsize=6)
 # %%
 choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
 
-dist_L2 = choices[:, 2]
-dist_R2 = choices[:, 3]
+dist_total_L2 = choices[:, 2]
+dist_total_R2 = choices[:, 3]
 rt = choices[:, 4]
 
-X = np.abs(dist_L2 - dist_R2) 
+X = np.abs(dist_total_L2 - dist_total_R2) 
 y = rt
 
 plot_rt_vs_conflict(X, y)
@@ -486,13 +486,13 @@ plt.show()
 # %%
 choices = compare_greedy_vs_rollout(data, only_use_disagreements=True)
 
-dist_L2 = choices[:, 2]
-dist_R2 = choices[:, 3]
+dist_total_L2 = choices[:, 2]
+dist_total_R2 = choices[:, 3]
 dist_L1 = choices[:, 0]
 dist_R1 = choices[:, 1]
 rts = choices[:, 4]
 
-conflicts = np.abs(dist_L2 - dist_R2) 
+conflicts = np.abs(dist_total_L2 - dist_total_R2) 
 trial_nums = np.arange(len(rts))
 
 plot_rt_over_time_by_conflict(trial_nums, conflicts, rts, window_size=20)
@@ -515,20 +515,20 @@ def plot_rt_min_residuals_vs_conflict(choices, fig=None):
     # 1. Extract columns from the compare_greedy_vs_rollout output
     dist_L1 = choices[:, 0]
     dist_R1 = choices[:, 1]
-    dist_L2 = choices[:, 2]
-    dist_R2 = choices[:, 3]
+    dist_total_L2 = choices[:, 2]
+    dist_total_R2 = choices[:, 3]
     rts = choices[:, 4]
     choice_made = choices[:, 5]
 
     # Filter out trials with NaN reaction times
     valid_mask = ~np.isnan(rts)
     dist_L1, dist_R1 = dist_L1[valid_mask], dist_R1[valid_mask]
-    dist_L2, dist_R2 = dist_L2[valid_mask], dist_R2[valid_mask]
+    dist_total_L2, dist_total_R2 = dist_total_L2[valid_mask], dist_total_R2[valid_mask]
     rts = rts[valid_mask]
     choice_made = choice_made[valid_mask]
 
     # 2. Identify the total distance traveled over 2-steps
-    chosen_dist_2 = np.where(choice_made == 0, dist_L2, dist_R2)
+    chosen_dist_2 = np.where(choice_made == 0, dist_total_L2, dist_total_R2)
 
     # 3. Calculate the new "Residual" (Actual RT - Minimum RT for that distance)
     residuals = np.zeros_like(rts)
@@ -548,7 +548,7 @@ def plot_rt_min_residuals_vs_conflict(choices, fig=None):
 
     # 4. Define Conflict (1-step vs 2-step margin difference)
     conflict_1step = np.abs(dist_L1 - dist_R1)
-    conflict_2step = np.abs(dist_L2 - dist_R2)
+    conflict_2step = np.abs(dist_total_L2 - dist_total_R2)
     conflicts = np.abs(conflict_1step - conflict_2step)
     
     conflicts = np.round(conflicts, decimals=5)
@@ -615,119 +615,120 @@ def get_time_passed_thru(trial):
     elif 'timePassedThru' in trial:
         return trial['timePassedThru']
     return None
+if __name__ == '__main__':
 
-total_trial_index = 0
-results = []
-nfailed = 0
-ngood = 0
-for block in data['blocks']:
-    trials = block['trials']
-    if len(trials) < 10:
-        continue
+    total_trial_index = 0
+    results = []
+    nfailed = 0
+    ngood = 0
+    for block in data['blocks']:
+        trials = block['trials']
+        if len(trials) < 10:
+            continue
 
-    has_decisions = any('hole_locations' in trial and len(trial['hole_locations']) == 2 for trial in trials)
-    pct_cors = []
-    for i, trial in enumerate(trials):
-        total_trial_index += 1
-        if i == 0 or trials[i]['block_index'] != trials[i-1]['block_index']:
-            continue
-        if i+1 == len(trials):
-            continue
+        has_decisions = any('hole_locations' in trial and len(trial['hole_locations']) == 2 for trial in trials)
+        pct_cors = []
+        for i, trial in enumerate(trials):
+            total_trial_index += 1
+            if i == 0 or trials[i]['block_index'] != trials[i-1]['block_index']:
+                continue
+            if i+1 == len(trials):
+                continue
         
-        is_decision = len(trial['hole_locations']) == 2 and len(trials[i-1]['hole_locations']) == 1
-        is_fixed = len(trial['hole_locations']) == 1 and len(trials[i-1]['hole_locations']) == 1
-        if not (is_decision or is_fixed):
-            continue
+            is_decision = len(trial['hole_locations']) == 2 and len(trials[i-1]['hole_locations']) == 1
+            is_fixed = len(trial['hole_locations']) == 1 and len(trials[i-1]['hole_locations']) == 1
+            if not (is_decision or is_fixed):
+                continue
 
-        curHole = get_chosen_hole(trial)
-        origHole = get_chosen_hole(trials[i-1])
-        distTraveled = np.abs(curHole - origHole) if curHole is not None and origHole is not None else np.nan
+            curHole = get_chosen_hole(trial)
+            origHole = get_chosen_hole(trials[i-1])
+            distTraveled = np.abs(curHole - origHole) if curHole is not None and origHole is not None else np.nan
 
-        if has_decisions and is_decision:
-            nonchosenHole = [h for h in trial['hole_locations'] if h != curHole][0]
-            distToNonchosen = np.abs(nonchosenHole - origHole)
-            if distToNonchosen > distTraveled:
-                pct_cors.append(1)
+            if has_decisions and is_decision:
+                nonchosenHole = [h for h in trial['hole_locations'] if h != curHole][0]
+                distToNonchosen = np.abs(nonchosenHole - origHole)
+                if distToNonchosen > distTraveled:
+                    pct_cors.append(1)
+                else:
+                    pct_cors.append(0)
+
+            rt = get_time_passed_thru(trial) - get_time_passed_thru(trials[i-1])
+            if rt < 0:
+                # print(trials[i-1])
+                # print('-----')
+                # print(trials[i])
+                # print('========')
+                nfailed += 1
+                continue
             else:
-                pct_cors.append(0)
-
-        rt = get_time_passed_thru(trial) - get_time_passed_thru(trials[i-1])
-        if rt < 0:
-            # print(trials[i-1])
-            # print('-----')
-            # print(trials[i])
-            # print('========')
-            nfailed += 1
-            continue
-        else:
-            ngood += 1
-        results.append({'rel_trial_index': i, 'trial_index': total_trial_index, 'block_index': trial['block_index'], 'decision_block': has_decisions, 'rt': rt, 'origHole': origHole, 'curHole': curHole, 'distTraveled': distTraveled, 'is_decision': is_decision})
+                ngood += 1
+            results.append({'rel_trial_index': i, 'trial_index': total_trial_index, 'block_index': trial['block_index'], 'decision_block': has_decisions, 'rt': rt, 'origHole': origHole, 'curHole': curHole, 'distTraveled': distTraveled, 'is_decision': is_decision})
     
-    if has_decisions:
-        print(f"Block {block['block_index']} had {len(trials)} trials with decisions, pct correct: {np.mean(pct_cors):.2f}, mean RT: {np.mean([r['rt']/1000 for r in results if r['block_index'] == block['block_index']]):.2f} s")
+        if has_decisions:
+            print(f"Block {block['block_index']} had {len(trials)} trials with decisions, pct correct: {np.mean(pct_cors):.2f}, mean RT: {np.mean([r['rt']/1000 for r in results if r['block_index'] == block['block_index']]):.2f} s")
 
-print(f"Extracted RTs for {ngood} valid trial pairs, skipped {nfailed} pairs with negative RTs.")
+    print(f"Extracted RTs for {ngood} valid trial pairs, skipped {nfailed} pairs with negative RTs.")
 
-#%%
+    #%%
 
-# for each distTraveled, plot the distribution of RTs (e.g. boxplot or violin plot)
-# separately for decision_blocks vs non-decision blocks
+    # for each distTraveled, plot the distribution of RTs (e.g. boxplot or violin plot)
+    # separately for decision_blocks vs non-decision blocks
 
-plt.figure(figsize=(6,4), dpi=300)
-for decision_block in [False, True]:
+    plt.figure(figsize=(6,4), dpi=300)
+    for decision_block in [False, True]:
     
-    dists = []
-    rts = []
+        dists = []
+        rts = []
+        for res in results:
+            if res['decision_block'] == decision_block and not np.isnan(res['distTraveled']) and not np.isnan(res['rt']):
+                if res['rt'] > 5000:
+                    continue
+                dists.append(res['distTraveled'])
+                rts.append(res['rt'])
+
+        # plot violin plot of RTs for each distance traveled
+        unique_dists = np.unique(dists)
+        data_to_plot = [ [rts[i] for i in range(len(rts)) if dists[i] == ud] for ud in unique_dists ]
+        plt.violinplot(data_to_plot, positions=unique_dists, showmeans=True)
+
+        plt.xlabel('Distance Traveled')
+        plt.ylabel('Reaction Time (ms)')
+        plt.tight_layout()
+    plt.show()
+
+    #%%
+
+    # for each (origHole, curHole) pair, compare RTs during decision blocks vs non-decision blocks (e.g. bar plot with error bars)
+
+    rt_holes = {}
     for res in results:
-        if res['decision_block'] == decision_block and not np.isnan(res['distTraveled']) and not np.isnan(res['rt']):
+        if not np.isnan(res['origHole']) and not np.isnan(res['curHole']) and not np.isnan(res['rt']):
             if res['rt'] > 5000:
                 continue
-            dists.append(res['distTraveled'])
-            rts.append(res['rt'])
+            key = (res['origHole'], res['curHole'])
+            if key not in rt_holes:
+                rt_holes[key] = {'decision': [], 'non_decision': []}
+            if res['decision_block']:
+                rt_holes[key]['decision'].append(res['rt'])
+            else:
+                rt_holes[key]['non_decision'].append(res['rt'])
 
-    # plot violin plot of RTs for each distance traveled
-    unique_dists = np.unique(dists)
-    data_to_plot = [ [rts[i] for i in range(len(rts)) if dists[i] == ud] for ud in unique_dists ]
-    plt.violinplot(data_to_plot, positions=unique_dists, showmeans=True)
+    plt.figure(figsize=(3,3), dpi=300)
+    for key, rt_dict in rt_holes.items():
+        decision_rts = rt_dict['decision']
+        non_decision_rts = rt_dict['non_decision']
+        if len(decision_rts) > 0 and len(non_decision_rts) > 0:
+            means = [np.mean(non_decision_rts), np.mean(decision_rts)]
+            ses = [np.std(non_decision_rts)/np.sqrt(len(non_decision_rts)), np.std(decision_rts)/np.sqrt(len(decision_rts))]
+            # decision on x, non-decision on y
+            plt.plot(means[0], means[1], '.', color='blue')
 
-    plt.xlabel('Distance Traveled')
-    plt.ylabel('Reaction Time (ms)')
+    ymx = 3000
+    plt.axis('square')
+    plt.plot([0, ymx], [0, ymx], 'k-', zorder=-1, alpha=0.5)
+    plt.xlim([0, ymx])
+    plt.ylim([0, ymx])
+    plt.xlabel('Mean RT (Non-Decision Blocks)')
+    plt.ylabel('Mean RT (Decision Blocks)')
     plt.tight_layout()
-plt.show()
-
-#%%
-
-# for each (origHole, curHole) pair, compare RTs during decision blocks vs non-decision blocks (e.g. bar plot with error bars)
-
-rt_holes = {}
-for res in results:
-    if not np.isnan(res['origHole']) and not np.isnan(res['curHole']) and not np.isnan(res['rt']):
-        if res['rt'] > 5000:
-            continue
-        key = (res['origHole'], res['curHole'])
-        if key not in rt_holes:
-            rt_holes[key] = {'decision': [], 'non_decision': []}
-        if res['decision_block']:
-            rt_holes[key]['decision'].append(res['rt'])
-        else:
-            rt_holes[key]['non_decision'].append(res['rt'])
-
-plt.figure(figsize=(3,3), dpi=300)
-for key, rt_dict in rt_holes.items():
-    decision_rts = rt_dict['decision']
-    non_decision_rts = rt_dict['non_decision']
-    if len(decision_rts) > 0 and len(non_decision_rts) > 0:
-        means = [np.mean(non_decision_rts), np.mean(decision_rts)]
-        ses = [np.std(non_decision_rts)/np.sqrt(len(non_decision_rts)), np.std(decision_rts)/np.sqrt(len(decision_rts))]
-        # decision on x, non-decision on y
-        plt.plot(means[0], means[1], '.', color='blue')
-
-ymx = 3000
-plt.axis('square')
-plt.plot([0, ymx], [0, ymx], 'k-', zorder=-1, alpha=0.5)
-plt.xlim([0, ymx])
-plt.ylim([0, ymx])
-plt.xlabel('Mean RT (Non-Decision Blocks)')
-plt.ylabel('Mean RT (Decision Blocks)')
-plt.tight_layout()
-plt.show()
+    plt.show()

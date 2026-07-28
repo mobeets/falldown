@@ -120,11 +120,11 @@ def compare_greedy_vs_rollout(data, only_use_disagreements=False):
 
             dist_L1 = np.abs(hole_locs[0] - h_prev)
             dist_R1 = np.abs(hole_locs[1] - h_prev)
-            dist_L2 = dist_L1 + np.abs(hole_locs[0] - h_next)
-            dist_R2 = dist_R1 + np.abs(hole_locs[1] - h_next)
+            dist_total_L2 = dist_L1 + np.abs(hole_locs[0] - h_next)
+            dist_total_R2 = dist_R1 + np.abs(hole_locs[1] - h_next)
             if only_use_disagreements:
                 # we ignore trials where both greedy and rollout would make the same choice
-                if (dist_L1 < dist_R1 and dist_L2 < dist_R2) or (dist_R1 < dist_L1 and dist_R2 < dist_L2):
+                if (dist_L1 < dist_R1 and dist_total_L2 < dist_total_R2) or (dist_R1 < dist_L1 and dist_total_R2 < dist_total_L2):
                     continue
             
             choice = hole_locs.index(h_cur)
@@ -134,7 +134,7 @@ def compare_greedy_vs_rollout(data, only_use_disagreements=False):
                 rt = trial['events'][0]['time'] - trials[i-1]['events'][0]['time']
             else:
                 rt = np.nan
-            choices.append((dist_L1, dist_R1, dist_L2, dist_R2, rt, choice))
+            choices.append((dist_L1, dist_R1, dist_total_L2, dist_total_R2, rt, choice))
     return np.vstack(choices)
 
 
@@ -216,18 +216,18 @@ def plot_rt_residuals_vs_conflict(choices, fig=None, rt_regression_type = 'linea
     NOTE: I gotta figure out if I'm calculating conflict correctly or not
     """
     # 1. Extract columns from the compare_greedy_vs_rollout output
-    # Columns: (dist_L1, dist_R1, dist_L2, dist_R2, rt, choice)
+    # Columns: (dist_L1, dist_R1, dist_total_L2, dist_total_R2, rt, choice)
     dist_L1 = choices[:, 0]
     dist_R1 = choices[:, 1]
-    dist_L2 = choices[:, 2]
-    dist_R2 = choices[:, 3]
+    dist_total_L2 = choices[:, 2]
+    dist_total_R2 = choices[:, 3]
     rts = choices[:, 4]
     choice_made = choices[:, 5]
 
     # Filter out trials with NaN reaction times
     valid_mask = ~np.isnan(rts)
     dist_L1, dist_R1 = dist_L1[valid_mask], dist_R1[valid_mask]
-    dist_L2, dist_R2 = dist_L2[valid_mask], dist_R2[valid_mask]
+    dist_total_L2, dist_total_R2 = dist_total_L2[valid_mask], dist_total_R2[valid_mask]
     rts = rts[valid_mask]
     choice_made = choice_made[valid_mask]
 
@@ -253,7 +253,7 @@ def plot_rt_residuals_vs_conflict(choices, fig=None, rt_regression_type = 'linea
     # 5. Define Conflict (1-step vs 2-step)
     # Calculated as the difference in magnitude between the 1-step delta and 2-step delta
     conflict_1step = np.abs(dist_L1 - dist_R1)
-    conflict_2step = np.abs(dist_L2 - dist_R2)
+    conflict_2step = np.abs(dist_total_L2 - dist_total_R2)
     conflicts = np.abs(conflict_1step - conflict_2step)
     
     # Round slightly to prevent floating-point precision issues from creating too many bins
@@ -355,15 +355,15 @@ def plot_rt_residuals_over_time(choices, window_size=10, fig=None, rt_regression
     # 1. Extract columns from the compare_greedy_vs_rollout output
     dist_L1 = choices[:, 0]
     dist_R1 = choices[:, 1]
-    dist_L2 = choices[:, 2]
-    dist_R2 = choices[:, 3]
+    dist_total_L2 = choices[:, 2]
+    dist_total_R2 = choices[:, 3]
     rts = choices[:, 4]
     choice_made = choices[:, 5]
 
     # Filter out trials with NaN reaction times
     valid_mask = ~np.isnan(rts)
     dist_L1, dist_R1 = dist_L1[valid_mask], dist_R1[valid_mask]
-    dist_L2, dist_R2 = dist_L2[valid_mask], dist_R2[valid_mask]
+    dist_total_L2, dist_total_R2 = dist_total_L2[valid_mask], dist_total_R2[valid_mask]
     rts = rts[valid_mask]
     choice_made = choice_made[valid_mask]
 
@@ -388,7 +388,7 @@ def plot_rt_residuals_over_time(choices, window_size=10, fig=None, rt_regression
 
     # 3. Define Conflict (1-step vs 2-step)
     conflict_1step = np.abs(dist_L1 - dist_R1)
-    conflict_2step = np.abs(dist_L2 - dist_R2)
+    conflict_2step = np.abs(dist_total_L2 - dist_total_R2)
     conflicts = np.abs(conflict_1step - conflict_2step)
     
     # Round slightly to group similar conflict levels
@@ -432,8 +432,8 @@ def plot_rt_residuals_over_time(choices, window_size=10, fig=None, rt_regression
 def plot_rt_vs_distance(choices, step=1):
     dist_L1 = choices[:, 0]
     dist_R1 = choices[:, 1]
-    dist_L2 = choices[:, 2]
-    dist_R2 = choices[:, 3]
+    dist_total_L2 = choices[:, 2]
+    dist_total_R2 = choices[:, 3]
     rt = choices[:, 4]
     choice_made = choices[:, 5]
 
@@ -443,7 +443,7 @@ def plot_rt_vs_distance(choices, step=1):
         chosen_dist = np.where(choice_made == 0, dist_L1, dist_R1)
         xlabel = '1-Step Distance Traveled'
     elif step == 2:
-        chosen_dist = np.where(choice_made == 0, dist_L2, dist_R2)
+        chosen_dist = np.where(choice_made == 0, dist_total_L2, dist_total_R2)
         xlabel = 'Total 2-Step Path Distance'
     else:
         raise ValueError("The 'step' parameter must be 1 or 2.")
@@ -471,13 +471,13 @@ def plot_rt_vs_distance(choices, step=1):
 def plot_conflict_vs_rt_heatmap(choices, rt_regression_type='linear'):
     dist_L1 = choices[:, 0]
     dist_R1 = choices[:, 1]
-    dist_L2 = choices[:, 2]
-    dist_R2 = choices[:, 3]
+    dist_total_L2 = choices[:, 2]
+    dist_total_R2 = choices[:, 3]
     rts = choices[:, 4]
     choice_made = choices[:, 5]
 
     conflict_1step = dist_L1 - dist_R1
-    conflict_2step = dist_L2 - dist_R2
+    conflict_2step = dist_total_L2 - dist_total_R2
 
     chosen_dist_1 = np.where(choice_made == 0, dist_L1, dist_R1)
     
@@ -532,28 +532,30 @@ def plot_conflict_vs_rt_heatmap(choices, rt_regression_type='linear'):
 
 
 # %%
-data = load("YFW-2026-04-29T17-01-30-883Z-ikoe.json")
-data = load("YFX-2026-05-13T22-06-02-493Z-461m.json")
+if __name__ == "__main__":
+    data = load("YFW-2026-04-29T17-01-30-883Z-ikoe.json")
+    data = load("YFX-2026-05-13T22-06-02-493Z-461m.json")
 
-choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
+    choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
 
-#plot_rt_residuals_vs_conflict(choices)
-rt_over_time_minimum_30 = plot_rt_residuals_over_time(choices, window_size= 10, rt_regression_type= 'minimum')
-display(rt_over_time_minimum_30)
+    #plot_rt_residuals_vs_conflict(choices)
+    rt_over_time_minimum_30 = plot_rt_residuals_over_time(choices, window_size= 10, rt_regression_type= 'minimum')
+    display(rt_over_time_minimum_30)
 
-rt_vs_conflict_minimum = plot_rt_residuals_vs_conflict(choices, rt_regression_type= 'minimum')
-display(rt_vs_conflict_minimum)
+    rt_vs_conflict_minimum = plot_rt_residuals_vs_conflict(choices, rt_regression_type= 'minimum')
+    display(rt_vs_conflict_minimum)
 
-choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
-plot_conflict_vs_rt_heatmap(choices)
+    choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
+    plot_conflict_vs_rt_heatmap(choices)
 
 # %%
-#data = load("Mani_NoFutureSight_Trial.json")
-#data['blocks'][1]['trials'][7]['events'][0]
-block = data['blocks'][1]
-trials = block['trials']
-#len(trials)
-trials[0]
+if __name__ == "__main__":
+    #data = load("Mani_NoFutureSight_Trial.json")
+    #data['blocks'][1]['trials'][7]['events'][0]
+    block = data['blocks'][1]
+    trials = block['trials']
+    #len(trials)
+    trials[0]
 
 
 # %%
@@ -723,318 +725,319 @@ ax.set_ylabel('Frequency (Number of Trials)')
 plt.show()
 
 # %%
-choice_trials = choice_vs_no_choice_df[choice_vs_no_choice_df['choice_trial']]
+if __name__ == '__main__':
+    choice_trials = choice_vs_no_choice_df[choice_vs_no_choice_df['choice_trial']]
 
-diff_1step = choice_trials['chosen_1step_dist'] - choice_trials['unchosen_1step_dist']
-diff_2step = choice_trials['chosen_2step_dist'] - choice_trials['unchosen_2step_dist']
+    diff_1step = choice_trials['chosen_1step_dist'] - choice_trials['unchosen_1step_dist']
+    diff_2step = choice_trials['chosen_2step_dist'] - choice_trials['unchosen_2step_dist']
 
-disagree_trials = choice_trials[(diff_1step * diff_2step) < 0]
-disagree_trials
+    disagree_trials = choice_trials[(diff_1step * diff_2step) < 0]
+    disagree_trials
 
-percent_greedy_choice = sum(disagree_trials['chosen_1step_dist'] <= disagree_trials['unchosen_1step_dist'])/len(disagree_trials)
+    percent_greedy_choice = sum(disagree_trials['chosen_1step_dist'] <= disagree_trials['unchosen_1step_dist'])/len(disagree_trials)
 
-percent_planning_choice = sum(disagree_trials['chosen_2step_dist'] <= disagree_trials['unchosen_2step_dist'])/len(disagree_trials)
+    percent_planning_choice = sum(disagree_trials['chosen_2step_dist'] <= disagree_trials['unchosen_2step_dist'])/len(disagree_trials)
 
-print(percent_greedy_choice)
-print(percent_planning_choice)
+    print(percent_greedy_choice)
+    print(percent_planning_choice)
 
-# %%
-choice_trials
+    # %%
+    choice_trials
 
-# %% [markdown]
-# # Predicting Left vs Right Choices
+    # %% [markdown]
+    # # Predicting Left vs Right Choices
 
-# %%
-### Whether Left or Right was Picked, and Left vs Right Distances
+    # %%
+    ### Whether Left or Right was Picked, and Left vs Right Distances
 
-chosen_middle = choice_vs_no_choice_df['chosen_path'].str[1]
-unchosen_middle = choice_vs_no_choice_df['non_chosen_path'].str[1]
+    chosen_middle = choice_vs_no_choice_df['chosen_path'].str[1]
+    unchosen_middle = choice_vs_no_choice_df['non_chosen_path'].str[1]
 
-choice_vs_no_choice_df['chosen_left'] = (chosen_middle < unchosen_middle) & (choice_vs_no_choice_df['choice_trial'])
+    choice_vs_no_choice_df['chosen_left'] = (chosen_middle < unchosen_middle) & (choice_vs_no_choice_df['choice_trial'])
 
-#choice_vs_no_choice_df['chosen_left']
-
-
-choice_trials
-
-### Direction
-
-prev_end_hole = choice_vs_no_choice_df['chosen_path'].shift(1).str[2]
-curr_start_hole = choice_vs_no_choice_df['chosen_path'].str[0]
-
-direction = np.sign(prev_end_hole - curr_start_hole)
-
-prev_seq_num = choice_vs_no_choice_df['trial_sequence_number'].shift(1)
-curr_seq_num = choice_vs_no_choice_df['trial_sequence_number']
-
-prev_block = choice_vs_no_choice_df['block_number'].shift(1)
-curr_block = choice_vs_no_choice_df['block_number']
-
-is_valid_sequence = (prev_seq_num + 1 == curr_seq_num) & (prev_block == curr_block)
-
-choice_vs_no_choice_df['incoming_direction'] = np.where(is_valid_sequence, direction, np.nan)
+    #choice_vs_no_choice_df['chosen_left']
 
 
+    choice_trials
 
-### Putting together the dataframe
-choice_trials = choice_vs_no_choice_df[choice_vs_no_choice_df['choice_trial']]
-choice_trials = choice_trials.dropna()
+    ### Direction
+
+    prev_end_hole = choice_vs_no_choice_df['chosen_path'].shift(1).str[2]
+    curr_start_hole = choice_vs_no_choice_df['chosen_path'].str[0]
+
+    direction = np.sign(prev_end_hole - curr_start_hole)
+
+    prev_seq_num = choice_vs_no_choice_df['trial_sequence_number'].shift(1)
+    curr_seq_num = choice_vs_no_choice_df['trial_sequence_number']
+
+    prev_block = choice_vs_no_choice_df['block_number'].shift(1)
+    curr_block = choice_vs_no_choice_df['block_number']
+
+    is_valid_sequence = (prev_seq_num + 1 == curr_seq_num) & (prev_block == curr_block)
+
+    choice_vs_no_choice_df['incoming_direction'] = np.where(is_valid_sequence, direction, np.nan)
 
 
-# %%
 
-#logistic_regression_df = pd.DataFrame()
+    ### Putting together the dataframe
+    choice_trials = choice_vs_no_choice_df[choice_vs_no_choice_df['choice_trial']]
+    choice_trials = choice_trials.dropna()
 
-X = pd.DataFrame({
-    'L1': np.where(choice_trials['chosen_left'], choice_trials['chosen_1step_dist'], choice_trials['unchosen_1step_dist']),
-    'R1': np.where(~choice_trials['chosen_left'], choice_trials['chosen_1step_dist'], choice_trials['unchosen_1step_dist']),
+
+    # %%
+
+    #logistic_regression_df = pd.DataFrame()
+
+    X = pd.DataFrame({
+        'L1': np.where(choice_trials['chosen_left'], choice_trials['chosen_1step_dist'], choice_trials['unchosen_1step_dist']),
+        'R1': np.where(~choice_trials['chosen_left'], choice_trials['chosen_1step_dist'], choice_trials['unchosen_1step_dist']),
     
-    'L2': np.where(choice_trials['chosen_left'], 
-                   choice_trials['chosen_2step_dist'] - choice_trials['chosen_1step_dist'], 
-                   choice_trials['unchosen_2step_dist'] - choice_trials['unchosen_1step_dist']),
-    'R2': np.where(~choice_trials['chosen_left'], 
-                   choice_trials['chosen_2step_dist'] - choice_trials['chosen_1step_dist'], 
-                   choice_trials['unchosen_2step_dist'] - choice_trials['unchosen_1step_dist']),
+        'L2': np.where(choice_trials['chosen_left'], 
+                       choice_trials['chosen_2step_dist'] - choice_trials['chosen_1step_dist'], 
+                       choice_trials['unchosen_2step_dist'] - choice_trials['unchosen_1step_dist']),
+        'R2': np.where(~choice_trials['chosen_left'], 
+                       choice_trials['chosen_2step_dist'] - choice_trials['chosen_1step_dist'], 
+                       choice_trials['unchosen_2step_dist'] - choice_trials['unchosen_1step_dist']),
 
-    'Direction': choice_trials['incoming_direction']
-})
-y = choice_trials['chosen_left']
+        'Direction': choice_trials['incoming_direction']
+    })
+    y = choice_trials['chosen_left']
 
-X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size = 0.2)
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size = 0.2)
 
-model = sklearn.linear_model.LogisticRegression().fit(X_train, y_train)
-#predictions = model.predict(X_test)
+    model = sklearn.linear_model.LogisticRegression().fit(X_train, y_train)
+    #predictions = model.predict(X_test)
 
-print("======MODEL 1 RESULTS======\n\n")
+    print("======MODEL 1 RESULTS======\n\n")
 
-accuracy = model.score(X_test, y_test)
-print(f'Accuracy:', accuracy,'\n')
+    accuracy = model.score(X_test, y_test)
+    print(f'Accuracy:', accuracy,'\n')
 
-print(f'Coeffecients:\n', pd.Series(model.coef_[0], index=X_train.columns),'\n')
-print(f'Model Intercept: ', model.intercept_)
-predictions = model.predict(X)
-print(f'Confusion Matrix: ', sklearn.metrics.confusion_matrix(predictions, y)/len(predictions), '\n')
+    print(f'Coeffecients:\n', pd.Series(model.coef_[0], index=X_train.columns),'\n')
+    print(f'Model Intercept: ', model.intercept_)
+    predictions = model.predict(X)
+    print(f'Confusion Matrix: ', sklearn.metrics.confusion_matrix(predictions, y)/len(predictions), '\n')
 
-y_probs = model.predict_proba(X_test)
+    y_probs = model.predict_proba(X_test)
 
-loss = log_loss(y_test, y_probs)
+    loss = log_loss(y_test, y_probs)
 
-total_log_likelihood = -len(y_test) * loss
+    total_log_likelihood = -len(y_test) * loss
 
-print(f'Total Log Likelihood: ', total_log_likelihood)
-X2 = pd.DataFrame({'1 Step Difference': X['L1']-X['R1'],
-                   'Direction': X['Direction']})
+    print(f'Total Log Likelihood: ', total_log_likelihood)
+    X2 = pd.DataFrame({'L1-R1': X['L1']-X['R1'],
+                       'Direction': X['Direction']})
 
-X3 = pd.DataFrame({'2 Step Difference': X['L1']+X['L2']-X['R1']-X['R2'],
-                   'Direction': X['Direction']})
+    X3 = pd.DataFrame({'L1+L2-R1-R2': X['L1']+X['L2']-X['R1']-X['R2'],
+                       'Direction': X['Direction']})
 
-X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X2, y, test_size = 0.2)
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X2, y, test_size = 0.2)
 
-model = sklearn.linear_model.LogisticRegression(penalty=None).fit(X_train, y_train)
-#predictions = model.predict(X_test)
+    model = sklearn.linear_model.LogisticRegression(penalty=None).fit(X_train, y_train)
+    #predictions = model.predict(X_test)
 
-print("\n\n======MODEL 2 RESULTS======\n\n")
+    print("\n\n======MODEL 2 RESULTS======\n\n")
 
-accuracy = model.score(X_test, y_test)
-print(f'Accuracy 2:', accuracy,'\n')
+    accuracy = model.score(X_test, y_test)
+    print(f'Accuracy 2:', accuracy,'\n')
 
-print(f'Coeffecients 2:\n', pd.Series(model.coef_[0], index=X_train.columns),'\n')
-print(f'Model Intercept: ', model.intercept_)
-predictions = model.predict(X2)
+    print(f'Coeffecients 2:\n', pd.Series(model.coef_[0], index=X_train.columns),'\n')
+    print(f'Model Intercept: ', model.intercept_)
+    predictions = model.predict(X2)
 
-print(f'Confusion Matrix 2: ', sklearn.metrics.confusion_matrix(predictions, y)/len(predictions))
+    print(f'Confusion Matrix 2: ', sklearn.metrics.confusion_matrix(predictions, y)/len(predictions))
 
-y_probs = model.predict_proba(X_test)
+    y_probs = model.predict_proba(X_test)
 
-loss = log_loss(y_test, y_probs)
+    loss = log_loss(y_test, y_probs)
 
-total_log_likelihood = -len(y_test) * loss
+    total_log_likelihood = -len(y_test) * loss
 
-print(f'Total Log Likelihood: ', total_log_likelihood, '\n')
+    print(f'Total Log Likelihood: ', total_log_likelihood, '\n')
 
-X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X3, y, test_size = 0.2)
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X3, y, test_size = 0.2)
 
-model = sklearn.linear_model.LogisticRegression().fit(X_train, y_train)
-#predictions = model.predict(X_test)
+    model = sklearn.linear_model.LogisticRegression().fit(X_train, y_train)
+    #predictions = model.predict(X_test)
 
-print("\n\n======MODEL 3 RESULTS======\n\n")
+    print("\n\n======MODEL 3 RESULTS======\n\n")
 
-accuracy = model.score(X_test, y_test)
-print(f'Accuracy 3:', accuracy,'\n')
+    accuracy = model.score(X_test, y_test)
+    print(f'Accuracy 3:', accuracy,'\n')
 
-mle_coefficients = model.coef_
-mle_intercept = model.intercept_
-
-
-print(f'Coeffecients3:\n', pd.Series(model.coef_[0], index=X_train.columns),'\n', )
-print(f'Model Intercept: ', mle_intercept)
-predictions = model.predict(X3)
-print(f'Confusion Matrix3: ', sklearn.metrics.confusion_matrix(predictions, y)/len(predictions))
-
-y_probs = model.predict_proba(X_test)
-
-loss = log_loss(y_test, y_probs)
-
-total_log_likelihood = -len(y_test) * loss
-
-print(f'Total Log Likelihood: ', total_log_likelihood, '\n')
-
-# %% [markdown]
-# # Seeing if the Strategy is Switched
-
-# %%
-choice_trials = choice_vs_no_choice_df[choice_vs_no_choice_df['choice_trial']]
-sum(choice_trials['incoming_direction'].dropna())
-
-is_greedy_choice = choice_trials['chosen_1step_dist'] < choice_trials['unchosen_1step_dist']
-is_planned_choice = choice_trials['chosen_2step_dist'] < choice_trials['unchosen_2step_dist']
-
-strategy_switching_record = np.where(is_greedy_choice, 1, 0) - np.where(is_planned_choice, 1, 0)
-smoothed_switching_record = pd.DataFrame(strategy_switching_record).rolling(window=13).mean()
-
-plt.plot(range(len(choice_trials)), strategy_switching_record, linewidth = 1, color = 'orange')
-plt.plot(range(len(choice_trials)), smoothed_switching_record, linewidth = 3, color = 'red')
-plt.title('Strategy Time Series')
-plt.ylabel('Moving Average Strategy\n(Positive Indicates Using the Greedy Strategy)')
-plt.xlabel('Trial Number')
-plt.show()
-
-# %%
-sum(choice_trials['chosen_left'])/len(choice_trials)
-
-# %%
-ARMAmodel1 = auto_arima(smoothed_switching_record.dropna(), seasonal= False) 
-ARMAmodel2 = auto_arima(strategy_switching_record, seasonal= False) 
-
-#plt.plot(smoothed_switching_record, label='Actual')
-#plt.plot(results.predict(), label='Fitted')
-#plt.legend()
-#plt.show()
-
-print(f'Smoothed Input Model: ', ARMAmodel1.summary())
-print(f'Normal Model: ', ARMAmodel2.summary())
-
-# %% [markdown]
-# # Fitting a GLM HMM
-
-# %%
-data = load("YFX-2026-05-13T22-06-02-493Z-461m.json")
-
-choice_vs_no_choice = pre_proccess_data_from_choice_vs_no_choice(data)
-#choice_vs_no_choice[3]
-
-choice_vs_no_choice_df = pd.DataFrame(choice_vs_no_choice)
-chosen_middle = choice_vs_no_choice_df['chosen_path'].str[1]
-unchosen_middle = choice_vs_no_choice_df['non_chosen_path'].str[1]
-
-choice_vs_no_choice_df['chosen_left'] = (chosen_middle < unchosen_middle) & (choice_vs_no_choice_df['choice_trial'])
-
-#choice_vs_no_choice_df['chosen_left']
-
-### Direction
-
-prev_end_hole = choice_vs_no_choice_df['chosen_path'].shift(1).str[2]
-curr_start_hole = choice_vs_no_choice_df['chosen_path'].str[0]
-
-direction = np.sign(prev_end_hole - curr_start_hole)
-
-prev_seq_num = choice_vs_no_choice_df['trial_sequence_number'].shift(1)
-curr_seq_num = choice_vs_no_choice_df['trial_sequence_number']
-
-prev_block = choice_vs_no_choice_df['block_number'].shift(1)
-curr_block = choice_vs_no_choice_df['block_number']
-
-is_valid_sequence = (prev_seq_num + 1 == curr_seq_num) & (prev_block == curr_block)
-
-choice_vs_no_choice_df['incoming_direction'] = np.where(is_valid_sequence, direction, np.nan)
+    mle_coefficients = model.coef_
+    mle_intercept = model.intercept_
 
 
+    print(f'Coeffecients3:\n', pd.Series(model.coef_[0], index=X_train.columns),'\n', )
+    print(f'Model Intercept: ', mle_intercept)
+    predictions = model.predict(X3)
+    print(f'Confusion Matrix3: ', sklearn.metrics.confusion_matrix(predictions, y)/len(predictions))
 
-### Putting together the dataframe
-choice_trials = choice_vs_no_choice_df[choice_vs_no_choice_df['choice_trial']]
-choice_trials = choice_trials.dropna()
+    y_probs = model.predict_proba(X_test)
 
-X = pd.DataFrame({
-    'L1': np.where(choice_trials['chosen_left'], choice_trials['chosen_1step_dist'], choice_trials['unchosen_1step_dist']),
-    'R1': np.where(~choice_trials['chosen_left'], choice_trials['chosen_1step_dist'], choice_trials['unchosen_1step_dist']),
+    loss = log_loss(y_test, y_probs)
+
+    total_log_likelihood = -len(y_test) * loss
+
+    print(f'Total Log Likelihood: ', total_log_likelihood, '\n')
+
+    # %% [markdown]
+    # # Seeing if the Strategy is Switched
+
+    # %%
+    choice_trials = choice_vs_no_choice_df[choice_vs_no_choice_df['choice_trial']]
+    sum(choice_trials['incoming_direction'].dropna())
+
+    is_greedy_choice = choice_trials['chosen_1step_dist'] < choice_trials['unchosen_1step_dist']
+    is_planned_choice = choice_trials['chosen_2step_dist'] < choice_trials['unchosen_2step_dist']
+
+    strategy_switching_record = np.where(is_greedy_choice, 1, 0) - np.where(is_planned_choice, 1, 0)
+    smoothed_switching_record = pd.DataFrame(strategy_switching_record).rolling(window=13).mean()
+
+    plt.plot(range(len(choice_trials)), strategy_switching_record, linewidth = 1, color = 'orange')
+    plt.plot(range(len(choice_trials)), smoothed_switching_record, linewidth = 3, color = 'red')
+    plt.title('Strategy Time Series')
+    plt.ylabel('Moving Average Strategy\n(Positive Indicates Using the Greedy Strategy)')
+    plt.xlabel('Trial Number')
+    plt.show()
+
+    # %%
+    sum(choice_trials['chosen_left'])/len(choice_trials)
+
+    # %%
+    ARMAmodel1 = auto_arima(smoothed_switching_record.dropna(), seasonal= False) 
+    ARMAmodel2 = auto_arima(strategy_switching_record, seasonal= False) 
+
+    #plt.plot(smoothed_switching_record, label='Actual')
+    #plt.plot(results.predict(), label='Fitted')
+    #plt.legend()
+    #plt.show()
+
+    print(f'Smoothed Input Model: ', ARMAmodel1.summary())
+    print(f'Normal Model: ', ARMAmodel2.summary())
+
+    # %% [markdown]
+    # # Fitting a GLM HMM
+
+    # %%
+    data = load("YFX-2026-05-13T22-06-02-493Z-461m.json")
+
+    choice_vs_no_choice = pre_proccess_data_from_choice_vs_no_choice(data)
+    #choice_vs_no_choice[3]
+
+    choice_vs_no_choice_df = pd.DataFrame(choice_vs_no_choice)
+    chosen_middle = choice_vs_no_choice_df['chosen_path'].str[1]
+    unchosen_middle = choice_vs_no_choice_df['non_chosen_path'].str[1]
+
+    choice_vs_no_choice_df['chosen_left'] = (chosen_middle < unchosen_middle) & (choice_vs_no_choice_df['choice_trial'])
+
+    #choice_vs_no_choice_df['chosen_left']
+
+    ### Direction
+
+    prev_end_hole = choice_vs_no_choice_df['chosen_path'].shift(1).str[2]
+    curr_start_hole = choice_vs_no_choice_df['chosen_path'].str[0]
+
+    direction = np.sign(prev_end_hole - curr_start_hole)
+
+    prev_seq_num = choice_vs_no_choice_df['trial_sequence_number'].shift(1)
+    curr_seq_num = choice_vs_no_choice_df['trial_sequence_number']
+
+    prev_block = choice_vs_no_choice_df['block_number'].shift(1)
+    curr_block = choice_vs_no_choice_df['block_number']
+
+    is_valid_sequence = (prev_seq_num + 1 == curr_seq_num) & (prev_block == curr_block)
+
+    choice_vs_no_choice_df['incoming_direction'] = np.where(is_valid_sequence, direction, np.nan)
+
+
+
+    ### Putting together the dataframe
+    choice_trials = choice_vs_no_choice_df[choice_vs_no_choice_df['choice_trial']]
+    choice_trials = choice_trials.dropna()
+
+    X = pd.DataFrame({
+        'L1': np.where(choice_trials['chosen_left'], choice_trials['chosen_1step_dist'], choice_trials['unchosen_1step_dist']),
+        'R1': np.where(~choice_trials['chosen_left'], choice_trials['chosen_1step_dist'], choice_trials['unchosen_1step_dist']),
     
-    'L2': np.where(choice_trials['chosen_left'], 
-                   choice_trials['chosen_2step_dist'] - choice_trials['chosen_1step_dist'], 
-                   choice_trials['unchosen_2step_dist'] - choice_trials['unchosen_1step_dist']),
-    'R2': np.where(~choice_trials['chosen_left'], 
-                   choice_trials['chosen_2step_dist'] - choice_trials['chosen_1step_dist'], 
-                   choice_trials['unchosen_2step_dist'] - choice_trials['unchosen_1step_dist']),
+        'L2': np.where(choice_trials['chosen_left'], 
+                       choice_trials['chosen_2step_dist'] - choice_trials['chosen_1step_dist'], 
+                       choice_trials['unchosen_2step_dist'] - choice_trials['unchosen_1step_dist']),
+        'R2': np.where(~choice_trials['chosen_left'], 
+                       choice_trials['chosen_2step_dist'] - choice_trials['chosen_1step_dist'], 
+                       choice_trials['unchosen_2step_dist'] - choice_trials['unchosen_1step_dist']),
 
-    'Direction': choice_trials['incoming_direction']
-})
-y = choice_trials['chosen_left']
+        'Direction': choice_trials['incoming_direction']
+    })
+    y = choice_trials['chosen_left']
 
-# %%
-choices = []
-for choice in y:
-    choices.append([int(choice)])
-choices = [np.array(choices)]
+    # %%
+    choices = []
+    for choice in y:
+        choices.append([int(choice)])
+    choices = [np.array(choices)]
 
-# %%
-num_states = 2
-obs_dim = 1
-num_categories = 2
-input_dim = 4
+    # %%
+    num_states = 2
+    obs_dim = 1
+    num_categories = 2
+    input_dim = 4
 
-full_inpts = np.ones((len(choice_trials), 4))
+    full_inpts = np.ones((len(choice_trials), 4))
 
-full_inpts[:, 0] = -(X['L1'] - X['R1'])
-full_inpts[:, 1] = -(X['L2'] - X['R2'])
-full_inpts[:, 2] = X['Direction']
+    full_inpts[:, 0] = -(X['L1'] - X['R1'])
+    full_inpts[:, 1] = -(X['L2'] - X['R2'])
+    full_inpts[:, 2] = X['Direction']
 
 
-# %%
-new_glmhmm = ssm.HMM(num_states, obs_dim, input_dim, observations="input_driven_obs", 
-                   observation_kwargs=dict(C=num_categories), transitions="standard")
+    # %%
+    new_glmhmm = ssm.HMM(num_states, obs_dim, input_dim, observations="input_driven_obs", 
+                       observation_kwargs=dict(C=num_categories), transitions="standard")
 
-N_iters = 200
-fit_ll = new_glmhmm.fit(choices, inputs=full_inpts, method="em", num_iters=N_iters, tolerance=10**-4)
+    N_iters = 200
+    fit_ll = new_glmhmm.fit(choices, inputs=full_inpts, method="em", num_iters=N_iters, tolerance=10**-4)
 
-# %%
-fig = plt.figure(figsize=(4, 3), dpi=80, facecolor='w', edgecolor='k')
-plt.plot(fit_ll, label="EM")
-plt.legend(loc="lower right")
-plt.xlabel("EM Iteration")
-plt.xlim(0, len(fit_ll))
-plt.ylabel("Log Probability")
-plt.show()
+    # %%
+    fig = plt.figure(figsize=(4, 3), dpi=80, facecolor='w', edgecolor='k')
+    plt.plot(fit_ll, label="EM")
+    plt.legend(loc="lower right")
+    plt.xlabel("EM Iteration")
+    plt.xlim(0, len(fit_ll))
+    plt.ylabel("Log Probability")
+    plt.show()
 
-# %%
-#new_glmhmm.permute(find_permutation(true_latents[0], new_glmhmm.most_likely_states(true_choices[0], input=inpts_per_session[0])))
+    # %%
+    #new_glmhmm.permute(find_permutation(true_latents[0], new_glmhmm.most_likely_states(true_choices[0], input=inpts_per_session[0])))
 
-fig = plt.figure(figsize=(4, 3), dpi=80, facecolor='w', edgecolor='k')
-cols = ['#ff7f00', '#4daf4a', '#377eb8']
-recovered_weights = new_glmhmm.observations.params
-for k in range(num_states):
-    if k ==0:
-        plt.plot(range(input_dim), recovered_weights[k][0], color=cols[k],
-                     lw=1.5,  label = "recovered", linestyle = '--')
-    else:
-        plt.plot(range(input_dim), recovered_weights[k][0], color=cols[k],
-                     lw=1.5,  label = '', linestyle = '--')
-plt.yticks(fontsize=10)
-plt.ylabel("GLM weight", fontsize=15)
-plt.xlabel("covariate", fontsize=15)
-plt.xticks([0, 1, 2, 3], ['1step diff', '2step diff', 'direction', 'bias'], fontsize=12, rotation=45)
-plt.axhline(y=0, color="k", alpha=0.5, ls="--")
-plt.legend()
-plt.title("Weight recovery", fontsize=15)
+    fig = plt.figure(figsize=(4, 3), dpi=80, facecolor='w', edgecolor='k')
+    cols = ['#ff7f00', '#4daf4a', '#377eb8']
+    recovered_weights = new_glmhmm.observations.params
+    for k in range(num_states):
+        if k ==0:
+            plt.plot(range(input_dim), recovered_weights[k][0], color=cols[k],
+                         lw=1.5,  label = "recovered", linestyle = '--')
+        else:
+            plt.plot(range(input_dim), recovered_weights[k][0], color=cols[k],
+                         lw=1.5,  label = '', linestyle = '--')
+    plt.yticks(fontsize=10)
+    plt.ylabel("GLM weight", fontsize=15)
+    plt.xlabel("covariate", fontsize=15)
+    plt.xticks([0, 1, 2, 3], ['L1-R1', 'L2-R2', 'direction', 'bias'], fontsize=12, rotation=45)
+    plt.axhline(y=0, color="k", alpha=0.5, ls="--")
+    plt.legend()
+    plt.title("Weight recovery", fontsize=15)
 
-# %%
-recovered_trans_mat = np.exp(new_glmhmm.transitions.log_Ps)
-plt.imshow(recovered_trans_mat, vmin=-0.8, vmax=1, cmap='bone')
-for i in range(recovered_trans_mat.shape[0]):
-    for j in range(recovered_trans_mat.shape[1]):
-        text = plt.text(j, i, str(np.around(recovered_trans_mat[i, j], decimals=2)), ha="center", va="center",
-                        color="k", fontsize=12)
-plt.xlim(-0.5, num_states - 0.5)
-plt.xticks(range(0, num_states), ('1', '2'), fontsize=10)
-plt.yticks(range(0, num_states), ('1', '2'), fontsize=10)
-plt.ylim(num_states - 0.5, -0.5)
-plt.title("recovered", fontsize = 15)
-plt.subplots_adjust(0, 0, 1, 1)
+    # %%
+    recovered_trans_mat = np.exp(new_glmhmm.transitions.log_Ps)
+    plt.imshow(recovered_trans_mat, vmin=-0.8, vmax=1, cmap='bone')
+    for i in range(recovered_trans_mat.shape[0]):
+        for j in range(recovered_trans_mat.shape[1]):
+            text = plt.text(j, i, str(np.around(recovered_trans_mat[i, j], decimals=2)), ha="center", va="center",
+                            color="k", fontsize=12)
+    plt.xlim(-0.5, num_states - 0.5)
+    plt.xticks(range(0, num_states), ('1', '2'), fontsize=10)
+    plt.yticks(range(0, num_states), ('1', '2'), fontsize=10)
+    plt.ylim(num_states - 0.5, -0.5)
+    plt.title("recovered", fontsize = 15)
+    plt.subplots_adjust(0, 0, 1, 1)

@@ -505,139 +505,140 @@ else:
     trained_model = load_saved_model(MODEL_PATH, num_participants)
 
 
-# %% [markdown]
-# ## Load Participant Data
-#
-# Build the participant_data_dict expected by the clustering pipeline.
+if __name__ == '__main__':
+    # %% [markdown]
+    # ## Load Participant Data
+    #
+    # Build the participant_data_dict expected by the clustering pipeline.
 
-# %%
-participant_data_dict = {}
+    # %%
+    participant_data_dict = {}
 
-if not available_files:
-    print("[diagnostic] Skipping data load — no participant files.")
-elif trained_model is None:
-    print("[diagnostic] Skipping data load — no trained model.")
-else:
-    for i, path in enumerate(available_files):
-        participant_data_dict[f"Participant_{i+1}"] = json.load(open(path, encoding='utf-8'))
-    print(f"  ✓ Loaded {len(participant_data_dict)} participants for clustering.\n")
-
-
-# %% [markdown]
-# ## Run Clustering Pipeline
-#
-# This runs the full 6-step pipeline: extract → PCA → k-means →
-# characterize → heatmap → behavioral comparison.
-
-# %%
-results = None
-
-if not participant_data_dict:
-    print("[diagnostic] Skipping pipeline — no participant data loaded.")
-elif trained_model is None:
-    print("[diagnostic] Skipping pipeline — no trained model loaded.")
-else:
-    from strategy_deeponet import (
-        pre_proccess_data_from_choice_vs_no_choice,
-        build_deeponet_dataset
-    )
-
-    FEATURE_NAMES = [
-        "L1_minus_R1",
-        "Total_L_minus_Total_R",
-        "ball_y_at_top",
-        "incoming_pos",
-        "incoming_neg"
-    ]
-
-    print("Running full clustering pipeline...\n")
-    results = full_clustering_pipeline(
-        trained_model,
-        participant_data_dict,
-        preprocess_fn=pre_proccess_data_from_choice_vs_no_choice,
-        build_dataset_fn=build_deeponet_dataset,
-        feature_names=FEATURE_NAMES
-    )
-
-
-# %% [markdown]
-# ## Results Summary
-#
-# Print cluster assignments, per-cluster statistics, and PCA variance
-# explained, plus cluster × RT comparison.
-
-# %%
-if results is None:
-    print("\n" + "=" * 60)
-    print("DIAGNOSTIC: Why didn't clustering run?")
-    print("=" * 60)
-    print(f"  available_files:       {len(available_files)} files "
-          f"({'✓' if available_files else '✗ — need >= 4'})")
-    print(f"  trained_model:         {'✓ loaded' if trained_model is not None else '✗ — model file not found or not loaded'}")
-    print(f"  participant_data_dict: {'✓ ' + str(len(participant_data_dict)) + ' participants' if participant_data_dict else '✗ — empty'}")
-    print()
     if not available_files:
-        print("  → Fix: ensure 'cloud study data/' exists in the project root")
-        print(f"          (looking at: {DATA_DIR})")
+        print("[diagnostic] Skipping data load — no participant files.")
     elif trained_model is None:
-        print("  → Fix: run the execution cells in analysis/strategy_deeponet.py first")
-        print(f"          (expected model at: {MODEL_PATH})")
-    print("\n  Or pass a trained model directly:")
-    print("    from strategy_clustering import full_clustering_pipeline")
-    print("    results = full_clustering_pipeline(model, data_dict, ...)")
-    print("=" * 60)
+        print("[diagnostic] Skipping data load — no trained model.")
+    else:
+        for i, path in enumerate(available_files):
+            participant_data_dict[f"Participant_{i+1}"] = json.load(open(path, encoding='utf-8'))
+        print(f"  ✓ Loaded {len(participant_data_dict)} participants for clustering.\n")
 
-elif results.get('cluster_labels') is not None:
-    cluster_labels = results['cluster_labels']
-    profiles = results['profiles']
-    pca = results['pca']
-    behaviour = results.get('behavioural_df')
 
-    print("\n" + "=" * 50)
-    print("CLUSTER ASSIGNMENTS")
-    print("=" * 50)
+    # %% [markdown]
+    # ## Run Clustering Pipeline
+    #
+    # This runs the full 6-step pipeline: extract → PCA → k-means →
+    # characterize → heatmap → behavioral comparison.
 
-    n_clusters = len(set(cluster_labels))
-    for c in sorted(set(cluster_labels)):
-        members = [i for i, lbl in enumerate(cluster_labels) if lbl == c]
-        print(f"\nCluster {c+1} ({len(members)} participants):")
-        for m in members:
-            p_name = list(participant_data_dict.keys())[m]
-            print(f"  Participant {m+1}: {p_name[:60]}...")
+    # %%
+    results = None
 
-    print("\n" + "-" * 50)
-    print("PER-CLUSTER BEHAVIORAL STATISTICS")
-    print("-" * 50)
+    if not participant_data_dict:
+        print("[diagnostic] Skipping pipeline — no participant data loaded.")
+    elif trained_model is None:
+        print("[diagnostic] Skipping pipeline — no trained model loaded.")
+    else:
+        from strategy_deeponet import (
+            pre_proccess_data_from_choice_vs_no_choice,
+            build_deeponet_dataset
+        )
 
-    if behaviour is not None and len(behaviour) > 0:
-        for c in sorted(behaviour['cluster'].unique()):
-            subset = behaviour[behaviour['cluster'] == c]
-            print(f"\nCluster {c+1}:")
-            print(f"  Mean RT: {subset['mean_rt'].mean():.0f} ms "
-                  f"(±{subset['mean_rt'].std():.0f})")
-            print(f"  Mean RT Variability: {subset['rt_variability'].mean():.0f} ms")
-            print(f"  Avg Trials: {subset['n_trials'].mean():.0f}")
+        FEATURE_NAMES = [
+            "L1_minus_R1",
+            "Total_L_minus_Total_R",
+            "ball_y_at_top",
+            "incoming_pos",
+            "incoming_neg"
+        ]
 
-    print("\n" + "-" * 50)
-    print("PCA VARIANCE EXPLAINED")
-    print("-" * 50)
-    if pca is not None:
-        cumsum = np.cumsum(pca.explained_variance_ratio_)
-        for i, (var, cum) in enumerate(zip(pca.explained_variance_ratio_, cumsum)):
-            print(f"  PC{i+1}: {var*100:.1f}% (cumulative: {cum*100:.1f}%)")
-        if cumsum[0] < 0.3:
-            print("  → Low first-PC variance: strategies are heterogeneous "
-                  "(supports multiple strategy types).")
-        elif cumsum[0] > 0.6:
-            print("  → High first-PC variance: a single dominant strategy axis "
-                  "explains most variation.")
+        print("Running full clustering pipeline...\n")
+        results = full_clustering_pipeline(
+            trained_model,
+            participant_data_dict,
+            preprocess_fn=pre_proccess_data_from_choice_vs_no_choice,
+            build_dataset_fn=build_deeponet_dataset,
+            feature_names=FEATURE_NAMES
+        )
 
-    print("\nPipeline complete. Use results['coeffs_df'] for custom analysis.")
 
-else:
-    # results is not None but cluster_labels is None — PCA-only
-    print(f"\n  PCA-only mode: {len(results['coeffs_df'])} participants. "
-          "Need >= 4 participants for k-means clustering.")
-    print("  PCA components available in results['pca'] and results['X_pca'].")
+    # %% [markdown]
+    # ## Results Summary
+    #
+    # Print cluster assignments, per-cluster statistics, and PCA variance
+    # explained, plus cluster × RT comparison.
 
-# %%
+    # %%
+    if results is None:
+        print("\n" + "=" * 60)
+        print("DIAGNOSTIC: Why didn't clustering run?")
+        print("=" * 60)
+        print(f"  available_files:       {len(available_files)} files "
+              f"({'✓' if available_files else '✗ — need >= 4'})")
+        print(f"  trained_model:         {'✓ loaded' if trained_model is not None else '✗ — model file not found or not loaded'}")
+        print(f"  participant_data_dict: {'✓ ' + str(len(participant_data_dict)) + ' participants' if participant_data_dict else '✗ — empty'}")
+        print()
+        if not available_files:
+            print("  → Fix: ensure 'cloud study data/' exists in the project root")
+            print(f"          (looking at: {DATA_DIR})")
+        elif trained_model is None:
+            print("  → Fix: run the execution cells in analysis/strategy_deeponet.py first")
+            print(f"          (expected model at: {MODEL_PATH})")
+        print("\n  Or pass a trained model directly:")
+        print("    from strategy_clustering import full_clustering_pipeline")
+        print("    results = full_clustering_pipeline(model, data_dict, ...)")
+        print("=" * 60)
+
+    elif results.get('cluster_labels') is not None:
+        cluster_labels = results['cluster_labels']
+        profiles = results['profiles']
+        pca = results['pca']
+        behaviour = results.get('behavioural_df')
+
+        print("\n" + "=" * 50)
+        print("CLUSTER ASSIGNMENTS")
+        print("=" * 50)
+
+        n_clusters = len(set(cluster_labels))
+        for c in sorted(set(cluster_labels)):
+            members = [i for i, lbl in enumerate(cluster_labels) if lbl == c]
+            print(f"\nCluster {c+1} ({len(members)} participants):")
+            for m in members:
+                p_name = list(participant_data_dict.keys())[m]
+                print(f"  Participant {m+1}: {p_name[:60]}...")
+
+        print("\n" + "-" * 50)
+        print("PER-CLUSTER BEHAVIORAL STATISTICS")
+        print("-" * 50)
+
+        if behaviour is not None and len(behaviour) > 0:
+            for c in sorted(behaviour['cluster'].unique()):
+                subset = behaviour[behaviour['cluster'] == c]
+                print(f"\nCluster {c+1}:")
+                print(f"  Mean RT: {subset['mean_rt'].mean():.0f} ms "
+                      f"(±{subset['mean_rt'].std():.0f})")
+                print(f"  Mean RT Variability: {subset['rt_variability'].mean():.0f} ms")
+                print(f"  Avg Trials: {subset['n_trials'].mean():.0f}")
+
+        print("\n" + "-" * 50)
+        print("PCA VARIANCE EXPLAINED")
+        print("-" * 50)
+        if pca is not None:
+            cumsum = np.cumsum(pca.explained_variance_ratio_)
+            for i, (var, cum) in enumerate(zip(pca.explained_variance_ratio_, cumsum)):
+                print(f"  PC{i+1}: {var*100:.1f}% (cumulative: {cum*100:.1f}%)")
+            if cumsum[0] < 0.3:
+                print("  → Low first-PC variance: strategies are heterogeneous "
+                      "(supports multiple strategy types).")
+            elif cumsum[0] > 0.6:
+                print("  → High first-PC variance: a single dominant strategy axis "
+                      "explains most variation.")
+
+        print("\nPipeline complete. Use results['coeffs_df'] for custom analysis.")
+
+    else:
+        # results is not None but cluster_labels is None — PCA-only
+        print(f"\n  PCA-only mode: {len(results['coeffs_df'])} participants. "
+              "Need >= 4 participants for k-means clustering.")
+        print("  PCA components available in results['pca'] and results['X_pca'].")
+
+    # %%

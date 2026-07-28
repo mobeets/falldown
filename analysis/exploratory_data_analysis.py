@@ -14,6 +14,8 @@
 
 # %%
 import json
+import matplotlib
+#matplotlib.use("Agg")
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -45,28 +47,29 @@ import seaborn as sns
 def load(fnm):
 	return json.load(open(fnm))
 
-PARTICIPANT_FILES = {
-    "P1": "cloud study data/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json",
-    "P2": "cloud study data/88AD64F00C6B43489770A02E7A1AE2C2-019e8fd9-16e9-7876-8e3b-d51a48df0526-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-03T23-37-31-300Z-4ecm.json",
-    "P3": "cloud study data/6462D588260B4356936047A04A336EBE-019e9464-f99c-77c5-bf47-327c7a7cf4f1-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-41-26-943Z-c5do.json",
-    "P4": "cloud study data/46331EBA4F494FAD901E83106523FF12-019e9464-9d12-7cc3-8cba-8f0dd00eeb20-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-33-792Z-sop6.json",
-    "P5": "cloud study data/BB4D2ACD4DAB45F5BAB68A472EB2E06C-019e9464-9a85-718c-9964-ec6755cdcd1c-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-17-611Z-i0am.json",
-    "P6": "cloud study data/C47CEEC22AD9448E9F87D0577BA7FC80-019e946e-abeb-723a-8d4d-50881fc0551f-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-59-12-508Z-e1tl.json",
-    "P7": "cloud study data/CEFD2FE92E6847B2B27FF0175811CE81-019e9464-988c-7240-bf66-336f77c05049-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-50-03-371Z-34zm.json",
-    "P8": "cloud study data/EC07396CE23248F2855499612FEB8ACA-019e9464-92a5-7d10-b713-7022c5b049fc-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-16-501Z-olib.json",
-    "P9": "cloud study data/FD2A6686546A4D689BE4A684CD264636-019e946a-96b4-78df-ac42-63e6e82c3209-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-54-42-499Z-j7h3.json",
 
-    "P10": "cloud study data/32FC87F1C127480BA90BCC97640655_cleaned.json",
-    "P11": "cloud study data/96CA2FB7709946BB8EB38CAB5B713E_cleaned.json",
-    "P12": "cloud study data/B0525260D0F8488D8D4695DD76FF64_cleaned.json",
-    "P13": "cloud study data/C8C4C97C01AA45CA9064DA1A7635A4_cleaned.json",
-    "P14": "cloud study data/EA4EE5B954A749C8BEED8F06A43F58_cleaned.json"
-}
+PARTICIPANT_FILES = {
+        "P1": "cloud study data/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json",
+        "P2": "cloud study data/88AD64F00C6B43489770A02E7A1AE2C2-019e8fd9-16e9-7876-8e3b-d51a48df0526-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-03T23-37-31-300Z-4ecm.json",
+        "P3": "cloud study data/6462D588260B4356936047A04A336EBE-019e9464-f99c-77c5-bf47-327c7a7cf4f1-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-41-26-943Z-c5do.json",
+        "P4": "cloud study data/46331EBA4F494FAD901E83106523FF12-019e9464-9d12-7cc3-8cba-8f0dd00eeb20-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-33-792Z-sop6.json",
+        "P5": "cloud study data/BB4D2ACD4DAB45F5BAB68A472EB2E06C-019e9464-9a85-718c-9964-ec6755cdcd1c-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-17-611Z-i0am.json",
+        "P6": "cloud study data/C47CEEC22AD9448E9F87D0577BA7FC80-019e946e-abeb-723a-8d4d-50881fc0551f-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-59-12-508Z-e1tl.json",
+        "P7": "cloud study data/CEFD2FE92E6847B2B27FF0175811CE81-019e9464-988c-7240-bf66-336f77c05049-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-50-03-371Z-34zm.json",
+        "P8": "cloud study data/EC07396CE23248F2855499612FEB8ACA-019e9464-92a5-7d10-b713-7022c5b049fc-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-16-501Z-olib.json",
+        "P9": "cloud study data/FD2A6686546A4D689BE4A684CD264636-019e946a-96b4-78df-ac42-63e6e82c3209-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-54-42-499Z-j7h3.json",
+
+        "P10": "cloud study data/32FC87F1C127480BA90BCC97640655_cleaned.json",
+        "P11": "cloud study data/96CA2FB7709946BB8EB38CAB5B713E_cleaned.json",
+        "P12": "cloud study data/B0525260D0F8488D8D4695DD76FF64_cleaned.json",
+        "P13": "cloud study data/C8C4C97C01AA45CA9064DA1A7635A4_cleaned.json",
+        "P14": "cloud study data/EA4EE5B954A749C8BEED8F06A43F58_cleaned.json"
+    }
 
 def get_participants_data(*ids):
     """Load participants by ID from PARTICIPANT_FILES. Returns a list of data dicts.
     
-    Call with no arguments to load all 9 default participants:
+    Call with no arguments to load all 14 default participants:
         participants_data = get_participants_data()
     
     Call with specific IDs to load a subset:
@@ -227,49 +230,6 @@ def pre_proccess_data_from_choice_vs_no_choice(data):
 
     return output
 
-
-
-# %% [markdown]
-# ## Loading
-
-# %%
-data = get_participants_data("P12")[0]
-
-# %%
-processed_data = pd.DataFrame(pre_proccess_data_from_choice_vs_no_choice(data))
-processed_data = processed_data[processed_data['block_number'] > 4]
-
-# %%
-X = pd.DataFrame({
-    'L1': np.where(processed_data['chosen_left'], processed_data['chosen_1step_dist'], processed_data['unchosen_1step_dist']),
-    'R1': np.where(~processed_data['chosen_left'], processed_data['chosen_1step_dist'], processed_data['unchosen_1step_dist']),
-    
-    'L2': np.where(processed_data['chosen_left'], 
-                   processed_data['chosen_2step_dist'] - processed_data['chosen_1step_dist'], 
-                   processed_data['unchosen_2step_dist'] - processed_data['unchosen_1step_dist']),
-    'R2': np.where(~processed_data['chosen_left'], 
-                   processed_data['chosen_2step_dist'] - processed_data['chosen_1step_dist'], 
-                   processed_data['unchosen_2step_dist'] - processed_data['unchosen_1step_dist']),
-
-    'block_drift': processed_data['block_drift']
-})
-
-X = pd.DataFrame({
-    'L1-R1': X['L1']-X['R1'],
-    'L2+L1-R2-R1': X['L2']-X['R2']+ X['L1']-X['R1'],
-    'block_drift': X['block_drift'],
-    'block_number': processed_data['block_number'],
-    'chosen_left': processed_data['chosen_left'],
-    'cost': processed_data['observed_rt']
-})
-
-# %%
-sum((X['L2+L1-R2-R1']*X['L1-R1'])<0)/len(X)
-
-
-
-
-
 # %% [markdown]
 # # Logistic Regression Functions
 
@@ -416,26 +376,27 @@ def evaluate_logistic_baseline(raw_data, test_split=0.2, is_data_raw=True):
 # # Comparing RNN performance to Logistic Regression
 
 # %%
-all_participants_data = get_participants_data()
-if False:
-    for i, p_data in enumerate(all_participants_data):
-        print(f"\n{'='*60}")
-        print(f"  Participant {i+1}")
-        print(f"{'='*60}")
-        
-        print("\n  --- RNN ---")
-        rnn_results = run_RNN_for_eval(p_data, num_epochs=400)
-        if rnn_results:
-            print(f"  Log-Likelihood: {rnn_results['log_likelihood']:.4f}")
-            print(f"  Accuracy:       {rnn_results['accuracy']*100:.2f}%")
-            print(f"  Error Matrix:\n{rnn_results['error_matrix']}")
-        
-        print("\n  --- Logistic Regression ---")
-        lr_results = evaluate_logistic_baseline(p_data)
-        if lr_results:
-            print(f"  Log-Likelihood: {lr_results['log_likelihood']:.4f}")
-            print(f"  Accuracy:       {lr_results['accuracy']*100:.2f}%")
-            print(f"  Error Matrix:\n{lr_results['error_matrix']}")
+if __name__ == "__main__":
+    all_participants_data = get_participants_data()
+    if False:
+        for i, p_data in enumerate(all_participants_data):
+            print(f"\n{'='*60}")
+            print(f"  Participant {i+1}")
+            print(f"{'='*60}")
+            
+            print("\n  --- RNN ---")
+            rnn_results = run_RNN_for_eval(p_data, num_epochs=400)
+            if rnn_results:
+                print(f"  Log-Likelihood: {rnn_results['log_likelihood']:.4f}")
+                print(f"  Accuracy:       {rnn_results['accuracy']*100:.2f}%")
+                print(f"  Error Matrix:\n{rnn_results['error_matrix']}")
+            
+            print("\n  --- Logistic Regression ---")
+            lr_results = evaluate_logistic_baseline(p_data)
+            if lr_results:
+                print(f"  Log-Likelihood: {lr_results['log_likelihood']:.4f}")
+                print(f"  Accuracy:       {lr_results['accuracy']*100:.2f}%")
+                print(f"  Error Matrix:\n{lr_results['error_matrix']}")
 
 
 # %% [markdown]
@@ -600,47 +561,49 @@ def evaluate_logistic_for_ball_y(raw_data, test_split=0.2, is_data_raw = True):
     return baseline_results
 
 # %%
-p10, p11, p12, p13, p14 = get_participants_data("P10", "P11", "P12","P13", "P14")
 
-participants_data = [p10, p11, p12, p13, p14]
-has_both, drift_only, follow_only, no_data = categorize_by_drift(participants_data)
+if __name__ == "__main__":
+    p10, p11, p12, p13, p14 = get_participants_data("P10", "P11", "P12","P13", "P14")
 
-print(f"Drift profiles: {len(has_both)} both, {len(drift_only)} drift-only, {len(follow_only)} follow-only, {len(no_data)} no data")
+    participants_data = [p10, p11, p12, p13, p14]
+    has_both, drift_only, follow_only, no_data = categorize_by_drift(participants_data)
 
-for i, p_data in enumerate(participants_data):
-    input_data = pre_proccess_data_from_choice_vs_no_choice(p_data)
-    
-    if i in follow_only:
-        print(f"\nParticipant {i+1}: no drift trials — skipping ball-y analysis.")
-        continue
-    
-    # Isolate drifting trials (drift-only and both-condition participants have them)
-    input_data = input_data[input_data['block_drift'] == 1]
-    
-    # 1. Calculate thresholds BEFORE plotting
-    LowY = input_data['ball_y_at_top'].quantile(0.4)
-    HighY = input_data['ball_y_at_top'].quantile(0.6)
+    print(f"Drift profiles: {len(has_both)} both, {len(drift_only)} drift-only, {len(follow_only)} follow-only, {len(no_data)} no data")
 
-    # 2. Plot the histogram (added a slight transparency 'alpha' so lines stand out)
-    input_data['ball_y_at_top'].hist(alpha=0.8)
-    
-    # 3. Add the vertical lines
-    plt.axvline(LowY, color='red', linestyle='dashed', linewidth=2, label='Low Threshold (40th)')
-    plt.axvline(HighY, color='green', linestyle='dashed', linewidth=2, label='High Threshold (60th)')
-    
-    # 4. Add labels and show the plot
-    plt.title(f'Participant {i+1} Histogram')
-    plt.legend()
-    plt.show()
+    for i, p_data in enumerate(participants_data):
+        input_data = pre_proccess_data_from_choice_vs_no_choice(p_data)
+        
+        if i in follow_only:
+            print(f"\nParticipant {i+1}: no drift trials — skipping ball-y analysis.")
+            continue
+        
+        # Isolate drifting trials (drift-only and both-condition participants have them)
+        input_data = input_data[input_data['block_drift'] == 1]
+        
+        # 1. Calculate thresholds BEFORE plotting
+        LowY = input_data['ball_y_at_top'].quantile(0.4)
+        HighY = input_data['ball_y_at_top'].quantile(0.6)
 
-    low_pos_X = input_data[(input_data['ball_y_at_top'] < LowY)]
-    high_pos_X = input_data[(input_data['ball_y_at_top'] > HighY)]
+        # 2. Plot the histogram (added a slight transparency 'alpha' so lines stand out)
+        input_data['ball_y_at_top'].hist(alpha=0.8)
+        
+        # 3. Add the vertical lines
+        plt.axvline(LowY, color='red', linestyle='dashed', linewidth=2, label='Low Threshold (40th)')
+        plt.axvline(HighY, color='green', linestyle='dashed', linewidth=2, label='High Threshold (60th)')
+        
+        # 4. Add labels and show the plot
+        plt.title(f'Participant {i+1} Histogram')
+        plt.legend()
+        plt.show()
 
-    print('Ball is high on the screen:')
-    evaluate_logistic_for_ball_y(low_pos_X, is_data_raw = False)
-    
-    print('\n\nBall is low on the screen:')
-    evaluate_logistic_for_ball_y(high_pos_X, is_data_raw= False)
+        low_pos_X = input_data[(input_data['ball_y_at_top'] < LowY)]
+        high_pos_X = input_data[(input_data['ball_y_at_top'] > HighY)]
+
+        print('Ball is high on the screen:')
+        evaluate_logistic_for_ball_y(low_pos_X, is_data_raw = False)
+        
+        print('\n\nBall is low on the screen:')
+        evaluate_logistic_for_ball_y(high_pos_X, is_data_raw= False)
 
 
 
@@ -680,30 +643,32 @@ def extract_spatial_features(df_raw, participant_name):
     
     return X
 
-all_trials = []
-for i, p_data in enumerate(participants_data):
-    all_trials.append(extract_spatial_features(pre_proccess_data_from_choice_vs_no_choice(p_data), f'Participant {i+1}'))
+if __name__ == "__main__":
+    all_trials = []
+    for i, p_data in enumerate(participants_data):
+        all_trials.append(extract_spatial_features(pre_proccess_data_from_choice_vs_no_choice(p_data), f'Participant {i+1}'))
 
-df_combined = pd.concat(all_trials, ignore_index=True)
+    df_combined = pd.concat(all_trials, ignore_index=True)
 
 
 # %%
-X_features = df_combined[['L1-R1', 'L2+L1-R2-R1']]
-y_target = df_combined['chosen_right']
+if __name__ == "__main__":
+    X_features = df_combined[['L1-R1', 'L2+L1-R2-R1']]
+    y_target = df_combined['chosen_right']
 
-log_reg = LogisticRegression(penalty=None).fit(X_features, y_target)
-beta1 = log_reg.coef_[0][0]  # Coefficient for L1-R1
-beta2 = log_reg.coef_[0][1]  # Coefficient for L2+L1-R2-R1
+    log_reg = LogisticRegression(penalty=None).fit(X_features, y_target)
+    beta1 = log_reg.coef_[0][0]  # Coefficient for L1-R1
+    beta2 = log_reg.coef_[0][1]  # Coefficient for L2+L1-R2-R1
 
-master_pivot = df_combined.pivot_table(
-    values='chosen_right', 
-    index='L2+L1-R2-R1', 
-    columns='L1-R1', 
-    aggfunc='mean'
-)
+    master_pivot = df_combined.pivot_table(
+        values='chosen_right', 
+        index='L2+L1-R2-R1', 
+        columns='L1-R1', 
+        aggfunc='mean'
+    )
 
-# Sort index so positive L2-R2 values are at the top of the heatmap
-master_pivot = master_pivot.sort_index(ascending=False)
+    # Sort index so positive L2-R2 values are at the top of the heatmap
+    master_pivot = master_pivot.sort_index(ascending=False)
 
 def add_disagreement_highlights_and_line(ax, pivot_table, b1, b2):
     """
@@ -754,109 +719,110 @@ def add_disagreement_highlights_and_line(ax, pivot_table, b1, b2):
         valid_idx = (line_y_vals <= max(y_vals)) & (line_y_vals >= min(y_vals))
         ax.plot(x_coords[valid_idx], y_coords[valid_idx], color='black', linewidth=3, linestyle='--', label='Decision Boundary')
 
-# 3. Plot the Master Heatmap
-plt.figure(figsize=(9, 7))
-ax_master = sns.heatmap(master_pivot, annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
-add_disagreement_highlights_and_line(ax_master, master_pivot, beta1, beta2)
+if __name__ == "__main__":
+    plt.figure(figsize=(9, 7))
+    ax_master = sns.heatmap(master_pivot, annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
+    add_disagreement_highlights_and_line(ax_master, master_pivot, beta1, beta2)
 
-plt.title("Probability of Choosing RIGHT\n(All Participants)", pad=15)
-plt.ylabel("L2 + L1 - R2 - R1 (Planning Distance Diff)")
-plt.xlabel("L1 - R1 (Tier 1 Distance Diff)")
+    plt.title("Probability of Choosing RIGHT\n(All Participants)", pad=15)
+    plt.ylabel("L2 + L1 - R2 - R1 (Planning Distance Diff)")
+    plt.xlabel("L1 - R1 (Tier 1 Distance Diff)")
 
-# Add custom legend for the line and boxes
-import matplotlib.lines as mlines
-line_legend = mlines.Line2D([], [], color='black', linestyle='--', linewidth=3, label='Boundary Line ($y = -\\frac{\\beta_1}{\\beta_2}x$)')
-box_legend = patches.Patch(edgecolor='magenta', facecolor='none', linewidth=3, label='Disagreement Regions')
-plt.legend(handles=[line_legend, box_legend], loc='upper right', bbox_to_anchor=(1.75, 1))
+    # Add custom legend for the line and boxes
+    import matplotlib.lines as mlines
+    line_legend = mlines.Line2D([], [], color='black', linestyle='--', linewidth=3, label='Boundary Line ($y = -\\frac{\\beta_1}{\\beta_2}x$)')
+    box_legend = patches.Patch(edgecolor='magenta', facecolor='none', linewidth=3, label='Disagreement Regions')
+    plt.legend(handles=[line_legend, box_legend], loc='upper right', bbox_to_anchor=(1.75, 1))
 
-plt.show()
+    plt.show()
 
-# 4. Build and Plot the Deviation Heatmaps
-fig, axes = plt.subplots(3, 3, figsize=(18, 16))
-fig.suptitle("Individual Deviations from Probability", fontsize=20, fontweight='bold', y=0.97)
-axes = axes.flatten()
+    # 4. Build and Plot the Deviation Heatmaps
+    fig, axes = plt.subplots(3, 3, figsize=(18, 16))
+    fig.suptitle("Individual Deviations from Probability", fontsize=20, fontweight='bold', y=0.97)
+    axes = axes.flatten()
 
-for i in range(9):
-    p_name = f'Participant {i+1}'
-    p_df = df_combined[df_combined['participant'] == p_name]
-    
-    # Create the individual's pivot table
-    p_pivot = p_df.pivot_table(
-        values='chosen_right', 
-        index='L2+L1-R2-R1', 
-        columns='L1-R1', 
-        aggfunc='mean'
-    )
-    
-    # Align the individual grid to match the master grid shape perfectly
-    p_pivot = p_pivot.reindex_like(master_pivot)
-    
-    # Calculate Deviation (Participant Prob - Master Prob)
-    deviation_matrix = p_pivot - master_pivot
-    
-    # Plot using a diverging colormap centered at 0
-    sns.heatmap(
-        deviation_matrix, 
-        ax=axes[i], 
-        annot=True, 
-        cmap='coolwarm', 
-        fmt=".2f", 
-        center=0, 
-        vmin=-0.5, 
-        vmax=0.5, 
-        cbar=(i % 3 == 2) 
-    )
-    
-    # Apply the highlights and the master boundary line to each subplot for reference
-    add_disagreement_highlights_and_line(axes[i], master_pivot, beta1, beta2)
-    
-    axes[i].set_title(p_name, fontsize=14, pad=10)
-    axes[i].set_ylabel("L2 + L1 - R2 - R1")
-    axes[i].set_xlabel("L1 - R1")
+    for i in range(9):
+        p_name = f'Participant {i+1}'
+        p_df = df_combined[df_combined['participant'] == p_name]
+        
+        # Create the individual's pivot table
+        p_pivot = p_df.pivot_table(
+            values='chosen_right', 
+            index='L2+L1-R2-R1', 
+            columns='L1-R1', 
+            aggfunc='mean'
+        )
+        
+        # Align the individual grid to match the master grid shape perfectly
+        p_pivot = p_pivot.reindex_like(master_pivot)
+        
+        # Calculate Deviation (Participant Prob - Master Prob)
+        deviation_matrix = p_pivot - master_pivot
+        
+        # Plot using a diverging colormap centered at 0
+        sns.heatmap(
+            deviation_matrix, 
+            ax=axes[i], 
+            annot=True, 
+            cmap='coolwarm', 
+            fmt=".2f", 
+            center=0, 
+            vmin=-0.5, 
+            vmax=0.5, 
+            cbar=(i % 3 == 2) 
+        )
+        
+        # Apply the highlights and the master boundary line to each subplot for reference
+        add_disagreement_highlights_and_line(axes[i], master_pivot, beta1, beta2)
+        
+        axes[i].set_title(p_name, fontsize=14, pad=10)
+        axes[i].set_ylabel("L2 + L1 - R2 - R1")
+        axes[i].set_xlabel("L1 - R1")
 
-plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.show()
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.show()
 
 # %%
-df_drift_0 = df_combined[df_combined['block_drift'] == 0]
-df_drift_1 = df_combined[df_combined['block_drift'] == 1]
+if __name__ == "__main__":
+    df_drift_0 = df_combined[df_combined['block_drift'] == 0]
+    df_drift_1 = df_combined[df_combined['block_drift'] == 1]
 
-has_0 = not df_drift_0.empty
-has_1 = not df_drift_1.empty
+    has_0 = not df_drift_0.empty
+    has_1 = not df_drift_1.empty
 
-# Create master pivot tables for available conditions
-if has_0:
-    master_pivot_0 = df_drift_0.pivot_table(values='chosen_right', index='L2+L1-R2-R1', columns='L1-R1', aggfunc='mean').sort_index(ascending=False)
-if has_1:
-    master_pivot_1 = df_drift_1.pivot_table(values='chosen_right', index='L2+L1-R2-R1', columns='L1-R1', aggfunc='mean').sort_index(ascending=False)
-
-# Plot available heatmaps
-n_plots = has_0 + has_1
-if n_plots == 0:
-    print("No drift-condition data available for heatmaps.")
-elif n_plots == 1:
-    fig, ax = plt.subplots(1, 1, figsize=(10, 7))
+    # Create master pivot tables for available conditions
     if has_0:
-        sns.heatmap(master_pivot_0, ax=ax, annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
-        ax.set_title("Heatmap (Drift = 0)\nProbability of Choosing RIGHT")
-    else:
-        sns.heatmap(master_pivot_1, ax=ax, annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
-        ax.set_title("Heatmap (Drift = 1)\nProbability of Choosing RIGHT")
-    ax.set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
-    ax.set_xlabel("L1 - R1 (Tier 1 Diff)")
-else:
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-    sns.heatmap(master_pivot_0, ax=axes[0], annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
-    axes[0].set_title("Heatmap (Drift = 0)\nProbability of Choosing RIGHT")
-    axes[0].set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
-    axes[0].set_xlabel("L1 - R1 (Tier 1 Diff)")
-    sns.heatmap(master_pivot_1, ax=axes[1], annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
-    axes[1].set_title("Heatmap (Drift = 1)\nProbability of Choosing RIGHT")
-    axes[1].set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
-    axes[1].set_xlabel("L1 - R1 (Tier 1 Diff)")
+        master_pivot_0 = df_drift_0.pivot_table(values='chosen_right', index='L2+L1-R2-R1', columns='L1-R1', aggfunc='mean').sort_index(ascending=False)
+    if has_1:
+        master_pivot_1 = df_drift_1.pivot_table(values='chosen_right', index='L2+L1-R2-R1', columns='L1-R1', aggfunc='mean').sort_index(ascending=False)
 
-plt.tight_layout()
-plt.show()
+    # Plot available heatmaps
+    n_plots = has_0 + has_1
+    if n_plots == 0:
+        print("No drift-condition data available for heatmaps.")
+    elif n_plots == 1:
+        fig, ax = plt.subplots(1, 1, figsize=(10, 7))
+        if has_0:
+            sns.heatmap(master_pivot_0, ax=ax, annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
+            ax.set_title("Heatmap (Drift = 0)\nProbability of Choosing RIGHT")
+        else:
+            sns.heatmap(master_pivot_1, ax=ax, annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
+            ax.set_title("Heatmap (Drift = 1)\nProbability of Choosing RIGHT")
+        ax.set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
+        ax.set_xlabel("L1 - R1 (Tier 1 Diff)")
+    else:
+        fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+        sns.heatmap(master_pivot_0, ax=axes[0], annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
+        axes[0].set_title("Heatmap (Drift = 0)\nProbability of Choosing RIGHT")
+        axes[0].set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
+        axes[0].set_xlabel("L1 - R1 (Tier 1 Diff)")
+        sns.heatmap(master_pivot_1, ax=axes[1], annot=True, cmap='coolwarm', fmt=".2f", vmin=0, vmax=1)
+        axes[1].set_title("Heatmap (Drift = 1)\nProbability of Choosing RIGHT")
+        axes[1].set_ylabel("L2 + L1 - R2 - R1 (Planning Diff)")
+        axes[1].set_xlabel("L1 - R1 (Tier 1 Diff)")
+
+    plt.tight_layout()
+    plt.show()
 
 
 
@@ -905,12 +871,13 @@ def plot_deviations_for_condition(df_subset, master_pivot, condition_label):
     plt.show()
 
 # Execute the deviation plots for available conditions
-if has_0:
-    plot_deviations_for_condition(df_drift_0, master_pivot_0, "0")
-if has_1:
-    plot_deviations_for_condition(df_drift_1, master_pivot_1, "1")
-if not has_0 and not has_1:
-    print("No drift-condition data for deviation plots.")
+if __name__ == "__main__":
+    if has_0:
+        plot_deviations_for_condition(df_drift_0, master_pivot_0, "0")
+    if has_1:
+        plot_deviations_for_condition(df_drift_1, master_pivot_1, "1")
+    if not has_0 and not has_1:
+        print("No drift-condition data for deviation plots.")
 
 
 # %%
@@ -976,8 +943,8 @@ def plot_individual_drift_effects(df_combined):
     plt.tight_layout(rect=[0, 0, 1, 0.93])
     plt.show()
 
-
-plot_individual_drift_effects(df_combined)
+if __name__ == "__main__":
+    plot_individual_drift_effects(df_combined)
 
 # %% [markdown]
 # # Plotting Regression Weights for Visualizations
@@ -1062,8 +1029,9 @@ def plot_all_participant_coefficients(participants_data):
     plt.tight_layout(rect=[0, 0, 1, 0.94])
     plt.show()
 
-CANONICAL_FEATURES = ['L1-R1', 'L1+L2-R1-R2', 'Incoming Direction', 'Block Drift + Incoming Direction Interaction']
-CANONICAL_LABELS = ['L1-R1', 'L1+L2-R1-R2', 'Inc. Dir', '\u0394 Inc. Dir']
+if __name__ == "__main__":
+    CANONICAL_FEATURES = ['L1-R1', 'L1+L2-R1-R2', 'Incoming Direction', 'Block Drift + Incoming Direction Interaction']
+    CANONICAL_LABELS = ['L1-R1', 'L1+L2-R1-R2', 'Inc. Dir', '\u0394 Inc. Dir']
 
 def _align_to_canonical(coefficients, features):
     """Pad missing features with 0 to match CANONICAL_FEATURES order."""
@@ -1160,10 +1128,12 @@ def plot_aggregate_coefficients(participants_data):
 
 
 # %%
-plot_all_participant_coefficients(participants_data)
+if __name__ == "__main__":
+    plot_all_participant_coefficients(participants_data)
 
 # %%
-plot_aggregate_coefficients(participants_data)
+if __name__ == "__main__":
+    plot_aggregate_coefficients(participants_data)
 
 
 # %%
@@ -1255,7 +1225,8 @@ def plot_aggregate_coefficients_with_individuals(participants_data):
 
 
 # %%
-plot_aggregate_coefficients_with_individuals(participants_data)
+if __name__ == "__main__":
+    plot_aggregate_coefficients_with_individuals(participants_data)
 
 
 # %%
@@ -1376,7 +1347,8 @@ def plot_aggregate_coefficients_with_individuals(participants_data):
 
 
 # %%
-plot_aggregate_coefficients_with_individuals(participants_data)
+if __name__ == "__main__":
+    plot_aggregate_coefficients_with_individuals(participants_data)
 
 
 # %% [markdown]
@@ -1514,10 +1486,11 @@ def plot_model_evolution(participants_data):
 
 
 # %%
-processed_participant_data = []
-for p_data in participants_data:
-    processed_participant_data.append(pre_proccess_data_from_choice_vs_no_choice(p_data))
-plot_model_evolution(processed_participant_data)
+if __name__ == "__main__":
+    processed_participant_data = []
+    for p_data in participants_data:
+        processed_participant_data.append(pre_proccess_data_from_choice_vs_no_choice(p_data))
+    plot_model_evolution(processed_participant_data)
 
 
 # %% [markdown]
@@ -1778,16 +1751,20 @@ Bottom {percentile:.0f} percentile vs Top {percentile:.0f} percentile Ball Posit
 
 
 # %%
-plot_ball_y_coefficient_shifts(participants_data, quantiles=0.4)
+if __name__ == "__main__":
+    plot_ball_y_coefficient_shifts(participants_data, quantiles=0.4)
 
 # %%
-plot_ball_y_coefficient_shifts(participants_data, quantiles=0.25)
+if __name__ == "__main__":
+    plot_ball_y_coefficient_shifts(participants_data, quantiles=0.25)
 
 # %%
-plot_aggregate_ball_y_shifts(participants_data, 0.25)
+if __name__ == "__main__":
+    plot_aggregate_ball_y_shifts(participants_data, 0.25)
 
 # %%
-plot_aggregate_ball_y_shifts(participants_data, 0.4)
+if __name__ == "__main__":
+    plot_aggregate_ball_y_shifts(participants_data, 0.4)
 
 
 # %%
@@ -1912,10 +1889,12 @@ Bottom {percentile:.0f} percentile vs Top {percentile:.0f} percentile Ball Posit
 
 
 # %%
-plot_aggregate_ball_y_shifts_separated(participants_data, 0.25)
+if __name__ == "__main__":
+    plot_aggregate_ball_y_shifts_separated(participants_data, 0.25)
 
 # %%
-plot_aggregate_ball_y_shifts_separated(participants_data, 0.4)
+if __name__ == "__main__":
+    plot_aggregate_ball_y_shifts_separated(participants_data, 0.4)
 
 
 # %%
@@ -2062,7 +2041,8 @@ def plot_aggregate_ball_y_shifts_separated_bins(participants_data, num_bins=3):
 
 
 # %%
-plot_aggregate_ball_y_shifts_separated_bins(participants_data, num_bins=4)
+if __name__ == "__main__":
+    plot_aggregate_ball_y_shifts_separated_bins(participants_data, num_bins=4)
 
 # %% [markdown]
 # # Fitting Custom Model
@@ -2078,7 +2058,8 @@ from sklearn.preprocessing import StandardScaler
 from scipy.special import expit, logit
 
 
-participant_data_dict = {f"Participant_{i+1}": data for i, data in enumerate(participants_data)}
+if __name__ == "__main__":
+    participant_data_dict = {f"Participant_{i+1}": data for i, data in enumerate(participants_data)}
 
 
 # %%
@@ -2256,8 +2237,8 @@ def run_participant_fits(participant_data_dict, test_split=0.2):
                 'Participant': participant_name,
                 'Train_Accuracy': train_acc,
                 'Test_Accuracy': test_acc,
-                'Train_LL': train_ll,
-                'Test_LL': test_ll,
+                'Train_LL': train_ll_mean,
+                'Test_LL': test_ll_mean,
                 'p_lapse': p_lapse,
                 'p_plan_base': p_plan_base,
                 'w1': w1,
@@ -2271,9 +2252,93 @@ def run_participant_fits(participant_data_dict, test_split=0.2):
 
 
 # %% [markdown]
+# # Strategy Preference Over Time
+#
+# Tracks how each participant's strategy (greedy vs planning) evolves over
+# the course of the experiment. Greedy = 1-step lookahead (shortest immediate
+# path). Planning = 2-step lookahead (shortest cumulative path).
+
+# %%
+def plot_strategy_over_time(participant_data, participant_label="", window_size=30):
+    """
+    Rolling-window analysis of greedy vs planning strategy preference.
+    Lines show greedy follow rate. Info box shows planning % on disagreement trials.
+    """
+    processed = pre_proccess_data_from_choice_vs_no_choice(participant_data)
+    processed = processed[processed['choice_trial'] == True].reset_index(drop=True)
+
+    if len(processed) < window_size:
+        print(f"Not enough trials ({len(processed)}) for window size {window_size}.")
+        return
+
+    is_left = processed['chosen_left']
+    L1 = np.where(is_left, processed['chosen_1step_dist'], processed['unchosen_1step_dist'])
+    R1 = np.where(~is_left, processed['chosen_1step_dist'], processed['unchosen_1step_dist'])
+    chosen_2step_diff = processed['chosen_2step_dist'] - processed['chosen_1step_dist']
+    unchosen_2step_diff = processed['unchosen_2step_dist'] - processed['unchosen_1step_dist']
+    L2 = np.where(is_left, chosen_2step_diff, unchosen_2step_diff)
+    R2 = np.where(~is_left, chosen_2step_diff, unchosen_2step_diff)
+
+    greedy_prescribes_right = (R1 < L1).astype(float)
+    planning_prescribes_right = (R2 < L2).astype(float)
+    chose_right = (~is_left).astype(float)
+    greedy_indifferent = (L1 == R1)
+    planning_indifferent = (L2 == R2)
+    disagree = (greedy_prescribes_right != planning_prescribes_right) & ~greedy_indifferent & ~planning_indifferent
+
+    n_trials = len(processed)
+    overall_greedy = np.full(n_trials, np.nan)
+    disagree_greedy = np.full(n_trials, np.nan)
+
+    for t in range(window_size, n_trials + 1):
+        window = slice(t - window_size, t)
+        followed_greedy = (chose_right[window] == greedy_prescribes_right[window])
+        overall_greedy[t - 1] = followed_greedy.mean()
+        disagree_window = disagree[window]
+        if disagree_window.sum() >= 5:
+            followed_greedy_on_disagree = (
+                chose_right[window][disagree_window] == greedy_prescribes_right[window][disagree_window]
+            )
+            disagree_greedy[t - 1] = followed_greedy_on_disagree.mean()
+
+    trial_axis = np.arange(1, n_trials + 1)
+    fig, ax = plt.subplots(figsize=(12, 5), dpi=120)
+    ax.plot(trial_axis, overall_greedy, color='gray', linestyle=':', linewidth=1.5, alpha=0.7,
+            label='Greedy follow rate (all trials)')
+    valid_disagree = ~np.isnan(disagree_greedy)
+    ax.plot(trial_axis[valid_disagree], disagree_greedy[valid_disagree],
+            color='coral', linewidth=2, label='Greedy follow rate (disagreement only)')
+    ax.axhline(0.5, color='gray', linestyle='--', linewidth=0.8, alpha=0.4)
+    ax.axhline(1.0, color='gray', linestyle='--', linewidth=0.8, alpha=0.4)
+    ax.set_xlabel('Trial Number')
+    ax.set_ylabel('Proportion Greedy')
+    ax.set_ylim(-0.05, 1.05)
+    ax.set_title(f'Strategy Preference Over Time \u2014 {participant_label}  (window={window_size})')
+    ax.legend(loc='lower left', fontsize=9)
+    ax.grid(axis='y', linestyle='--', alpha=0.3)
+
+    n_disagree = disagree.sum()
+    planning_pct = 100 - int((disagree_greedy[valid_disagree].mean() if valid_disagree.any() else 0) * 100)
+    ax.text(0.98, 0.05,
+            f'Disagreement trials: {n_disagree}\nPlanning on disagreement: {planning_pct}%',
+            transform=ax.transAxes, ha='right', va='bottom', fontsize=9,
+            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+    plt.tight_layout()
+    plt.show()
+    return fig, overall_greedy, disagree_greedy, disagree
+
+
+# %% [markdown]
 # If $w_1$ is negative, that means that more time pressure increases the probability of planning, whereas a positive value means that more time pressure decreases the probability of planning
 
 # %%
-final_parameters_df = run_participant_fits(participant_data_dict)
+if __name__ == "__main__":
+    final_parameters_df = run_participant_fits(participant_data_dict)
 
+# %%
+if __name__ == "__main__":
+    participants_data = get_participants_data()
+    for i in range(len(participants_data)):
+        plot_strategy_over_time(participant_data=participants_data[i])
 # %%

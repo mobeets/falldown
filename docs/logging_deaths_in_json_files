@@ -1,0 +1,80 @@
+# Logging Deaths in Experiment JSON Files
+
+## Problem
+
+`plot_deaths_per_block` in `analysis/checking_data_validity.py` uses a post-hoc heuristic
+to count deaths — it infers death when a trial record has no `holeUsed` and no events.
+This is indirect and fragile.
+
+The game already sends a `'resurrect'` event via the WebSocket log (`wsLogger.log("interaction", {eventMsg: 'resurrect'})`)
+after a drift death, but those events live in a separate `.jsonl` log file, not in the
+experiment JSON that the analysis code loads.
+
+## Solution
+
+Store death counts directly in the experiment object `E`, which gets serialised to every
+`.json` snapshot via `wsLogger.saveJson(E)`.  This makes deaths trivially readable in
+the analysis code with no separate log file, no timing correlation, and no heuristic.
+
+## Changes Needed
+
+### 1. `static/sketch.js` — increment at the death site
+
+The death happens at line 338-340:
+
+```javascript
+if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
+  newGame(true, false, trial_block.trial_index, gameOver = true);
+}
+```
+
+Add a death counter to `E` and increment it right before calling `newGame`:
+
+```javascript
+if ((cameraMode === 1) && (ball.y - cameraY < 0)) {
+  E.block_deaths = E.block_deaths || {};
+  E.block_deaths[E.block_index] = (E.block_deaths[E.block_index] || 0) + 1;
+  newGame(true, false, trial_block.trial_index, gameOver = true);
+}
+```
+
+`E.block_index` is already set at this point, so deaths are attributed to the
+current block at the moment the ball goes off-screen.
+
+The old `eventMsg = 'resurrect'` / `wsLogger.log("interaction", {eventMsg})` in
+`checkUserButtonPresses()` remains untouched — the interaction event is a separate
+thing (player pressing the button to continue) and can stay as an independent
+cross-check.
+
+### 2. `analysis/checking_data_validity.py` — read from the JSON
+
+`plot_deaths_per_block` can read deaths directly from `E.block_deaths`:
+
+```python
+def plot_deaths_per_block(data, fig=None):
+    block_deaths = data.get('block_deaths', {})
+    ...
+    deaths = block_deaths.get(str(i), 0)
+```
+
+Keep the old heuristic as a fallback when `block_deaths` is missing (for data
+collected before this change):
+
+```python
+block_deaths = data.get('block_deaths', {})
+if block_deaths:
+    deaths = block_deaths.get(str(i), 0)
+else:
+    deaths = sum(1 for trial in active_trials
+                if not ('holeUsed' in trial or
+                        ('events' in trial and len(trial.get('events', [])) > 0)))
+```
+
+## Why This Approach
+
+- **Self-contained** — deaths are stored in the same JSON file as everything else.
+- **No WebSocket dependency** — works even if the WS connection drops.
+- **Backward compatible** — old data still works via the heuristic fallback.
+- **Forward compatible** — every `.json` snapshot from now on carries accurate
+  per-block death counts.
+- **Trivial analysis** — a dictionary lookup replaces scanning every trial.

@@ -1,0 +1,23 @@
+{
+	"scrollSpeed": 1.2,
+	"maxScrollSpeed": 1.2,
+	"scrollSpeedSecsToMax": 120,
+	"relativeGravity": 0.75,
+	"relativeBallAccel": 0.6,
+	"maxBallAccelScale": 10,
+	"friction": 0.92,
+	"isMomentum": false,
+	"levelWidthProportion": 0.8,
+	"nSegments": 12,
+	"nLevelsVisible": 7,
+	"levelHeight": 10,
+	"FPS": 60,
+	"photodiode": {"size": 120},
+	"startCameraMode": 0,
+	"modeSwitchRates": [0.0, 0.0],
+	"minLevelsPerMode": 10,
+	"modeRectColors": ["gray", "gray"],
+	"redirectUrl": "https://connect.cloudresearch.com/participant/project/D2002F5BDE/complete",
+	"isCloudStudy": false,
+	"showFewerLevels": false
+}

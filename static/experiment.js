@@ -15,7 +15,7 @@ function loadConfig() {
     participantId: 'unknown',
     assignmentId: 'unknown',
     projectId: 'unknown',
-    params_name: 'cloudresearch_params',
+    params_name: 'emu_research_params',
     experiment: 'short_trials_experiment-7-10'
   };
 

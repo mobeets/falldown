@@ -365,36 +365,50 @@ def build_deeponet_dataset(participant_data_dict):
 def evaluate_deeponet(model, dataloader):
     """
     Evaluates the model on a given dataset (Test or Train).
-    Calculates Accuracy and Log-Likelihood.
+    Calculates Accuracy and Log-Likelihood, both overall and per-participant.
     """
-    model.eval() # Put model in evaluation mode (disables dropout, etc.)
+    model.eval()
     
     total_ll = 0.0
     correct_predictions = 0
     total_samples = 0
     
-    # Disable gradient calculation for faster, memory-efficient inference
+    p_ll = {}
+    p_correct = {}
+    p_total = {}
+    
     with torch.no_grad():
         for features, p_ids, true_choices in dataloader:
-            
-            # Forward pass
             logits, bases = model(features, p_ids)
             
-            # 1. Calculate Log-Likelihood
-            # BCEWithLogitsLoss with reduction='sum' is exactly the negative Log-Likelihood
             bce_sum = F.binary_cross_entropy_with_logits(logits, true_choices, reduction='sum')
             total_ll += -bce_sum.item()
             
-            # 2. Calculate Accuracy
-            # Convert logits to probabilities, then to 0 or 1 predictions
+            trial_bce = F.binary_cross_entropy_with_logits(logits, true_choices, reduction='none')
+            trial_ll = -trial_bce
+            
             probabilities = torch.sigmoid(logits)
             predictions = (probabilities >= 0.5).float()
+            correct = (predictions == true_choices)
             
-            correct_predictions += (predictions == true_choices).sum().item()
+            correct_predictions += correct.sum().item()
             total_samples += true_choices.size(0)
             
+            for j in range(true_choices.size(0)):
+                pid = p_ids[j].item()
+                p_ll[pid] = p_ll.get(pid, 0.0) + trial_ll[j].item()
+                p_correct[pid] = p_correct.get(pid, 0) + correct[j].item()
+                p_total[pid] = p_total.get(pid, 0) + 1
+    
     avg_ll = total_ll / total_samples
     accuracy = correct_predictions / total_samples
+    
+    per_participant = {}
+    for pid in sorted(p_ll.keys()):
+        per_participant[pid] = {
+            'accuracy': p_correct[pid] / p_total[pid],
+            'log_likelihood': p_ll[pid] / p_total[pid],
+        }
     
     print(f"--- Evaluation Metrics ---")
     print(f"Total Log-Likelihood:   {total_ll:.4f}")
@@ -402,253 +416,254 @@ def evaluate_deeponet(model, dataloader):
     print(f"Accuracy:               {accuracy * 100:.2f}% ({correct_predictions}/{total_samples})")
     print(f"--------------------------\n")
     
-    return total_ll, accuracy
+    return total_ll, accuracy, per_participant
 
 
 
-# %%
-participant1 = load("cloud study data/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json")
-participant2 = load("cloud study data/88AD64F00C6B43489770A02E7A1AE2C2-019e8fd9-16e9-7876-8e3b-d51a48df0526-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-03T23-37-31-300Z-4ecm.json")
-participant3 = load("cloud study data/6462D588260B4356936047A04A336EBE-019e9464-f99c-77c5-bf47-327c7a7cf4f1-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-41-26-943Z-c5do.json")
-participant4 = load("cloud study data/46331EBA4F494FAD901E83106523FF12-019e9464-9d12-7cc3-8cba-8f0dd00eeb20-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-33-792Z-sop6.json")
-participant5 = load("cloud study data/BB4D2ACD4DAB45F5BAB68A472EB2E06C-019e9464-9a85-718c-9964-ec6755cdcd1c-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-17-611Z-i0am.json")
-participant6 = load("cloud study data/C47CEEC22AD9448E9F87D0577BA7FC80-019e946e-abeb-723a-8d4d-50881fc0551f-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-59-12-508Z-e1tl.json")
-participant7 = load("cloud study data/CEFD2FE92E6847B2B27FF0175811CE81-019e9464-988c-7240-bf66-336f77c05049-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-50-03-371Z-34zm.json")
-participant8 = load("cloud study data/EC07396CE23248F2855499612FEB8ACA-019e9464-92a5-7d10-b713-7022c5b049fc-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-16-501Z-olib.json")
-participant9 = load("cloud study data/FD2A6686546A4D689BE4A684CD264636-019e946a-96b4-78df-ac42-63e6e82c3209-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-54-42-499Z-j7h3.json")
+if __name__ == '__main__':
+    # %%
+    participant1 = load("cloud study data/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json")
+    participant2 = load("cloud study data/88AD64F00C6B43489770A02E7A1AE2C2-019e8fd9-16e9-7876-8e3b-d51a48df0526-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-03T23-37-31-300Z-4ecm.json")
+    participant3 = load("cloud study data/6462D588260B4356936047A04A336EBE-019e9464-f99c-77c5-bf47-327c7a7cf4f1-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-41-26-943Z-c5do.json")
+    participant4 = load("cloud study data/46331EBA4F494FAD901E83106523FF12-019e9464-9d12-7cc3-8cba-8f0dd00eeb20-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-33-792Z-sop6.json")
+    participant5 = load("cloud study data/BB4D2ACD4DAB45F5BAB68A472EB2E06C-019e9464-9a85-718c-9964-ec6755cdcd1c-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-17-611Z-i0am.json")
+    participant6 = load("cloud study data/C47CEEC22AD9448E9F87D0577BA7FC80-019e946e-abeb-723a-8d4d-50881fc0551f-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-59-12-508Z-e1tl.json")
+    participant7 = load("cloud study data/CEFD2FE92E6847B2B27FF0175811CE81-019e9464-988c-7240-bf66-336f77c05049-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-50-03-371Z-34zm.json")
+    participant8 = load("cloud study data/EC07396CE23248F2855499612FEB8ACA-019e9464-92a5-7d10-b713-7022c5b049fc-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-48-16-501Z-olib.json")
+    participant9 = load("cloud study data/FD2A6686546A4D689BE4A684CD264636-019e946a-96b4-78df-ac42-63e6e82c3209-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T20-54-42-499Z-j7h3.json")
 
-participant10 = load("cloud study data/EA4EE5B954A749C8BEED8F06A43F58_cleaned.json")
-participant11 = load("cloud study data/C8C4C97C01AA45CA9064DA1A7635A4_cleaned.json")
-participant12 = load("cloud study data/96CA2FB7709946BB8EB38CAB5B713E_cleaned.json")
-participant13 = load("cloud study data/B0525260D0F8488D8D4695DD76FF64_cleaned.json")
-participant14 = load("cloud study data/32FC87F1C127480BA90BCC97640655_cleaned.json")
+    participant10 = load("cloud study data/EA4EE5B954A749C8BEED8F06A43F58_cleaned.json")
+    participant11 = load("cloud study data/C8C4C97C01AA45CA9064DA1A7635A4_cleaned.json")
+    participant12 = load("cloud study data/96CA2FB7709946BB8EB38CAB5B713E_cleaned.json")
+    participant13 = load("cloud study data/B0525260D0F8488D8D4695DD76FF64_cleaned.json")
+    participant14 = load("cloud study data/32FC87F1C127480BA90BCC97640655_cleaned.json")
 
-participants_data = [participant1, participant2, participant3, participant4, participant5, participant6, participant7, participant8, participant9]
+    participants_data = [participant1, participant2, participant3, participant4, participant5, participant6, participant7, participant8, participant9]
 
-# %%
-participant_data_dict = {f"Participant_{i+1}": data for i, data in enumerate(participants_data)}
-raw_features, p_ids, choices, num_participants = build_deeponet_dataset(participant_data_dict)
+    # %%
+    participant_data_dict = {f"Participant_{i+1}": data for i, data in enumerate(participants_data)}
+    raw_features, p_ids, choices, num_participants = build_deeponet_dataset(participant_data_dict)
 
-# 2. Perform the Train-Test Split (80% Train, 20% Test)
-X_train, X_test, id_train, id_test, y_train, y_test = train_test_split(
-    raw_features, p_ids, choices, test_size=0.2, random_state=42
-)
+    # 2. Perform the Train-Test Split (80% Train, 20% Test)
+    X_train, X_test, id_train, id_test, y_train, y_test = train_test_split(
+        raw_features, p_ids, choices, test_size=0.2, random_state=42
+    )
 
-# --- THE NEW SCALING LOGIC ---
-# Slice the arrays: Columns 0, 1, 2 are continuous. Columns 3, 4 are binary.
-X_train_continuous = X_train[:, :3]
-X_train_discrete = X_train[:, 3:]
+    # --- THE NEW SCALING LOGIC ---
+    # Slice the arrays: Columns 0, 1, 2 are continuous. Columns 3, 4 are binary.
+    X_train_continuous = X_train[:, :3]
+    X_train_discrete = X_train[:, 3:]
 
-X_test_continuous = X_test[:, :3]
-X_test_discrete = X_test[:, 3:]
+    X_test_continuous = X_test[:, :3]
+    X_test_discrete = X_test[:, 3:]
 
-# 3. Scale ONLY the continuous features safely
-scaler = StandardScaler()
-X_train_continuous_scaled = scaler.fit_transform(X_train_continuous)
-X_test_continuous_scaled = scaler.transform(X_test_continuous)
+    # 3. Scale ONLY the continuous features safely
+    scaler = StandardScaler()
+    X_train_continuous_scaled = scaler.fit_transform(X_train_continuous)
+    X_test_continuous_scaled = scaler.transform(X_test_continuous)
 
-# Re-attach the raw binary columns (incoming_pos, incoming_neg) to the scaled continuous columns
-X_train_final = np.hstack((X_train_continuous_scaled, X_train_discrete))
-X_test_final = np.hstack((X_test_continuous_scaled, X_test_discrete))
-# ------------------------------
+    # Re-attach the raw binary columns (incoming_pos, incoming_neg) to the scaled continuous columns
+    X_train_final = np.hstack((X_train_continuous_scaled, X_train_discrete))
+    X_test_final = np.hstack((X_test_continuous_scaled, X_test_discrete))
+    # ------------------------------
 
-# 4. Load them into PyTorch Datasets (using the newly stacked arrays)
-train_dataset = MazeDataset(X_train_final, id_train, y_train)
-test_dataset = MazeDataset(X_test_final, id_test, y_test)
+    # 4. Load them into PyTorch Datasets (using the newly stacked arrays)
+    train_dataset = MazeDataset(X_train_final, id_train, y_train)
+    test_dataset = MazeDataset(X_test_final, id_test, y_test)
 
-# Datasets go into DataLoaders
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    # Datasets go into DataLoaders
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
-# 5. Initialize the model
-model = CognitiveDeepONet(
-    num_participants=num_participants, 
-    num_features=5, 
-    num_bases=4  
-)
+    # 5. Initialize the model
+    model = CognitiveDeepONet(
+        num_participants=num_participants, 
+        num_features=5, 
+        num_bases=4  
+    )
 
-# 6. Train the model
-print("Starting Training...")
-trained_model = train_deeponet(model, train_loader, num_epochs=200, lr=0.0015, penalty_weight=0.5)
+    # 6. Train the model
+    print("Starting Training...")
+    trained_model = train_deeponet(model, train_loader, num_epochs=200, lr=0.0015, penalty_weight=0.5)
 
-# 7. Evaluate on the Test Set
-print("Evaluating on UNSEEN Test Data...")
-test_ll, test_acc = evaluate_deeponet(trained_model, test_loader)
+    # 7. Evaluate on the Test Set
+    print("Evaluating on UNSEEN Test Data...")
+    test_ll, test_acc, _ = evaluate_deeponet(trained_model, test_loader)
 
 
-# %% [markdown]
-# ## Evaluation
+    # %% [markdown]
+    # ## Evaluation
 
-# %%
-def plot_coefficients_heatmap(model):
-    """
-    Extracts the embedding weights and plots a heatmap of participant strategies.
-    (This function remains unchanged as it is independent of input features)
-    """
-    coeffs = model.participant_coeffs.weight.detach().cpu().numpy()
-    num_participants, num_bases = coeffs.shape
+    # %%
+    def plot_coefficients_heatmap(model):
+        """
+        Extracts the embedding weights and plots a heatmap of participant strategies.
+        (This function remains unchanged as it is independent of input features)
+        """
+        coeffs = model.participant_coeffs.weight.detach().cpu().numpy()
+        num_participants, num_bases = coeffs.shape
     
-    plt.figure(figsize=(10, 8), dpi=150)
+        plt.figure(figsize=(10, 8), dpi=150)
     
-    ax = sns.heatmap(coeffs, annot=True, fmt=".2f", cmap="coolwarm", center=0, 
-                     cbar_kws={'label': 'Coefficient Value (Cognitive Weight)'})
+        ax = sns.heatmap(coeffs, annot=True, fmt=".2f", cmap="coolwarm", center=0, 
+                         cbar_kws={'label': 'Coefficient Value (Cognitive Weight)'})
     
-    plt.title("Participant Strategy Mapping (Coefficients)", pad=15)
-    plt.xlabel("Basis Function (Orthogonal Strategy)")
-    plt.ylabel("Participant ID")
+        plt.title("Participant Strategy Mapping (Coefficients)", pad=15)
+        plt.xlabel("Basis Function (Orthogonal Strategy)")
+        plt.ylabel("Participant ID")
     
-    ax.set_xticks(np.arange(num_bases) + 0.5)
-    ax.set_xticklabels([f"Basis {i+1}" for i in range(num_bases)])
-    ax.set_yticks(np.arange(num_participants) + 0.5)
-    ax.set_yticklabels([f"P {i}" for i in range(num_participants)], rotation=0)
+        ax.set_xticks(np.arange(num_bases) + 0.5)
+        ax.set_xticklabels([f"Basis {i+1}" for i in range(num_bases)])
+        ax.set_yticks(np.arange(num_participants) + 0.5)
+        ax.set_yticklabels([f"P {i}" for i in range(num_participants)], rotation=0)
     
-    plt.tight_layout()
-    plt.show()
-
-# ==========================================
-# 2. VISUALIZE BASIS FUNCTIONS (1D SWEEPS)
-# ==========================================
-def plot_basis_sweep(model, feature_idx=0, feature_name="L1 - R1"):
-    """
-    Holds all 3 features at 0 (the mean) and sweeps the target feature from -3 to +3
-    standard deviations to see how the basis functions react.
-    """
-    model.eval() 
-    
-    sweep_values = np.linspace(-3.0, 3.0, 100)
-    
-    dummy_inputs = np.zeros((100, 5))
-    
-    # Inject our sweep into the specific column we want to test
-    dummy_inputs[:, feature_idx] = sweep_values
-    
-    X_tensor = torch.tensor(dummy_inputs, dtype=torch.float32)
-    
-    with torch.no_grad():
-        bases = model.basis_net(X_tensor).numpy() 
-        
-    num_bases = bases.shape[1]
-    
-    plt.figure(figsize=(10, 6), dpi=150)
-    
-    color_palette = plt.cm.get_cmap('tab10', num_bases)
-    
-    for i in range(num_bases):
-        plt.plot(sweep_values, bases[:, i], label=f"Basis {i+1}", 
-                 linewidth=3, alpha=0.8, color=color_palette(i))
-        
-    plt.axhline(0, color='black', linestyle='--', alpha=0.5, label='Neutral (No Urge)')
-    
-    plt.title(f"Basis Function Sensitivity to: {feature_name}", pad=15)
-    plt.xlabel(f"{feature_name} (Standardized: 0 = Mean, ±3 = Extreme)")
-    plt.ylabel("Basis Output (Raw Logit Urge)")
-    
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.tight_layout()
-    plt.show()
-
-# ==========================================
-# EXECUTION EXAMPLES FOR 3 FEATURES
-# ==========================================
-# 1. Plot the participant heatmap
-plot_coefficients_heatmap(trained_model)
-
-# 2. See how bases react to the Tier 1 Advantage changing (Index 0)
-# Positive values mean L1 is longer than R1. Negative values mean R1 is longer.
-plot_basis_sweep(trained_model, feature_idx=0, feature_name="L1 minus R1")
-
-# 3. See how bases react to the Total Route Advantage changing (Index 1)
-plot_basis_sweep(trained_model, feature_idx=1, feature_name="Total L minus Total R")
-
-# 4. See how bases react to the ball's Y position changing (Index 2)
-plot_basis_sweep(trained_model, feature_idx=2, feature_name="Ball Y at Top")
-
-# 5. See how bases react to the incoming direction being positive (Index 3)
-plot_basis_sweep(trained_model, feature_idx=3, feature_name="Incoming Pos")
-
-# 6. See how bases react to the incoming direction being negative (Index 4)
-plot_basis_sweep(trained_model, feature_idx=4, feature_name="Incoming Neg")
-
-
-# %%
-def plot_3d_basis_sweeps(model, num_features, feature_names=None):
-    """
-    Iterates through every possible pair of features. 
-    Holds all other features at 0 and sweeps the pair from -3 to +3 to generate 3D surface plots.
-    """
-    model.eval()
-    
-    # Auto-generate generic names if none are provided
-    if feature_names is None:
-        feature_names = [f"Feature {i+1}" for i in range(num_features)]
-        
-    # 1. Setup the Grid
-    grid_resolution = 50  # 50x50 = 2500 points per plot (good balance of speed and smoothness)
-    sweep_1d = np.linspace(-3.0, 3.0, grid_resolution)
-    
-    # Create the 2D coordinate matrices
-    X_grid, Y_grid = np.meshgrid(sweep_1d, sweep_1d)
-    
-    # Flatten the grids so they can be fed into the neural network
-    flat_X = X_grid.flatten()
-    flat_Y = Y_grid.flatten()
-    
-    # 2. Get all unique pairs of features (e.g., (0,1), (0,2), (1,2))
-    feature_pairs = list(itertools.combinations(range(num_features), 2))
-    
-    # Do a quick dummy pass to dynamically find out how many basis functions the model has
-    with torch.no_grad():
-        dummy_test = torch.zeros((1, num_features))
-        num_bases = model.basis_net(dummy_test).shape[1]
-
-    # 3. Iterate over every pair and plot
-    for f1_idx, f2_idx in feature_pairs:
-        
-        # Create dummy inputs [2500 rows, num_features columns] initialized to 0
-        dummy_inputs = np.zeros((grid_resolution * grid_resolution, num_features))
-        
-        # Inject our flattened grid into the specific feature columns we are testing
-        dummy_inputs[:, f1_idx] = flat_X
-        dummy_inputs[:, f2_idx] = flat_Y
-        
-        X_tensor = torch.tensor(dummy_inputs, dtype=torch.float32)
-        
-        # Pass through the basis network
-        with torch.no_grad():
-            bases = model.basis_net(X_tensor).numpy() 
-            
-        # Create a new figure for this specific feature pair
-        # Width scales automatically based on how many basis functions you have
-        fig = plt.figure(figsize=(5 * num_bases, 5), dpi=150)
-        fig.suptitle(f"Interaction: {feature_names[f1_idx]} vs {feature_names[f2_idx]}", fontsize=14, fontweight='bold')
-        
-        # Plot a 3D surface for each basis function
-        for b_idx in range(num_bases):
-            ax = fig.add_subplot(1, num_bases, b_idx + 1, projection='3d')
-            
-            # Reshape the 1D basis output back into the 2D grid shape (50x50)
-            Z_grid = bases[:, b_idx].reshape(grid_resolution, grid_resolution)
-            
-            # Draw the surface
-            # 'viridis' or 'coolwarm' are great colormaps for 3D surfaces
-            surf = ax.plot_surface(X_grid, Y_grid, Z_grid, cmap='viridis', edgecolor='none', alpha=0.9)
-            
-            # Formatting
-            ax.set_title(f"Basis {b_idx + 1}")
-            ax.set_xlabel(feature_names[f1_idx])
-            ax.set_ylabel(feature_names[f2_idx])
-            ax.set_zlabel("Basis Output")
-            
-            # Rotate the 3D view slightly for better visibility
-            ax.view_init(elev=25, azim=-45)
-
         plt.tight_layout()
         plt.show()
 
+    # ==========================================
+    # 2. VISUALIZE BASIS FUNCTIONS (1D SWEEPS)
+    # ==========================================
+    def plot_basis_sweep(model, feature_idx=0, feature_name="L1 - R1"):
+        """
+        Holds all 3 features at 0 (the mean) and sweeps the target feature from -3 to +3
+        standard deviations to see how the basis functions react.
+        """
+        model.eval() 
+    
+        sweep_values = np.linspace(-3.0, 3.0, 100)
+    
+        dummy_inputs = np.zeros((100, 5))
+    
+        # Inject our sweep into the specific column we want to test
+        dummy_inputs[:, feature_idx] = sweep_values
+    
+        X_tensor = torch.tensor(dummy_inputs, dtype=torch.float32)
+    
+        with torch.no_grad():
+            bases = model.basis_net(X_tensor).numpy() 
+        
+        num_bases = bases.shape[1]
+    
+        plt.figure(figsize=(10, 6), dpi=150)
+    
+        color_palette = plt.cm.get_cmap('tab10', num_bases)
+    
+        for i in range(num_bases):
+            plt.plot(sweep_values, bases[:, i], label=f"Basis {i+1}", 
+                     linewidth=3, alpha=0.8, color=color_palette(i))
+        
+        plt.axhline(0, color='black', linestyle='--', alpha=0.5, label='Neutral (No Urge)')
+    
+        plt.title(f"Basis Function Sensitivity to: {feature_name}", pad=15)
+        plt.xlabel(f"{feature_name} (Standardized: 0 = Mean, ±3 = Extreme)")
+        plt.ylabel("Basis Output (Raw Logit Urge)")
+    
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.tight_layout()
+        plt.show()
+
+    # ==========================================
+    # EXECUTION EXAMPLES FOR 3 FEATURES
+    # ==========================================
+    # 1. Plot the participant heatmap
+    plot_coefficients_heatmap(trained_model)
+
+    # 2. See how bases react to the Tier 1 Advantage changing (Index 0)
+    # Positive values mean L1 is longer than R1. Negative values mean R1 is longer.
+    plot_basis_sweep(trained_model, feature_idx=0, feature_name="L1 minus R1")
+
+    # 3. See how bases react to the Total Route Advantage changing (Index 1)
+    plot_basis_sweep(trained_model, feature_idx=1, feature_name="Total L minus Total R")
+
+    # 4. See how bases react to the ball's Y position changing (Index 2)
+    plot_basis_sweep(trained_model, feature_idx=2, feature_name="Ball Y at Top")
+
+    # 5. See how bases react to the incoming direction being positive (Index 3)
+    plot_basis_sweep(trained_model, feature_idx=3, feature_name="Incoming Pos")
+
+    # 6. See how bases react to the incoming direction being negative (Index 4)
+    plot_basis_sweep(trained_model, feature_idx=4, feature_name="Incoming Neg")
 
 
-# %%
-feature_labels = ["L1 - R1", "Total L - Total R", "Ball Y at Top", "Incoming Pos", "Incoming Neg"]
-plot_3d_basis_sweeps(trained_model, num_features=5, feature_names=feature_labels)
+    # %%
+    def plot_3d_basis_sweeps(model, num_features, feature_names=None):
+        """
+        Iterates through every possible pair of features. 
+        Holds all other features at 0 and sweeps the pair from -3 to +3 to generate 3D surface plots.
+        """
+        model.eval()
+    
+        # Auto-generate generic names if none are provided
+        if feature_names is None:
+            feature_names = [f"Feature {i+1}" for i in range(num_features)]
+        
+        # 1. Setup the Grid
+        grid_resolution = 50  # 50x50 = 2500 points per plot (good balance of speed and smoothness)
+        sweep_1d = np.linspace(-3.0, 3.0, grid_resolution)
+    
+        # Create the 2D coordinate matrices
+        X_grid, Y_grid = np.meshgrid(sweep_1d, sweep_1d)
+    
+        # Flatten the grids so they can be fed into the neural network
+        flat_X = X_grid.flatten()
+        flat_Y = Y_grid.flatten()
+    
+        # 2. Get all unique pairs of features (e.g., (0,1), (0,2), (1,2))
+        feature_pairs = list(itertools.combinations(range(num_features), 2))
+    
+        # Do a quick dummy pass to dynamically find out how many basis functions the model has
+        with torch.no_grad():
+            dummy_test = torch.zeros((1, num_features))
+            num_bases = model.basis_net(dummy_test).shape[1]
 
-# %%
+        # 3. Iterate over every pair and plot
+        for f1_idx, f2_idx in feature_pairs:
+        
+            # Create dummy inputs [2500 rows, num_features columns] initialized to 0
+            dummy_inputs = np.zeros((grid_resolution * grid_resolution, num_features))
+        
+            # Inject our flattened grid into the specific feature columns we are testing
+            dummy_inputs[:, f1_idx] = flat_X
+            dummy_inputs[:, f2_idx] = flat_Y
+        
+            X_tensor = torch.tensor(dummy_inputs, dtype=torch.float32)
+        
+            # Pass through the basis network
+            with torch.no_grad():
+                bases = model.basis_net(X_tensor).numpy() 
+            
+            # Create a new figure for this specific feature pair
+            # Width scales automatically based on how many basis functions you have
+            fig = plt.figure(figsize=(5 * num_bases, 5), dpi=150)
+            fig.suptitle(f"Interaction: {feature_names[f1_idx]} vs {feature_names[f2_idx]}", fontsize=14, fontweight='bold')
+        
+            # Plot a 3D surface for each basis function
+            for b_idx in range(num_bases):
+                ax = fig.add_subplot(1, num_bases, b_idx + 1, projection='3d')
+            
+                # Reshape the 1D basis output back into the 2D grid shape (50x50)
+                Z_grid = bases[:, b_idx].reshape(grid_resolution, grid_resolution)
+            
+                # Draw the surface
+                # 'viridis' or 'coolwarm' are great colormaps for 3D surfaces
+                surf = ax.plot_surface(X_grid, Y_grid, Z_grid, cmap='viridis', edgecolor='none', alpha=0.9)
+            
+                # Formatting
+                ax.set_title(f"Basis {b_idx + 1}")
+                ax.set_xlabel(feature_names[f1_idx])
+                ax.set_ylabel(feature_names[f2_idx])
+                ax.set_zlabel("Basis Output")
+            
+                # Rotate the 3D view slightly for better visibility
+                ax.view_init(elev=25, azim=-45)
+
+            plt.tight_layout()
+            plt.show()
+
+
+
+    # %%
+    feature_labels = ["L1 - R1", "Total L - Total R", "Ball Y at Top", "Incoming Pos", "Incoming Neg"]
+    plot_3d_basis_sweeps(trained_model, num_features=5, feature_names=feature_labels)
+
+    # %%
