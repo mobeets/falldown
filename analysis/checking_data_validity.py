@@ -130,13 +130,16 @@ def compare_greedy_vs_rollout(data, only_use_disagreements=False):
             choices.append((dist_L1, dist_R1, dist_L2, dist_R2, rt, choice))
     return np.vstack(choices)
 
-def get_switches_per_level(data):
+def get_switches_per_level(data, return_drift=False):
 
     switches_per_level = []
+    drift_flags = []
 
     for block in data['blocks']:
         if 'user_inputs' not in block:
             continue
+
+        is_drift = block.get('block_config', {}).get('params', {}).get('startCameraMode', 0)
             
         input_times = np.array(block['user_inputs']['time'])
         input_vals = np.array(block['user_inputs']['input'])
@@ -166,8 +169,12 @@ def get_switches_per_level(data):
                 num_switches = 0
                 
             switches_per_level.append(num_switches)
+            drift_flags.append(is_drift)
             
-    return np.array(switches_per_level)
+    switches = np.array(switches_per_level)
+    if return_drift:
+        return switches, np.array(drift_flags)
+    return switches
 
 
 # %% [markdown]
@@ -267,27 +274,42 @@ def plot_psychometric_curve(X, y, fig=None, color='k', xlabel='Δ Distance to ho
 
 def plot_switch_distribution(data):
     """
-    Plots a histogram showing how frequently users switched directions per level.
+    Plots side-by-side histograms of direction switches per level,
+    split by block type (Follow vs. Drift).
     """
-    switches = get_switches_per_level(data)
+    switches, drift_flags = get_switches_per_level(data, return_drift=True)
     
     if len(switches) == 0:
         print("No valid user inputs found in the data.")
         return
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    follow_switches = switches[drift_flags == 0]
+    drift_switches = switches[drift_flags == 1]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     
     max_switches = np.max(switches)
     bins = np.arange(-0.5, max_switches + 1.5, 1)
     
-    ax.hist(switches, bins=bins, color='coral', edgecolor='black', alpha=0.8)
+    if len(follow_switches) > 0:
+        ax1.hist(follow_switches, bins=bins, color='skyblue', edgecolor='black', alpha=0.8)
+        ax1.set_xticks(range(max_switches + 1))
+    else:
+        ax1.text(0.5, 0.5, 'No Follow blocks', ha='center', va='center', transform=ax1.transAxes, fontsize=12)
+    ax1.set_title('Follow Blocks')
+    ax1.set_xlabel('Number of Switches (per level)')
+    ax1.set_ylabel('Frequency')
     
-    # Formatting
-    ax.set_xticks(range(max_switches + 1))
-    ax.set_title('Distribution of Direction Switches Per Level')
-    ax.set_xlabel('Number of Switches (per level)')
-    ax.set_ylabel('Frequency (Number of Levels)')
+    if len(drift_switches) > 0:
+        ax2.hist(drift_switches, bins=bins, color='lightcoral', edgecolor='black', alpha=0.8)
+        ax2.set_xticks(range(max_switches + 1))
+    else:
+        ax2.text(0.5, 0.5, 'No Drift blocks', ha='center', va='center', transform=ax2.transAxes, fontsize=12)
+    ax2.set_title('Drift Blocks')
+    ax2.set_xlabel('Number of Switches (per level)')
+    ax2.set_ylabel('Frequency')
     
+    fig.suptitle('Distribution of Direction Switches Per Level')
     plt.tight_layout()
     plt.show()
 
@@ -332,6 +354,41 @@ def plot_trials_per_block(data, fig=None):
     
     plt.tight_layout()
     
+    return fig
+
+def plot_y_position_over_time(data, participant_label=""):
+    """
+    Plots the ball's relative y-position (ball_y - camera_y) over time
+    for each block of a given participant.
+    """
+    fig, ax = plt.subplots(figsize=(14, 6), dpi=120)
+
+    for block_num, block in enumerate(data['blocks']):
+        if block_num == 0:
+            continue
+
+        game_states = block.get('game_states', {})
+        state_times = np.array(game_states.get('time', []))
+        ball_y_coords = np.array(game_states.get('ball_y', []))
+        camera_y_coords = np.array(game_states.get('camera_y', []))
+
+        if len(state_times) == 0:
+            continue
+
+        relative_y = ball_y_coords - camera_y_coords
+        t_start = state_times[0]
+        t_norm = (state_times - t_start) / 1000
+
+        ax.plot(t_norm, relative_y, label=f'Block {block_num}', alpha=0.7)
+
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Relative Ball Y Position')
+    ax.set_title(f'Ball Y Position Over Time \u2014 {participant_label}')
+    ax.legend(loc='best', fontsize=8)
+    ax.grid(alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
     return fig
 
 
@@ -630,23 +687,30 @@ trials_per_block = plot_trials_per_block(data)
 # %%
 def plot_deaths_per_block(data, fig=None):
     """
-    Plots the number of deaths (trials with no events) per block.
+    Plots the number of deaths (active gameplay trials with no events) per block.
+    Skips block 0 (instruction block), pure calibration blocks (exactly 4 trials),
+    and the first 4 calibration trials within each remaining block.
     """
     block_numbers = []
     death_counts = []
 
     for i, block in enumerate(data['blocks']):
+        if i == 0:
+            continue
+
+        trials = block.get('trials', [])
+        if len(trials) == 4:
+            continue
+
+        deaths = 0
+        for j, trial in enumerate(trials):
+            if j < 4:
+                continue
+            if 'events' not in trial or len(trial.get('events', [])) == 0:
+                deaths += 1
+
         block_numbers.append(i + 1)
-
-        if 'trials' in block:
-            deaths = sum(1 for trial in block['trials']
-                         if 'events' not in trial or len(trial.get('events', [])) == 0)
-            death_counts.append(deaths)
-        else:
-            death_counts.append(0)
-
-    block_numbers = block_numbers[1:]
-    death_counts = death_counts[1:]
+        death_counts.append(deaths)
 
     if fig is None:
         fig = plt.figure(figsize=(8, 5), dpi=300)
@@ -669,3 +733,20 @@ def plot_deaths_per_block(data, fig=None):
 deaths_per_block = plot_deaths_per_block(data)
 
 # %%
+# Plot y-position over time for the current participant
+plot_y_position_over_time(data, participant_label=prefix)
+
+# %%
+def plot_y_position_for_participant(participant_prefix, data_dir='cloud study data'):
+    """
+    Loads a participant by file prefix and plots y-position over time.
+    The prefix can be a short label (e.g. 'EA4EE5B9') or a full file path.
+    """
+    import glob
+    matches = glob.glob(os.path.join(data_dir, f'{participant_prefix}*.json'))
+    if not matches:
+        print(f"No files found matching prefix '{participant_prefix}' in {data_dir}/")
+        return
+    fnm = matches[0]
+    data = load(fnm)
+    plot_y_position_over_time(data, participant_label=participant_prefix)
