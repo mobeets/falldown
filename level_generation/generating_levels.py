@@ -333,7 +333,7 @@ len(formatted_trials)
 #new_trials2[1]['params'] = new_trials1[1]['params']
 #del new_trials2[2]
 
-formatted_trials = formatted_trials[0:44]
+formatted_trials = formatted_trials[0:30]
 
 for i in range(4, len(formatted_trials)):
     formatted_trials[i]['params']['startCameraMode'] = 1
@@ -363,5 +363,7 @@ trials = trials[:36]
 trials[35]
 
 # %%
-with open('../configs/short_trials_experiment.json', 'w') as f:
-     json.dump(trials, f, indent=2)
+with open('../configs/emu_experiment_7-29.json', 'w') as f:
+     json.dump(formatted_trials, f, indent=2)
+
+# %%
