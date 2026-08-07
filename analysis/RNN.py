@@ -430,7 +430,7 @@ class FeedforwardDecisionNN(nn.Module):
 # %%
 def train_feedforward(model, train_loader, num_epochs=150, learning_rate=0.005):
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.NLLLoss()
     model.train()
 
     for epoch in range(num_epochs):
@@ -438,7 +438,7 @@ def train_feedforward(model, train_loader, num_epochs=150, learning_rate=0.005):
         for batch_x, batch_y in train_loader:
             optimizer.zero_grad()
             probs = model(batch_x)
-            loss = criterion(probs, batch_y)
+            loss = criterion(torch.log(probs.clamp_min(1e-7)), batch_y)
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
@@ -521,6 +521,11 @@ def prepare_ff_position_tensors(raw_data, test_split=0.2):
         df_raw = pd.DataFrame(processed_data)
     else:
         df_raw = processed_data
+
+    # Only decision trials have two middle holes (left/right) to choose
+    # between; no-choice trials have a single middle hole and no prediction
+    # target.
+    df_raw = df_raw[df_raw['choice_trial']].reset_index(drop=True)
 
     # Determine which side was chosen (left=0, right=1)
     chosen_middle = df_raw['chosen_path'].str[1]

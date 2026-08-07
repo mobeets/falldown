@@ -22,9 +22,9 @@
 #   2. RNN (TinyDecisionRNN, GRU)
 #   3. Feedforward NN (distance features)
 #   4. Feedforward NN (raw position features)
-#   5. GLM-HMM (2-state, input-driven)
+#   5. GLM-HMM (2-state and 3-state, same inputs as logistic regression)
 #   6. CognitiveDeepONet (shared basis)
-#   7. StrategyDeepONet — gated
+#   7. StrategyDeepONet — HMM-gated (Markov transitions over strategies)
 #   8. StrategyDeepONet — multi-task (choice + RT)
 #   9. StrategyDeepONet — time-binned
 #   10. Custom cognitive model (planning + greedy mixture)
@@ -115,10 +115,27 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # ## Per-participant models
 
 # %%
-def run_glmhmm_for_participant(raw_data, num_states=2, num_iters=200):
+def run_glmhmm_for_participant(raw_data, num_states=2, sticky=False,
+                               num_iters=200, test_split=0.2, kappa=100.0):
     """
-    Fit a 2-state GLM-HMM on a single participant's data.
-    Input features: 1-step diff, 2-step diff, direction, bias.
+    Fit a K-state GLM-HMM on a single participant's data using the SAME
+    features, target, standardization, and chronological block split as the
+    logistic-regression baseline (evaluate_logistic_baseline).
+
+    Features per trial (built identically to the logistic baseline):
+        L1-R1                 (z-scored, fit on train blocks)
+        L1+L2-R1-R2           (z-scored, fit on train blocks)
+        Incoming Direction
+        Block Drift x Incoming Direction interaction (added if drift varies)
+        + constant bias column (mirrors sklearn's intercept)
+
+    Target: chosen_left (1 = left). Trained/tested on the same train/test
+    blocks as the logistic baseline, so accuracy / log-likelihood are directly
+    comparable.
+
+    Returns a dict with accuracy, log-likelihood, and, for reporting, the
+    per-state GLM weights, transition matrix, state occupancy, and switching
+    rate. Returns None if there are too few trials.
     """
     processed = pre_proccess_data_from_choice_vs_no_choice(raw_data)
     if isinstance(processed, list):
@@ -128,59 +145,151 @@ def run_glmhmm_for_participant(raw_data, num_states=2, num_iters=200):
     if len(processed) < 20:
         return None
 
-    is_left = processed['chosen_left']
+    is_left = processed['chosen_left'].astype(bool)
     L1 = np.where(is_left, processed['chosen_1step_dist'], processed['unchosen_1step_dist'])
     R1 = np.where(~is_left, processed['chosen_1step_dist'], processed['unchosen_1step_dist'])
     L2 = np.where(is_left,
-                   processed['chosen_2step_dist'] - processed['chosen_1step_dist'],
-                   processed['unchosen_2step_dist'] - processed['unchosen_1step_dist'])
+                  processed['chosen_2step_dist'] - processed['chosen_1step_dist'],
+                  processed['unchosen_2step_dist'] - processed['unchosen_1step_dist'])
     R2 = np.where(~is_left,
-                   processed['chosen_2step_dist'] - processed['chosen_1step_dist'],
-                   processed['unchosen_2step_dist'] - processed['unchosen_1step_dist'])
+                  processed['chosen_2step_dist'] - processed['chosen_1step_dist'],
+                  processed['unchosen_2step_dist'] - processed['unchosen_1step_dist'])
 
-    full_inpts = np.ones((len(processed), 4))
-    full_inpts[:, 0] = -(L1 - R1)
-    full_inpts[:, 1] = -(L2 - R2)
-    full_inpts[:, 2] = processed['incoming_direction'].values
+    # ---- identical feature construction as the logistic baseline ----
+    X = pd.DataFrame({
+        'diff_1step': L1 - R1,
+        'diff_planning': L1 + L2 - R2 - R1,
+        'Block Drift': processed['block_drift'],
+        'block_number': processed['block_number'],
+        'chosen_left': processed['chosen_left'].astype(int),
+        'Incoming Direction': processed['incoming_direction'],
+    }).copy()
 
-    choices_list = [np.array([int(c) for c in (~is_left).values], dtype=int)]
+    # ---- same chronological block split as run_logistic_regression_baseline ----
+    valid_trials_per_block = X.groupby('block_number').size().sort_index()
+    cumulative_trials = valid_trials_per_block.cumsum()
+    total_trials = cumulative_trials.values[-1] if len(cumulative_trials) else 0
+    train_threshold = total_trials * (1 - test_split)
+    train_blocks = valid_trials_per_block[cumulative_trials <= train_threshold].index
+    test_blocks = valid_trials_per_block[cumulative_trials > train_threshold].index
+    if len(test_blocks) == 0 and len(valid_trials_per_block) > 1:
+        test_blocks = [valid_trials_per_block.index[-1]]
+        train_blocks = valid_trials_per_block.index[:-1]
 
-    n = len(processed)
-    split = int(n * 0.8)
-    train_choices = [choices_list[0][:split]]
-    test_choices = [choices_list[0][split:]]
-    train_inpts = full_inpts[:split]
-    test_inpts = full_inpts[split:]
+    train_df = X[X['block_number'].isin(train_blocks)].copy()
+    test_df = X[X['block_number'].isin(test_blocks)].copy()
 
-    if len(train_choices[0]) < 10 or len(test_choices[0]) < 5:
+    if len(train_df) < 10 or len(test_df) < 5:
         return None
 
+    # ---- same z-scoring (fit on train blocks only) ----
+    mu_1, sig_1 = train_df['diff_1step'].mean(), train_df['diff_1step'].std()
+    mu_2, sig_2 = train_df['diff_planning'].mean(), train_df['diff_planning'].std()
+    sig_1 = sig_1 if sig_1 != 0 else 1e-6
+    sig_2 = sig_2 if sig_2 != 0 else 1e-6
+
+    train_df['L1-R1'] = (train_df['diff_1step'] - mu_1) / sig_1
+    test_df['L1-R1'] = (test_df['diff_1step'] - mu_1) / sig_1
+    train_df['L1+L2-R1-R2'] = (train_df['diff_planning'] - mu_2) / sig_2
+    test_df['L1+L2-R1-R2'] = (test_df['diff_planning'] - mu_2) / sig_2
+
+    has_drift_variance = train_df['Block Drift'].nunique() > 1
+    if has_drift_variance:
+        for df in [train_df, test_df]:
+            df['Block Drift + Incoming Direction Interaction'] = (
+                df['Incoming Direction'] * df['Block Drift'])
+        feature_cols = ['L1-R1', 'L1+L2-R1-R2', 'Incoming Direction',
+                        'Block Drift + Incoming Direction Interaction']
+    else:
+        feature_cols = ['L1-R1', 'L1+L2-R1-R2', 'Incoming Direction']
+
+    def to_inputs(df):
+        cols = df[feature_cols].values.astype(float)
+        return np.column_stack([cols, np.ones(len(df))])  # bias column = intercept
+
+    train_inpts = to_inputs(train_df)
+    test_inpts = to_inputs(test_df)
+    y_train = train_df['chosen_left'].astype(int).values
+    y_test = test_df['chosen_left'].astype(int).values
+
+    # ssm's input_driven_obs (D=1) expects observation arrays shaped (T, 1)
+    choices_train = [np.array(y_train, dtype=int).reshape(-1, 1)]
+    choices_test = [np.array(y_test, dtype=int).reshape(-1, 1)]
+    input_dim = train_inpts.shape[1]
+
     try:
-        glmhmm = ssm.HMM(num_states, 1, 4,
+        if sticky:
+            transitions = "sticky"
+            transition_kwargs = dict(alpha=2.0, kappa=kappa)
+        else:
+            transitions = "standard"
+            transition_kwargs = {}
+        glmhmm = ssm.HMM(num_states, 1, input_dim,
                          observations="input_driven_obs",
                          observation_kwargs=dict(C=2),
-                         transitions="standard")
-        glmhmm.fit(train_choices, inputs=train_inpts, method="em",
+                         transitions=transitions,
+                         transition_kwargs=transition_kwargs)
+        glmhmm.fit(choices_train, inputs=train_inpts, method="em",
                    num_iters=num_iters, tolerance=10**-4)
 
-        log_probs = glmhmm.log_likelihood(test_choices, inputs=test_inpts)
-        avg_ll = log_probs[0] / len(test_choices[0])
+        log_probs = glmhmm.log_likelihood(choices_test, inputs=test_inpts)
+        avg_ll = float(log_probs) / len(choices_test[0])
 
-        posterior = glmhmm.filter(test_choices[0], inputs=test_inpts)[0]
+        posterior = glmhmm.filter(choices_test[0], input=test_inpts)  # (T, K)
 
+        # ssm's input_driven_obs stores C-1 weight sets per state (the last
+        # category is the softmax baseline with logit 0).
+        W = glmhmm.observations.params  # (K, C-1, M)
+        C = 2
         preds = []
-        for t in range(len(test_choices[0])):
-            state_probs = posterior[t]
-            state_logits = np.dot(test_inpts[t], glmhmm.observations.params[:, 0, :])
-            weighted = np.sum(state_probs * (1.0 / (1.0 + np.exp(-state_logits))))
-            preds.append(1 if weighted >= 0.5 else 0)
+        for t in range(len(choices_test[0])):
+            class_logits = np.zeros((posterior.shape[1], C))
+            class_logits[:, :C - 1] = W @ test_inpts[t]  # (K, C-1)
+            class_logits -= class_logits.max(axis=-1, keepdims=True)
+            class_probs = np.exp(class_logits)
+            class_probs /= class_probs.sum(axis=-1, keepdims=True)
+            marginal = posterior[t] @ class_probs  # (C,)
+            preds.append(int(np.argmax(marginal)))
 
-        accuracy = np.mean(preds == test_choices[0])
+        accuracy = np.mean(preds == y_test)
 
-        return {"log_likelihood": avg_ll, "accuracy": accuracy}
+        # Reporting: per-state decision weights (positive -> left; the baseline
+        # class-1 weights are 0 by construction), transition matrix, occupancy,
+        # switching rate
+        state_weights = glmhmm.observations.params[:, 0, :]
+        transition_matrix = np.exp(glmhmm.transitions.log_Ps)
+        occupancy = posterior.mean(axis=0)
+        switching_rate = 1.0 - np.trace(transition_matrix) / num_states
+
+        return {
+            "log_likelihood": avg_ll,
+            "accuracy": accuracy,
+            "num_states": num_states,
+            "sticky": sticky,
+            "state_weights": state_weights,
+            "transition_matrix": transition_matrix,
+            "occupancy": occupancy,
+            "switching_rate": switching_rate,
+            "features": feature_cols,
+        }
     except Exception as e:
         warnings.warn(f"GLM-HMM failed: {e}")
         return None
+
+
+def print_glmhmm_summary(m):
+    """Compact per-participant GLM-HMM reporting (weights, transitions, occupancy)."""
+    if m is None:
+        return
+    tm = m['transition_matrix']
+    print(f"      transition matrix:\n{tm.round(2)}")
+    for s in range(m['num_states']):
+        w = m['state_weights'][s]
+        top = int(np.argmax(np.abs(w[:len(m['features'])])))
+        print(f"      state {s+1} weights: {np.round(w, 2)}  "
+              f"(strongest: {m['features'][top]})")
+    print(f"      occupancy: {np.round(m['occupancy'], 2)}  "
+          f"switching rate: {m['switching_rate']:.2f}")
 
 
 def run_custom_cognitive_model(participant_data_dict):
@@ -393,20 +502,25 @@ def compare_all_models(data_dir="cloud study data",
             print(f"    {labels[i]}: FAILED ({e})")
 
     # ── 5. GLM-HMM ─────────────────────────────────────────────────────
-    print("\n  --- GLM-HMM (2-state) ---")
-    for i, pdata in enumerate(participants_data):
-        try:
-            m = run_glmhmm_for_participant(pdata)
-            if m:
-                results.append({
-                    "Participant": labels[i], "Model": "GLM-HMM",
-                    "Accuracy": m["accuracy"], "LogLikelihood": m["log_likelihood"],
-                })
-                print(f"    {labels[i]}: {m['accuracy'] * 100:.1f}%")
-            else:
-                print(f"    {labels[i]}: SKIPPED (too few trials)")
-        except Exception as e:
-            print(f"    {labels[i]}: FAILED ({e})")
+    for n_states in (2, 3):
+        model_name = f"GLM-HMM ({n_states}-state)"
+        print(f"\n  --- {model_name} ---")
+        for i, pdata in enumerate(participants_data):
+            try:
+                m = run_glmhmm_for_participant(pdata, num_states=n_states)
+                if m:
+                    results.append({
+                        "Participant": labels[i], "Model": model_name,
+                        "Accuracy": m["accuracy"], "LogLikelihood": m["log_likelihood"],
+                    })
+                    print(f"    {labels[i]}: {m['accuracy'] * 100:.1f}%  "
+                          f"(LL {m['log_likelihood']:.3f}, switching {m['switching_rate']:.2f})")
+                    if n_states == 2:
+                        print_glmhmm_summary(m)
+                else:
+                    print(f"    {labels[i]}: SKIPPED (too few trials)")
+            except Exception as e:
+                print(f"    {labels[i]}: FAILED ({e})")
 
     # ── 6. CognitiveDeepONet ───────────────────────────────────────────
     print("\n  --- CognitiveDeepONet (all participants) ---")

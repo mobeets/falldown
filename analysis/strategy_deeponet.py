@@ -62,6 +62,34 @@ def orthogonality_penalty(bases):
     return torch.norm(correlation_matrix - identity, p='fro')
 
 
+# %%
+class SequenceDataset(Dataset):
+    """Yields one ordered participant sequence per item.
+
+    Each sequence is (features (T, M), participant_id, choices (T,),
+    rt (T,) or None, time_bin_ids (T,) or None). Because sequences have
+    variable length, use DataLoader(batch_size=None) so no collation occurs.
+    """
+    def __init__(self, sequences, with_rt=False, time_binned=False):
+        self.sequences = sequences
+        self.with_rt = with_rt
+        self.time_binned = time_binned
+
+    def __len__(self):
+        return len(self.sequences)
+
+    def __getitem__(self, idx):
+        features, p_id, choices, rt, bins = self.sequences[idx]
+        item = [torch.as_tensor(features, dtype=torch.float32),
+                torch.as_tensor(p_id, dtype=torch.long),
+                torch.as_tensor(choices, dtype=torch.float32)]
+        if self.with_rt:
+            item.append(torch.as_tensor(rt, dtype=torch.float32))
+        if self.time_binned:
+            item.append(torch.as_tensor(bins, dtype=torch.long))
+        return tuple(item)
+
+
 # %% [markdown]
 # # StrategyDeepONet: Mixture-of-Strategies Model
 #
@@ -72,10 +100,38 @@ def orthogonality_penalty(bases):
 
 # %%
 class StrategyDeepONet(nn.Module):
+    """HMM-gated strategy DeepONet.
+
+    Replaces the per-trial feature-driven softmax gate with an explicit
+    Markov chain over the K strategy states, so strategy switches are
+    persistent rather than i.i.d. per trial (GLM-HMM analogue).
+
+    Per participant p:
+      - initial state distribution   pi_p = softmax(initial_logits[p])      (K,)
+      - transition matrix            A_p  = row-softmax(transition_logits[p]) (K, K)
+
+    Emissions are unchanged from the original DeepONet: the choice
+    probability under state k is sigmoid of the basis-coefficient dot product.
+    The full sequence log-likelihood is computed with the log-space forward
+    algorithm (fully differentiable in torch).
+
+    forward() consumes one ordered participant sequence at a time:
+      trial_features: (T, M)
+      participant_ids: () scalar
+      choices: (T,) 0/1
+      coeff_ids (optional, time-binned use): (T,) embedding ids per trial
+    Returns (seq_ll, logits, bases, strategy_weights):
+      seq_ll: scalar sequence log-likelihood
+      logits: (T,) marginal logit of P(y=1) from the filtered posterior
+      bases: (T, K, D)
+      strategy_weights: (T, K) filtered posterior P(z_t | y_{1:t})
+    """
     def __init__(self, num_participants, num_features=5, num_bases=4, num_strategies=3,
                  shared_bases=False):
         super().__init__()
 
+        self.num_participants = num_participants
+        self.num_features = num_features
         self.num_strategies = num_strategies
         self.num_bases = num_bases
         self.shared_bases = shared_bases
@@ -105,36 +161,54 @@ class StrategyDeepONet(nn.Module):
         self.participant_coeffs = nn.Embedding(num_participants, coeff_dim)
         nn.init.normal_(self.participant_coeffs.weight, mean=0.0, std=0.1)
 
-        gate_input_dim = num_features + coeff_dim
-        self.gate = nn.Sequential(
-            nn.Linear(gate_input_dim, 16),
-            nn.ReLU(),
-            nn.Linear(16, num_strategies)
-        )
+        # Markov chain over strategies (static, per-participant)
+        self.transition_logits = nn.Parameter(
+            torch.zeros(num_participants, num_strategies, num_strategies))
+        self.initial_logits = nn.Parameter(
+            torch.zeros(num_participants, num_strategies))
 
-    def forward(self, trial_features, participant_ids):
-        coeffs_flat = self.participant_coeffs(participant_ids)
-        coeffs = coeffs_flat.view(-1, self.num_strategies, self.num_bases)
+    def _bases(self, trial_features):
+        """Return basis outputs as (T, K, D)."""
+        if self.shared_bases:
+            b = self.basis_net(trial_features)  # (T, D)
+            return b.unsqueeze(1).expand(-1, self.num_strategies, -1)
+        return torch.stack([net(trial_features) for net in self.basis_nets], dim=1)
 
-        gate_input = torch.cat([trial_features, coeffs_flat], dim=-1)
-        strategy_weights = F.softmax(self.gate(gate_input), dim=-1)
+    def forward(self, trial_features, participant_ids, choices, coeff_ids=None):
+        T = trial_features.shape[0]
+        pid = participant_ids
+        if coeff_ids is None:
+            coeff_ids = torch.full((T,), pid, dtype=torch.long, device=trial_features.device)
 
-        all_logits = []
-        all_bases = []
-        for k in range(self.num_strategies):
-            if self.shared_bases:
-                bases_k = self.basis_net(trial_features)
-            else:
-                bases_k = self.basis_nets[k](trial_features)
-            logit_k = (bases_k * coeffs[:, k, :]).sum(dim=-1)
-            all_logits.append(logit_k)
-            all_bases.append(bases_k)
+        coeffs = self.participant_coeffs(coeff_ids)                      # (T, K*D)
+        coeffs = coeffs.view(T, self.num_strategies, self.num_bases)
 
-        stacked_logits = torch.stack(all_logits, dim=-1)
-        final_logit = (stacked_logits * strategy_weights).sum(dim=-1)
-        stacked_bases = torch.stack(all_bases, dim=1)
+        bases = self._bases(trial_features)                              # (T, K, D)
+        state_logits = (bases * coeffs).sum(dim=-1)                      # (T, K)
 
-        return final_logit, stacked_bases, strategy_weights
+        eps = 1e-8
+        probs = torch.clamp(torch.sigmoid(state_logits), eps, 1 - eps)   # (T, K)
+
+        y = choices.float().view(T, 1)
+        emission_ll = (y * torch.log(probs)
+                       + (1 - y) * torch.log(1 - probs))                 # (T, K)
+
+        log_A = F.log_softmax(self.transition_logits[pid], dim=-1)       # (K, K)
+        log_pi = F.log_softmax(self.initial_logits[pid], dim=-1)         # (K,)
+
+        # Log-space forward algorithm (differentiable)
+        alphas = torch.empty(T, self.num_strategies, device=trial_features.device)
+        alphas[0] = log_pi + emission_ll[0]
+        for t in range(1, T):
+            alphas[t] = (torch.logsumexp(alphas[t - 1].unsqueeze(-1) + log_A, dim=0)
+                         + emission_ll[t])
+        seq_ll = torch.logsumexp(alphas[T - 1], dim=0)
+
+        strategy_weights = F.softmax(alphas, dim=-1)                     # filtered posterior (T, K)
+        marginal_p = torch.clamp((strategy_weights * probs).sum(dim=-1), eps, 1 - eps)
+        logits = torch.log(marginal_p / (1 - marginal_p))                # (T,)
+
+        return seq_ll, logits, bases, strategy_weights
 
 
 # %% [markdown]
@@ -156,22 +230,16 @@ class StrategyDeepONetMultiTask(StrategyDeepONet):
         self.rt_coeffs = nn.Embedding(num_participants, coeff_dim)
         nn.init.normal_(self.rt_coeffs.weight, mean=0.0, std=0.1)
 
-    def forward(self, trial_features, participant_ids):
-        logit, bases, strategy_weights = super().forward(trial_features, participant_ids)
+    def forward(self, trial_features, participant_ids, choices, coeff_ids=None):
+        seq_ll, logits, bases, strategy_weights = super().forward(
+            trial_features, participant_ids, choices, coeff_ids=coeff_ids)
 
-        rt_coeffs_flat = self.rt_coeffs(participant_ids)
-        rt_coeffs = rt_coeffs_flat.view(-1, self.num_strategies, self.num_bases)
+        rt_coeffs = self.rt_coeffs(participant_ids)                  # (K*D,)
+        rt_coeffs = rt_coeffs.view(self.num_strategies, self.num_bases)
+        rt_state = (bases * rt_coeffs).sum(dim=-1)                   # (T, K)
+        rt_pred = (strategy_weights * rt_state).sum(dim=-1)          # (T,)
 
-        # Weighted by the same strategy gate
-        all_rt_preds = []
-        for k in range(self.num_strategies):
-            bases_k = bases[:, k, :]
-            rt_pred_k = (bases_k * rt_coeffs[:, k, :]).sum(dim=-1)
-            all_rt_preds.append(rt_pred_k)
-        stacked_rt = torch.stack(all_rt_preds, dim=-1)
-        rt_pred = (stacked_rt * strategy_weights).sum(dim=-1)
-
-        return logit, bases, strategy_weights, rt_pred
+        return seq_ll, logits, bases, strategy_weights, rt_pred
 
 
 # %% [markdown]
@@ -190,20 +258,15 @@ class TimeBinnedStrategyDeepONet(StrategyDeepONet):
                          shared_bases=shared_bases)
         self.num_time_bins = num_time_bins
 
+        # Per (participant, time-bin) coefficient sets; transitions/initial
+        # distribution remain per-participant (from the base class).
         coeff_dim = self.num_strategies * self.num_bases
         self.participant_coeffs = nn.Embedding(num_participants * num_time_bins, coeff_dim)
         nn.init.normal_(self.participant_coeffs.weight, mean=0.0, std=0.1)
 
-        gate_input_dim = num_features + coeff_dim
-        self.gate = nn.Sequential(
-            nn.Linear(gate_input_dim, 16),
-            nn.ReLU(),
-            nn.Linear(16, num_strategies)
-        )
-
-    def forward(self, trial_features, participant_ids, time_bin_ids):
-        flat_ids = participant_ids * self.num_time_bins + time_bin_ids
-        return super().forward(trial_features, flat_ids)
+    def forward(self, trial_features, participant_ids, time_bin_ids, choices):
+        coeff_ids = participant_ids * self.num_time_bins + time_bin_ids
+        return super().forward(trial_features, participant_ids, choices, coeff_ids=coeff_ids)
 
 
 # %% [markdown]
@@ -212,29 +275,36 @@ class TimeBinnedStrategyDeepONet(StrategyDeepONet):
 # %%
 def train_strategy_deeponet(model, dataloader, num_epochs=200, lr=0.001,
                             penalty_weight=0.5, entropy_weight=0.05):
-    criterion = nn.BCEWithLogitsLoss()
+    """Train an HMM-gated StrategyDeepONet by sequence negative log-likelihood.
+
+    Loss = seq-NLL (per-trial normalized) + orthogonality penalty
+           - entropy bonus on mean state occupancy (prevents single-state collapse).
+    """
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     model.train()
     is_time_binned = isinstance(model, TimeBinnedStrategyDeepONet)
 
     for epoch in range(num_epochs):
         total_loss = 0.0
-        total_bce = 0.0
+        total_nll = 0.0
         total_orth = 0.0
         total_entropy = 0.0
+        n = 0
 
         for batch in dataloader:
-            if is_time_binned:
-                features, p_ids, bin_ids, true_choices = batch
-            else:
-                features, p_ids, true_choices = batch
             optimizer.zero_grad()
 
             if is_time_binned:
-                logits, bases, strategy_weights = model(features, p_ids, bin_ids)
+                features, p_ids, true_choices, bin_ids = batch
+                seq_ll, logits, bases, strategy_weights = model(
+                    features, p_ids, bin_ids, true_choices)
             else:
-                logits, bases, strategy_weights = model(features, p_ids)
-            bce_loss = criterion(logits, true_choices)
+                features, p_ids, true_choices = batch
+                seq_ll, logits, bases, strategy_weights = model(
+                    features, p_ids, true_choices)
+
+            T = features.shape[0]
+            nll = -seq_ll / T
 
             # Orthogonality penalty: with shared bases, penalize once
             orth_loss = 0.0
@@ -245,23 +315,23 @@ def train_strategy_deeponet(model, dataloader, num_epochs=200, lr=0.001,
                     orth_loss += orthogonality_penalty(bases[:, k, :])
                 orth_loss /= model.num_strategies
 
-            # Entropy bonus: prevent the gate from collapsing to one strategy
-            probs = torch.clamp(strategy_weights, min=1e-8)
-            entropy = -(probs * torch.log(probs)).sum(dim=-1).mean()
+            # Entropy bonus: keep mean state occupancy spread out (no collapse)
+            occ = strategy_weights.mean(dim=0)
+            entropy = -(occ * torch.log(occ.clamp(min=1e-8))).sum()
 
-            loss = bce_loss + penalty_weight * orth_loss - entropy_weight * entropy
+            loss = nll + penalty_weight * orth_loss - entropy_weight * entropy
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item()
-            total_bce += bce_loss.item()
+            total_nll += nll.item()
             total_orth += orth_loss.item()
             total_entropy += entropy.item()
+            n += 1
 
         if (epoch + 1) % 20 == 0 or epoch == 0:
-            n = len(dataloader)
             print(f"Epoch {epoch+1:03d}/{num_epochs} | "
-                  f"Loss: {total_loss/n:.4f} | BCE: {total_bce/n:.4f} | "
+                  f"Loss: {total_loss/n:.4f} | NLL: {total_nll/n:.4f} | "
                   f"Orth: {total_orth/n:.4f} | Ent: {total_entropy/n:.4f}")
 
     return model
@@ -271,25 +341,28 @@ def train_strategy_deeponet(model, dataloader, num_epochs=200, lr=0.001,
 def train_strategy_deeponet_multitask(model, dataloader, num_epochs=200, lr=0.001,
                                       penalty_weight=0.5, entropy_weight=0.05,
                                       rt_weight=0.3):
-    choice_criterion = nn.BCEWithLogitsLoss()
-    rt_criterion = nn.MSELoss()
+    """Train the HMM-gated multi-task model (choice + RT) by seq-NLL + RT MSE."""
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     model.train()
 
     for epoch in range(num_epochs):
         total_loss = 0.0
-        total_bce = 0.0
+        total_nll = 0.0
         total_mse = 0.0
         total_orth = 0.0
         total_entropy = 0.0
+        n = 0
 
         for batch in dataloader:
             features, p_ids, true_choices, true_rt = batch
             optimizer.zero_grad()
 
-            logits, bases, strategy_weights, rt_pred = model(features, p_ids)
-            bce_loss = choice_criterion(logits, true_choices)
-            mse_loss = rt_criterion(rt_pred, true_rt)
+            seq_ll, logits, bases, strategy_weights, rt_pred = model(
+                features, p_ids, true_choices)
+
+            T = features.shape[0]
+            nll = -seq_ll / T
+            mse_loss = F.mse_loss(rt_pred, true_rt)
 
             orth_loss = 0.0
             if model.shared_bases:
@@ -299,24 +372,24 @@ def train_strategy_deeponet_multitask(model, dataloader, num_epochs=200, lr=0.00
                     orth_loss += orthogonality_penalty(bases[:, k, :])
                 orth_loss /= model.num_strategies
 
-            probs = torch.clamp(strategy_weights, min=1e-8)
-            entropy = -(probs * torch.log(probs)).sum(dim=-1).mean()
+            occ = strategy_weights.mean(dim=0)
+            entropy = -(occ * torch.log(occ.clamp(min=1e-8))).sum()
 
-            loss = (bce_loss + rt_weight * mse_loss
+            loss = (nll + rt_weight * mse_loss
                     + penalty_weight * orth_loss - entropy_weight * entropy)
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item()
-            total_bce += bce_loss.item()
+            total_nll += nll.item()
             total_mse += mse_loss.item()
             total_orth += orth_loss.item()
             total_entropy += entropy.item()
+            n += 1
 
         if (epoch + 1) % 20 == 0 or epoch == 0:
-            n = len(dataloader)
             print(f"Epoch {epoch+1:03d}/{num_epochs} | "
-                  f"Loss: {total_loss/n:.4f} | BCE: {total_bce/n:.4f} | "
+                  f"Loss: {total_loss/n:.4f} | NLL: {total_nll/n:.4f} | "
                   f"MSE: {total_mse/n:.4f} | Orth: {total_orth/n:.4f} | "
                   f"Ent: {total_entropy/n:.4f}")
 
@@ -326,50 +399,9 @@ def train_strategy_deeponet_multitask(model, dataloader, num_epochs=200, lr=0.00
 # %%
 def train_time_binned(model, dataloader, num_epochs=200, lr=0.001,
                       penalty_weight=0.5, entropy_weight=0.05):
-    criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    model.train()
-
-    for epoch in range(num_epochs):
-        total_loss = 0.0
-        total_bce = 0.0
-        total_orth = 0.0
-        total_entropy = 0.0
-
-        for batch in dataloader:
-            features, p_ids, bin_ids, true_choices = batch
-            optimizer.zero_grad()
-
-            logits, bases, strategy_weights = model(features, p_ids, bin_ids)
-            bce_loss = criterion(logits, true_choices)
-
-            orth_loss = 0.0
-            if model.shared_bases:
-                orth_loss = orthogonality_penalty(bases[:, 0, :])
-            else:
-                for k in range(model.num_strategies):
-                    orth_loss += orthogonality_penalty(bases[:, k, :])
-                orth_loss /= model.num_strategies
-
-            probs = torch.clamp(strategy_weights, min=1e-8)
-            entropy = -(probs * torch.log(probs)).sum(dim=-1).mean()
-
-            loss = bce_loss + penalty_weight * orth_loss - entropy_weight * entropy
-            loss.backward()
-            optimizer.step()
-
-            total_loss += loss.item()
-            total_bce += bce_loss.item()
-            total_orth += orth_loss.item()
-            total_entropy += entropy.item()
-
-        if (epoch + 1) % 20 == 0 or epoch == 0:
-            n = len(dataloader)
-            print(f"Epoch {epoch+1:03d}/{num_epochs} | "
-                  f"Loss: {total_loss/n:.4f} | BCE: {total_bce/n:.4f} | "
-                  f"Orth: {total_orth/n:.4f} | Ent: {total_entropy/n:.4f}")
-
-    return model
+    return train_strategy_deeponet(model, dataloader, num_epochs=num_epochs, lr=lr,
+                                   penalty_weight=penalty_weight,
+                                   entropy_weight=entropy_weight)
 
 
 # %% [markdown]
@@ -378,12 +410,12 @@ def train_time_binned(model, dataloader, num_epochs=200, lr=0.001,
 # %%
 def evaluate_strategy_model(model, dataloader, with_rt=False):
     model.eval()
+    is_time_binned = isinstance(model, TimeBinnedStrategyDeepONet)
+
     total_ll = 0.0
     correct = 0
     total = 0
     all_strategy_weights = []
-    is_time_binned = isinstance(model, TimeBinnedStrategyDeepONet)
-
     p_ll = {}
     p_correct = {}
     p_total = {}
@@ -391,18 +423,17 @@ def evaluate_strategy_model(model, dataloader, with_rt=False):
     with torch.no_grad():
         for batch in dataloader:
             if is_time_binned:
-                features, p_ids, bin_ids, true_choices = batch
-                logits, bases, strategy_weights = model(features, p_ids, bin_ids)
+                features, p_ids, true_choices, bin_ids = batch
+                seq_ll, logits, bases, strategy_weights = model(
+                    features, p_ids, bin_ids, true_choices)
             elif with_rt:
                 features, p_ids, true_choices, _ = batch
-                logits, bases, strategy_weights, _ = model(features, p_ids)
+                seq_ll, logits, bases, strategy_weights, _ = model(
+                    features, p_ids, true_choices)
             else:
                 features, p_ids, true_choices = batch
-                logits, bases, strategy_weights = model(features, p_ids)
-
-            bce_sum = F.binary_cross_entropy_with_logits(
-                logits, true_choices, reduction='sum')
-            total_ll += -bce_sum.item()
+                seq_ll, logits, bases, strategy_weights = model(
+                    features, p_ids, true_choices)
 
             trial_bce = F.binary_cross_entropy_with_logits(
                 logits, true_choices, reduction='none')
@@ -411,19 +442,21 @@ def evaluate_strategy_model(model, dataloader, with_rt=False):
             probs = torch.sigmoid(logits)
             preds = (probs >= 0.5).float()
             is_correct = (preds == true_choices)
+            T = features.shape[0]
             correct += is_correct.sum().item()
-            total += true_choices.size(0)
+            total += T
+            total_ll += trial_ll.sum().item()
             all_strategy_weights.append(strategy_weights.cpu())
 
-            for j in range(true_choices.size(0)):
-                pid = p_ids[j].item()
-                p_ll[pid] = p_ll.get(pid, 0.0) + trial_ll[j].item()
-                p_correct[pid] = p_correct.get(pid, 0) + is_correct[j].item()
-                p_total[pid] = p_total.get(pid, 0) + 1
+            pid = int(p_ids)
+            p_ll[pid] = p_ll.get(pid, 0.0) + trial_ll.sum().item()
+            p_correct[pid] = p_correct.get(pid, 0) + is_correct.sum().item()
+            p_total[pid] = p_total.get(pid, 0) + T
 
-    avg_ll = total_ll / total
-    acc = correct / total
-    all_weights = torch.cat(all_strategy_weights, dim=0)
+    avg_ll = total_ll / total if total else 0.0
+    acc = correct / total if total else 0.0
+    all_weights = (torch.cat(all_strategy_weights, dim=0)
+                   if all_strategy_weights else torch.empty(0))
 
     per_participant = {}
     for pid in sorted(p_ll.keys()):
@@ -435,7 +468,8 @@ def evaluate_strategy_model(model, dataloader, with_rt=False):
     print(f"--- Evaluation ---")
     print(f"Avg Log-Likelihood: {avg_ll:.4f}")
     print(f"Accuracy: {acc*100:.2f}% ({correct}/{total})")
-    print(f"Strategy usage: {all_weights.mean(dim=0).tolist()}")
+    if all_weights.numel() > 0:
+        print(f"Strategy usage (mean posterior): {all_weights.mean(dim=0).tolist()}")
 
     return avg_ll, acc, all_weights, per_participant
 
@@ -588,6 +622,103 @@ def build_deeponet_dataset(participant_data_dict):
             len(participant_data_dict))
 
 
+# %%
+def _build_participant_trials(processed):
+    """Extract the standard feature set + choices + RT from preprocessed rows,
+    preserving trial order. Returns (features, choices, rt) or None if too few."""
+    processed = processed[processed['choice_trial'] == True]
+    processed = processed.dropna(subset=['chosen_1step_dist', 'ball_y_at_top'])
+    processed = processed.reset_index(drop=True)
+    if len(processed) < 4:
+        return None
+
+    is_left = processed['chosen_left']
+    L1 = np.where(is_left, processed['chosen_1step_dist'],
+                  processed['unchosen_1step_dist'])
+    R1 = np.where(~is_left, processed['chosen_1step_dist'],
+                  processed['unchosen_1step_dist'])
+    Total_L = np.where(is_left, processed['chosen_2step_dist'],
+                       processed['unchosen_2step_dist'])
+    Total_R = np.where(~is_left, processed['chosen_2step_dist'],
+                       processed['unchosen_2step_dist'])
+    incoming = processed['incoming_direction']
+
+    X = pd.DataFrame({
+        'L1_minus_R1': L1 - R1,
+        'Total_L_minus_Total_R': Total_L - Total_R,
+        'ball_y_at_top': processed['ball_y_at_top'],
+        'incoming_pos': (incoming == 1).astype(float),
+        'incoming_neg': (incoming == -1).astype(float),
+    })
+    features = X.values.astype(np.float32)
+    choices = (~processed['chosen_left']).astype(np.float32).values
+    rt = processed['observed_rt'].values.astype(np.float32)
+    return features, choices, rt
+
+
+def build_sequence_dataset(participant_data_dict, test_frac=0.2, num_time_bins=None):
+    """Build ordered per-participant train/test sequences for the HMM-gated models.
+
+    Each participant's choice trials are split temporally (first (1-test_frac)
+    trials for train, the rest for test). Continuous features and RT are z-scored
+    using statistics from the pooled training sequences only. Participants with
+    too few trials are dropped and re-indexed 0..N-1.
+
+    Returns (train_seqs, test_seqs, num_participants), where each sequence is
+    (features (T, M), participant_id, choices (T,), rt (T,), time_bin_ids (T,) or None).
+    """
+    kept = []
+    for _, raw_data in participant_data_dict.items():
+        processed = pre_proccess_data_from_choice_vs_no_choice(raw_data)
+        trials = _build_participant_trials(processed)
+        if trials is not None:
+            kept.append(trials)
+
+    if not kept:
+        return [], [], 0
+
+    train_raw, test_raw = [], []
+    for new_p, (features, choices, rt) in enumerate(kept):
+        n = len(features)
+        split = int(n * (1 - test_frac))
+        split = max(min(split, n - 2), 2)
+
+        tr_f, te_f = features[:split], features[split:]
+        tr_c, te_c = choices[:split], choices[split:]
+        tr_r, te_r = rt[:split], rt[split:]
+
+        if num_time_bins:
+            tr_b = np.minimum((np.arange(split) * num_time_bins) // split,
+                              num_time_bins - 1)
+            te_b = np.minimum((np.arange(n - split) * num_time_bins) // (n - split),
+                              num_time_bins - 1)
+        else:
+            tr_b = te_b = None
+
+        train_raw.append([tr_f, new_p, tr_c, tr_r, tr_b])
+        test_raw.append([te_f, new_p, te_c, te_r, te_b])
+
+    # z-score continuous features and RT on the pooled train part
+    all_tr = np.vstack([s[0] for s in train_raw])
+    mu = all_tr[:, :3].mean(axis=0)
+    std = all_tr[:, :3].std(axis=0) + 1e-8
+    all_rt = np.concatenate([s[3] for s in train_raw])
+    rt_mu, rt_std = all_rt.mean(), all_rt.std() + 1e-8
+
+    for s in train_raw:
+        s[0] = s[0].copy()
+        s[0][:, :3] = (s[0][:, :3] - mu) / std
+        s[3] = (s[3] - rt_mu) / rt_std
+    for s in test_raw:
+        s[0] = s[0].copy()
+        s[0][:, :3] = (s[0][:, :3] - mu) / std
+        s[3] = (s[3] - rt_mu) / rt_std
+
+    train_seqs = [tuple(s) for s in train_raw]
+    test_seqs = [tuple(s) for s in test_raw]
+    return train_seqs, test_seqs, len(kept)
+
+
 # %% [markdown]
 # # Visualization Functions
 
@@ -675,12 +806,12 @@ def plot_coefficients_heatmap(model, participant_ids=None):
 def run_model(model_type='gated', participant_data_paths=None, num_strategies=3,
               num_bases=4, num_epochs=200, num_time_bins=5):
     """
-    Full training pipeline for StrategyDeepONet variants.
+    Full training pipeline for the HMM-gated StrategyDeepONet variants.
 
     Args:
         model_type: 'gated' | 'multitask' | 'timebinned'
         participant_data_paths: list of file paths to participant JSON files
-        num_strategies: K strategies for the mixture model
+        num_strategies: K strategies (latent HMM states)
         num_bases: D basis functions per strategy
         num_epochs: training epochs
         num_time_bins: T temporal bins (timebinned mode only)
@@ -695,43 +826,33 @@ def run_model(model_type='gated', participant_data_paths=None, num_strategies=3,
     for i, path in enumerate(participant_data_paths):
         participants[f"P{i}"] = json.load(open(path))
 
-    features, p_ids, choices, rt_values, num_participants = build_deeponet_dataset(participants)
+    is_time_binned = (model_type == 'timebinned')
+    train_seqs, test_seqs, num_participants = build_sequence_dataset(
+        participants, test_frac=0.2,
+        num_time_bins=(num_time_bins if is_time_binned else None))
 
-    X_train, X_test, id_train, id_test, y_train, y_test = train_test_split(
-        features, p_ids, choices, test_size=0.2, random_state=42)
-
-    X_cont = X_train[:, :3]
-    X_disc = X_train[:, 3:]
-    Xt_cont = X_test[:, :3]
-    Xt_disc = X_test[:, 3:]
-
-    scaler = StandardScaler()
-    X_train_final = np.hstack((scaler.fit_transform(X_cont), X_disc))
-    X_test_final = np.hstack((scaler.transform(Xt_cont), Xt_disc))
+    if num_participants == 0:
+        raise ValueError("No participants with enough trials to build sequences.")
 
     if model_type == 'gated':
         model = StrategyDeepONet(num_participants, num_features=5,
                                  num_bases=num_bases, num_strategies=num_strategies,
-                                 shared_bases= True)
-        train_set = MazeDataset(X_train_final, id_train, y_train)
-        test_set = MazeDataset(X_test_final, id_test, y_test)
-        train_loader = DataLoader(train_set, batch_size=64, shuffle=True)
-        test_loader = DataLoader(test_set, batch_size=64, shuffle=False)
+                                 shared_bases=True)
+        train_set = SequenceDataset(train_seqs, with_rt=False, time_binned=False)
+        test_set = SequenceDataset(test_seqs, with_rt=False, time_binned=False)
+        train_loader = DataLoader(train_set, batch_size=None, shuffle=True)
+        test_loader = DataLoader(test_set, batch_size=None, shuffle=False)
         trained = train_strategy_deeponet(model, train_loader, num_epochs=num_epochs)
         _, acc, weights, per_participant = evaluate_strategy_model(trained, test_loader)
 
     elif model_type == 'multitask':
         model = StrategyDeepONetMultiTask(num_participants, num_features=5,
                                           num_bases=num_bases, num_strategies=num_strategies,
-                                          shared_bases= True)
-        rt_mean = rt_values.mean()
-        rt_std = rt_values.std() + 1e-8
-        rt_values_norm = (rt_values - rt_mean) / rt_std
-        rt_train, rt_test = train_test_split(rt_values_norm, test_size=0.2, random_state=42)
-        train_set = MazeDataset(X_train_final, id_train, y_train, rt_train)
-        test_set = MazeDataset(X_test_final, id_test, y_test, rt_test)
-        train_loader = DataLoader(train_set, batch_size=64, shuffle=True)
-        test_loader = DataLoader(test_set, batch_size=64, shuffle=False)
+                                          shared_bases=True)
+        train_set = SequenceDataset(train_seqs, with_rt=True, time_binned=False)
+        test_set = SequenceDataset(test_seqs, with_rt=True, time_binned=False)
+        train_loader = DataLoader(train_set, batch_size=None, shuffle=True)
+        test_loader = DataLoader(test_set, batch_size=None, shuffle=False)
         trained = train_strategy_deeponet_multitask(model, train_loader, num_epochs=num_epochs)
         _, acc, weights, per_participant = evaluate_strategy_model(trained, test_loader, with_rt=True)
 
@@ -739,13 +860,11 @@ def run_model(model_type='gated', participant_data_paths=None, num_strategies=3,
         model = TimeBinnedStrategyDeepONet(num_participants, num_time_bins,
                                            num_features=5, num_bases=num_bases,
                                            num_strategies=num_strategies,
-                                           shared_bases= True)
-        bin_ids_train = np.floor(np.linspace(0, num_time_bins - 0.001, len(id_train))).astype(int)
-        bin_ids_test = np.floor(np.linspace(0, num_time_bins - 0.001, len(id_test))).astype(int)
-        train_set = MazeDataset(X_train_final, id_train, y_train, time_bin_ids=bin_ids_train)
-        test_set = MazeDataset(X_test_final, id_test, y_test, time_bin_ids=bin_ids_test)
-        train_loader = DataLoader(train_set, batch_size=64, shuffle=True)
-        test_loader = DataLoader(test_set, batch_size=64, shuffle=False)
+                                           shared_bases=True)
+        train_set = SequenceDataset(train_seqs, with_rt=False, time_binned=True)
+        test_set = SequenceDataset(test_seqs, with_rt=False, time_binned=True)
+        train_loader = DataLoader(train_set, batch_size=None, shuffle=True)
+        test_loader = DataLoader(test_set, batch_size=None, shuffle=False)
         trained = train_strategy_deeponet(model, train_loader, num_epochs=num_epochs)
         _, acc, weights, per_participant = evaluate_strategy_model(trained, test_loader)
 
@@ -764,7 +883,6 @@ def run_model(model_type='gated', participant_data_paths=None, num_strategies=3,
 # Run individual cells or the whole block — each variant is independent.
 
 if __name__ == '__main__':
-    # %%
     import glob
     import os
 
@@ -787,13 +905,6 @@ if __name__ == '__main__':
         participant_paths = available_files
 
 
-    # %% [markdown]
-    # ## Variant 1: Gated Strategy Model
-    #
-    # Trains `StrategyDeepONet` with K=3 strategies. Outputs trial-level
-    # `strategy_weights` for every participant — the primary diagnostic.
-
-    # %%
     if len(available_files) >= 3:
         print("Training gated StrategyDeepONet (K=3 strategies)...")
         gated_model, gated_weights, gated_metrics = run_model(
@@ -801,7 +912,7 @@ if __name__ == '__main__':
             participant_data_paths=participant_paths,
             num_strategies=3,
             num_bases=4,
-            num_epochs=200
+            num_epochs=400
         )
 
         # --- Visualizations ---
@@ -826,13 +937,6 @@ if __name__ == '__main__':
         print("Need at least 3 participants for gated model. Skipping.")
 
 
-    # %% [markdown]
-    # ## Variant 2: Multi-Task Model (Choice + RT)
-    #
-    # Adds RT prediction head to decompose strategies into deliberative
-    # (choice-predictive only) vs. heuristic (predicts both choice and RT).
-
-    # %%
     if len(available_files) >= 3:
         print("Training multi-task StrategyDeepONet (K=3, RT head)...")
         mt_model, mt_weights, mt_metrics = run_model(
@@ -840,7 +944,7 @@ if __name__ == '__main__':
             participant_data_paths=participant_paths,
             num_strategies=3,
             num_bases=4,
-            num_epochs=200
+            num_epochs=400
         )
         print(f"\nMulti-task model complete. Accuracy: {mt_metrics['accuracy']*100:.1f}%")
 
@@ -855,13 +959,6 @@ if __name__ == '__main__':
         print("Need at least 3 participants. Skipping.")
 
 
-    # %% [markdown]
-    # ## Variant 3: Time-Binned Model
-    #
-    # Learns separate strategy embeddings per temporal bin to track
-    # how strategies evolve over the course of the experiment.
-
-    # %%
     if len(available_files) >= 4:
         print("Training time-binned StrategyDeepONet (T=5 bins, K=3 strategies)...")
         tb_model, tb_weights, tb_metrics = run_model(
@@ -870,7 +967,7 @@ if __name__ == '__main__':
             num_strategies=3,
             num_bases=4,
             num_time_bins=5,
-            num_epochs=200
+            num_epochs=400
         )
         print(f"\nTime-binned model complete. Accuracy: {tb_metrics['accuracy']*100:.1f}%")
 
@@ -902,12 +999,7 @@ if __name__ == '__main__':
         print("Need at least 4 participants for time-binned model. Skipping.")
 
 
-    # %% [markdown]
-    # ## Compare Variants
-    #
-    # Summary table of accuracy across all trained variants.
 
-    # %%
     print("\n" + "=" * 50)
     print("MODEL COMPARISON")
     print("=" * 50)
@@ -930,4 +1022,4 @@ if __name__ == '__main__':
     print("\nAll models saved. Run analysis/strategy_clustering.py next to cluster "
           "participants by strategy type.")
 
-    # %%
+# %%

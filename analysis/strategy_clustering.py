@@ -506,12 +506,7 @@ else:
 
 
 if __name__ == '__main__':
-    # %% [markdown]
-    # ## Load Participant Data
-    #
-    # Build the participant_data_dict expected by the clustering pipeline.
 
-    # %%
     participant_data_dict = {}
 
     if not available_files:
@@ -523,14 +518,6 @@ if __name__ == '__main__':
             participant_data_dict[f"Participant_{i+1}"] = json.load(open(path, encoding='utf-8'))
         print(f"  ✓ Loaded {len(participant_data_dict)} participants for clustering.\n")
 
-
-    # %% [markdown]
-    # ## Run Clustering Pipeline
-    #
-    # This runs the full 6-step pipeline: extract → PCA → k-means →
-    # characterize → heatmap → behavioral comparison.
-
-    # %%
     results = None
 
     if not participant_data_dict:
@@ -560,14 +547,6 @@ if __name__ == '__main__':
             feature_names=FEATURE_NAMES
         )
 
-
-    # %% [markdown]
-    # ## Results Summary
-    #
-    # Print cluster assignments, per-cluster statistics, and PCA variance
-    # explained, plus cluster × RT comparison.
-
-    # %%
     if results is None:
         print("\n" + "=" * 60)
         print("DIAGNOSTIC: Why didn't clustering run?")
@@ -641,4 +620,5 @@ if __name__ == '__main__':
               "Need >= 4 participants for k-means clustering.")
         print("  PCA components available in results['pca'] and results['X_pca'].")
 
-    # %%
+
+# %%
