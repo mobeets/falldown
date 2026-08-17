@@ -4,6 +4,83 @@ A roadmap of analysis expansions discussed but not yet implemented.
 Each entry links to the motivating paper, sketches the approach, and
 estimates effort. Priorities are ranked by insight-to-effort ratio.
 
+Items that have been implemented are moved to the **Completed** section at
+the bottom. The newest direction is **Neural Data Analysis** — the EMU patient
+has intracranial single-unit recordings synchronized to the task, so the
+roadmap now spans behavior → model → neural.
+
+---
+
+## Neural Data Analysis (current focus)
+
+The spike–behavior pipeline is done: `spike_data_alignment.py` (photodiode DTW
+offset), `spike_unit_conversion.py` (unit-level spike times), and
+`segment_trials.py` (per-trial windows aligned to choice time, ±2 s, 137 units
+after QC, 910 trials). See `analysis/spike_data_alignment_output/DATA_STRUCTURE.md`.
+These are concrete analyses to run on that segmented data; several map onto the
+[`consensus-ai-prompts.md`](consensus-ai-prompts.md) literature questions.
+
+### Choice-Selectivity PSTHs
+
+**What:** For each unit, compare firing around the choice moment (t=0) across
+trials split by which hole was chosen (left vs right, or greedy-preferred vs
+planning-preferred hole). Compute a selectivity index per unit and a
+population histogram of significant units.
+
+**Approach:** Reuse `segment_trials.py` output; bin/smooth (σ ≈ 25 ms),
+z-score against a pre-choice baseline, then per-unit signed difference between
+conditions. Permutation test across trials for significance.
+
+**Impact:** Establishes whether any units encode the choice itself (first
+question for a new dataset).
+
+**Effort:** ~150 lines in `analysis/neural_choice_selectivity.py`.
+
+### Conflict vs Agreement Neural Correlates
+
+**Paper:** the task's `greedy_planning_agreement` per-trial label (see
+`level_generation`); Ashwood et al 2022.
+
+**What:** Split trials by whether greedy and planning strategies point to the
+same hole (agree) or different holes (conflict). Compare choice-locked PSTHs
+and RT-locked activity. Tests whether conflict (anterior-cingulate-style
+signature) is visible in this task.
+
+**Impact:** Directly tests the cognitive-map/planning hypotheses against the
+only neural data we have.
+
+**Effort:** ~100 lines (extends the selectivity script).
+
+### Strategy-State Decoding from Population
+
+**Paper:** Ji-An et al 2025; Ashwood et al 2022.
+
+**What:** Fit the GLM-HMM to behavior (already done), get per-trial state
+posteriors, then ask whether a linear decoder trained on the 137-unit
+population (trial-mean firing, choice window) can recover the strategy state
+on held-out trials, and whether it precedes the behavioral switch.
+
+**Effort:** ~150 lines in `analysis/neural_strategy_decode.py`.
+
+### Single-Trial Choice Decoding
+
+**What:** Decode left/right choice from population spike counts (binned 25 ms)
+using logistic regression / LDA with proper temporal cross-validation; report
+accuracy vs chance per time bin around choice to show when choice information
+appears.
+
+**Effort:** ~120 lines in `analysis/neural_choice_decode.py`.
+
+### Reaction-Time Modulation
+
+**What:** Regress trial RT on per-trial mean firing (or time-to-peak PSTH)
+across units; identify units whose activity tracks decision speed, and whether
+any correlate with the planning-depth signature.
+
+**Effort:** ~80 lines.
+
+---
+
 ---
 
 ## Instrumentation (participant-facing changes)
@@ -94,64 +171,6 @@ visualization in `analysis/gaze_proxy.py`.
 
 ## Analysis & Modeling (code-only changes)
 
-### GLM-HMM Strategy Switching Model
-
-**Paper:** Ashwood et al 2022 (GLM-HMM for discrete strategy detection).
-
-**What:** Fit a Generalized Linear Model — Hidden Markov Model to participant
-choice data. Each HMM state is a logistic regression on trial features; the
-HMM transition matrix captures strategy switching rates. Use Expectation
-Maximization (as Ashwood does) or stochastic variational inference.
-
-**Approach:**
-```python
-# State k: logit = β_k0 + β_k1 × (L1−R1) + β_k2 × (Total_L−Total_R) + ...
-# Transition matrix: T[i,j] = P(state j at t+1 | state i at t)
-# EM: estimate β_k and T from choices
-```
-
-**Impact:** Validates and provides a frequentist counterpart to the DeepONet's
-learned gate weights. If the HMM finds 3 states and the DeepONet finds the same
-3 strategies, confidence in the result is high. If they disagree, the DeepONet
-is capturing something the GLM-HMM misses (or vice versa).
-
-**Effort:** ~300 lines in `analysis/glm_hmm.py`. Depends on `ssm` or `hmmlearn`
-package.
-
-**Priority:** High. This is the canonical approach in the paper corpus for
-strategy detection and would provide convergent validation.
-
----
-
-### Tiny RNN Strategy Discovery (Ji-An-style)
-
-**Paper:** Ji-An et al 2025 (discovering cognitive strategies with tiny RNNs).
-
-**What:** Train a small RNN (input: trial features + previous choice; output:
-next choice) per participant. Extract the RNN's hidden state dynamics via PCA;
-cluster participants by RNN latent trajectories. This discovers strategies
-from raw behavior without imposing a parametric form.
-
-**Approach:**
-```python
-class StrategyRNN(nn.Module):
-    def __init__(self, input_dim=6, hidden_dim=8):
-        self.rnn = nn.GRUCell(input_dim, hidden_dim)
-        self.classifier = nn.Linear(hidden_dim, 1)
-    def forward(self, x_seq, h0):
-        # Process trial sequence; return choices and hidden states
-```
-
-**Impact:** The Ji-An approach is complementary to the DeepONet: the DeepONet
-uses pre-engineered features to parameterize strategies; the RNN discovers
-strategies from raw sequences. Comparing their outputs tests whether the
-engineered features capture everything relevant.
-
-**Effort:** ~200 lines in `analysis/strategy_rnn.py`. Uses existing PyTorch
-stack.
-
----
-
 ### Bounded Diffusion / Drift-Diffusion Model Fitting
 
 **Paper:** Resulaj et al 2009; Keung et al 2020.
@@ -177,26 +196,22 @@ difficulty (Resulaj), and whether evidence is weighted unevenly (Keung).
 
 ---
 
-### Planning Depth Estimation
+### Planning Depth Estimation (partial — see Completed)
 
 **Paper:** Mattar et al 2025 (few rollouts); Keramati et al 2016 (depth-limited
 planning along habit–goal spectrum).
 
-**What:** Compare participant choices against optimal play computed by tree
-search at different depths (1-step greedy, 2-step, 3-step). For each trial,
-find the minimum planning depth needed to produce the observed choice. A
-participant who consistently matches depth-1 optimal is a heuristic planner;
-one who matches depth-3 is a deliberative planner.
+**Status:** Core cost functions live in `level_generation/agentic_decision_making.py`
+(`calculate_greedy_cost`, `calculate_planning_cost`, `calculate_agreement`).
+Not yet wired into a per-participant "which depth explains their choice" score
+or a behavioral-agreement figure of merit.
 
-**Approach:** Use existing `agentic_decision_making.py`'s `calculate_greedy_cost`
-and `calculate_planning_cost` to compute optimal paths at each depth, then
-compute agreement with participant choices.
+**What remains:** Compare participant choices against optimal play computed by
+tree search at different depths (1-step greedy, 2-step, 3-step), find the
+minimum planning depth that reproduces each choice, and summarize per
+participant/strategy.
 
-**Impact:** Directly quantifies the Keramati habit–goal continuum. Connects
-to the DeepONet by testing whether specific strategies (e.g., Strategy 2)
-correspond to specific planning depths.
-
-**Effort:** ~100 lines in `analysis/planning_depth.py` (reuses existing code).
+**Effort:** ~100 lines reusing the existing cost functions.
 
 ---
 
@@ -222,33 +237,20 @@ Falldown task structure.
 
 ## Cross-Cutting
 
-### Unified Model Evaluation Framework
+### Basis Interpretability Labels (partial — see Completed)
 
-**What:** A script that loads all trained models (original DeepONet, gated
-DeepONet, GLM-HMM, RNN, DDM) and evaluates them on common metrics: choice
-prediction accuracy, RT prediction R², strategy cluster consistency, and
-cross-prediction (does the HMM's state probability correlate with the
-DeepONet's gate weight?).
+**Status:** Post-hoc basis sweeps with named feature labels exist
+(`cognitivedeepOnet.py` `plot_3d_basis_sweeps`). The proposed supervised
+auxiliary loss that maps each basis to a named cognitive construct is not
+implemented.
 
-**Impact:** Prevents fragmentation. Every new model gets benchmarked against
-existing ones on the same train/test split.
-
-**Effort:** ~150 lines in `analysis/model_comparison.py`.
-
----
-
-### Basis Interpretability Labels
-
-**What:** Add a supervised auxiliary loss to the DeepONet that maps each basis
-function to a named cognitive construct (e.g., "immediate optimizer",
+**What remains:** Add a supervised auxiliary loss to the DeepONet that maps each
+basis function to a named cognitive construct (e.g., "immediate optimizer",
 "two-step planner", "ball-y follower", "direction bias"). Could use weak
 supervision: label a small set of trials with ground-truth strategy labels
 and propagate through the basis network.
 
-**Impact:** Makes DeepONet bases directly interpretable rather than requiring
-post-hoc inspection of basis sweeps.
-
-**Effort:** ~80 lines in strategy_deeponet.py (modification). Requires manual
+**Effort:** ~80 lines in `strategy_deeponet.py` (modification). Requires manual
 labeling of ~100 example trials.
 
 ---
@@ -257,15 +259,98 @@ labeling of ~100 example trials.
 
 | Priority | Change | Paper | Lines | Category |
 |---|---|---|---|---|
-| 1 | GLM-HMM Strategy Switching | Ashwood 2022 | ~300 | Analysis |
-| 2 | Confidence Ratings | Resulaj 2009 | ~20 + ~150 | Instrumentation + Analysis |
-| 3 | Trait Questionnaires | Anxiety-Depression paper | ~100 HTML/JS | Instrumentation |
-| 4 | Planning Depth Estimation | Mattar 2025 / Keramati 2016 | ~100 | Analysis |
-| 5 | Tiny RNN Strategy Discovery | Ji-An 2025 | ~200 | Analysis |
-| 6 | Decision-Locked Epochs | Resulaj 2009 | ~40 | Instrumentation |
-| 7 | Bounded Diffusion Fitting | Resulaj 2009 / Keung 2020 | ~150 | Analysis |
-| 8 | Information Demand Probes | Jach 2024 | ~80 | Instrumentation |
-| 9 | Gaze Proxy | Peer 2021 | ~15 + ~50 | Instrumentation + Analysis |
-| 10 | Unified Evaluation Framework | — | ~150 | Cross-cutting |
-| 11 | Cognitive Map Analysis | Peer 2021 | ~200 | Analysis |
-| 12 | Basis Interpretability Labels | — | ~80 | Model Modification |
+| 1 | Choice-Selectivity PSTHs | — | ~150 | Neural |
+| 2 | Conflict vs Agreement Neural Correlates | Ashwood 2022 | ~100 | Neural |
+| 3 | Strategy-State Decoding from Population | Ji-An 2025 / Ashwood 2022 | ~150 | Neural |
+| 4 | Confidence Ratings | Resulaj 2009 | ~20 + ~150 | Instrumentation + Analysis |
+| 5 | Trait Questionnaires | Anxiety-Depression paper | ~100 HTML/JS | Instrumentation |
+| 6 | Bounded Diffusion Fitting | Resulaj 2009 / Keung 2020 | ~150 | Analysis |
+| 7 | Single-Trial Choice Decoding | — | ~120 | Neural |
+| 8 | Decision-Locked Epochs | Resulaj 2009 | ~40 | Instrumentation |
+| 9 | Information Demand Probes | Jach 2024 | ~80 | Instrumentation |
+| 10 | Reaction-Time Neural Modulation | — | ~80 | Neural |
+| 11 | Gaze Proxy | Peer 2021 | ~15 + ~50 | Instrumentation + Analysis |
+| 12 | Cognitive Map Analysis | Peer 2021 | ~200 | Analysis |
+| 13 | Planning Depth (finish) | Mattar 2025 / Keramati 2016 | ~100 | Analysis |
+| 14 | Basis Interpretability (finish) | — | ~80 | Model Modification |
+
+---
+
+## Completed
+
+Implemented items from earlier roadmap iterations. These are kept at the back
+for provenance; the main sections above are the current backlog.
+
+### GLM-HMM Strategy Switching Model
+
+**Paper:** Ashwood et al 2022.
+
+**What was done:** Per-participant K-state GLM-HMM fit on trial features with
+EM, posterior state inference, transition matrices, and held-out
+log-likelihood, integrated into model comparison and scaling analyses.
+
+**Where:** `analysis/model_comparison.py` (`run_glmhmm_for_participant`,
+`print_glmhmm_summary`), `analysis/scaling_analysis.py`
+(`fit_heldout_glmhmm`), `analysis/behavior_analysis.py`,
+`analysis/synthetic_data_experiments.py`.
+
+---
+
+### Tiny RNN Strategy Discovery (Ji-An-style)
+
+**Paper:** Ji-An et al 2025.
+
+**What was done:** `TinyDecisionRNN` (GRU) and `FeedforwardDecisionNN` variants
+with per-participant training, RT/accuracy evaluation, and L1 regularization on
+the recurrent weights.
+
+**Where:** `analysis/RNN.py`.
+
+---
+
+### Unified Model Evaluation Framework
+
+**What was done:** `model_comparison.py` runs every model (CognitiveDeepONet,
+StrategyDeepONet family, GLM-HMM, RNN, feedforward NN, logistic baselines) on
+every participant and produces comparison DataFrames, log-likelihood box plots,
+and participant×model heatmaps.
+
+**Where:** `analysis/model_comparison.py` (`compare_all_models`, `_plot_comparison*`,
+`_plot_participant_heatmap`).
+
+---
+
+### Planning Depth Estimation (partial)
+
+**Paper:** Mattar et al 2025; Keramati et al 2016.
+
+**What was done:** Greedy (1-step) and planning (2-step) cost functions plus
+strategy-agreement computation for generated level configurations.
+
+**Where:** `level_generation/agentic_decision_making.py`
+(`calculate_greedy_cost`, `calculate_planning_cost`, `get_trial_features`,
+`calculate_agreement`). The per-participant planning-depth score is still open
+(see main section).
+
+---
+
+### Basis Interpretability Labels (partial)
+
+**What was done:** Post-hoc basis sweeps plotted with named feature labels to
+interpret what each DeepONet basis encodes.
+
+**Where:** `analysis/cognitivedeepOnet.py` (`plot_3d_basis_sweeps`). The
+supervised auxiliary-loss labeling is still open (see main section).
+
+---
+
+### Spike–Behavior Alignment & Per-Trial Segmentation
+
+**What was done:** Full EMU spike-alignment pipeline: photodiode flash ↔ JSON
+event DTW offset model (`spike_data_alignment.py`), unit-level spike time
+conversion (`spike_unit_conversion.py`), and per-trial choice-locked
+segmentation with unit QC (`segment_trials.py`). Data structure documented in
+`analysis/spike_data_alignment_output/DATA_STRUCTURE.md`.
+
+**Where:** `analysis/spike_data_alignment.py`, `analysis/spike_unit_conversion.py`,
+`analysis/segment_trials.py`.

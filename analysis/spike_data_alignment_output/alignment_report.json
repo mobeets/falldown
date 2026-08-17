@@ -1,0 +1,43 @@
+{
+  "ns5": "C:\\Users\\manik\\Desktop\\Obsidian\\General Thoughts\\Z Images and Files\\Hennig Lab Project\\falldown\\noPHIEMU-0113_subj-YFZ_task-FD_run-01_NSP-2.ns5",
+  "orig_ns5": "C:\\Users\\manik\\Desktop\\Spike Sorting For Hennig Project\\spikesort_results\\EMU-0113_subj-YFZ_task-FD_run-01_NSP-2.ns5",
+  "behavior": "C:\\Users\\manik\\Desktop\\Obsidian\\General Thoughts\\Z Images and Files\\Hennig Lab Project\\falldown\\analysis\\emu data\\YFZ-2026-07-29T21-37-47-781Z-kdyd.json",
+  "spikes": "C:\\Users\\manik\\Desktop\\Spike Sorting For Hennig Project\\spikesort_results\\cluster_viewer_results\\spikes_perChannel.mat",
+  "photodiode_row": 65,
+  "sampling_rate_hz": 30000.0,
+  "flash_threshold": 18000,
+  "flash_min_dur_ms": 20.0,
+  "dtw_gap_ms": 300.0,
+  "offset_fit_deg": 2,
+  "n_flashes": 2746,
+  "n_events": 2758,
+  "n_anchors": 2740,
+  "n_anchors_kept": 2732,
+  "n_flashes_unmatched": 6,
+  "n_events_unmatched": 18,
+  "head_events_unmatched": 0,
+  "tail_events_unmatched": 2,
+  "coeff": [
+    -1.8082583644478885e-13,
+    3.8602478734699256e-05,
+    126885.61990768147
+  ],
+  "offset_median_ms": 126925.91666666674,
+  "offset_std_ms": 28.190534458727072,
+  "offset_drift_ms": 84.44708584906766,
+  "fit_resid_median_ms": 4.504371072798676,
+  "fit_resid_p90_ms": 13.458512675567178,
+  "interval_resid_median_ms": 0.19999998819548637,
+  "interval_resid_p90_ms": 0.9333332856185734,
+  "model": "event = offset(flash) + flash, offset=poly2(flash)",
+  "audio": {
+    "n": 2746,
+    "delta_median_ms": 1.2499999999417923,
+    "delta_p10_ms": -63.88333333353512,
+    "delta_p90_ms": 65.04999999998836,
+    "frac_within_100ms": 1.0
+  },
+  "n_spikes_converted": 1864081,
+  "mapping": "flash[i] <-> event[j] via interval-sequence DTW",
+  "warning": "18 JSON events have no flash (0 at the head, 2 at the tail) - these may be missing/saved-extra events. Spike conversion uses only the matched anchors, so it is unaffected."
+}

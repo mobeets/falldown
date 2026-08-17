@@ -24,3 +24,5 @@ analysis/figures/schematics.ai
 
 graphify-out/*
 converted/*
+
+*.ns5

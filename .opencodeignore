@@ -2,3 +2,6 @@
 analysis/cloud study data/
 *.json
 *.jsonl
+
+# Large raw NSx neural recordings (10.7 GB)
+noPHIEMU-0113_subj-YFZ_task-FD_run-01_NSP-2.ns5
