@@ -20,9 +20,18 @@ logs/*
 *.pdf
 .pdf
 
+# Generated / intermediate data files
+*.csv
+*.pkl
+*.npz
+*.npy
+*.mat
+*.hdf5
+*.h5
+*.parquet
+*.ns5
+
 analysis/figures/schematics.ai
 
 graphify-out/*
 converted/*
-
-*.ns5
