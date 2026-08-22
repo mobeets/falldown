@@ -9,6 +9,24 @@ the structure.
 
 All outputs live in `analysis/spike_data_alignment_output/`.
 
+## Recording site
+
+All 122 spike-sorted units come from bilateral **mesial temporal lobe depth
+electrodes** (Blackrock NSP, 30 kHz). The 64 channels map to 8 leads × 8
+contacts, named `m{lead}{elec}` in the NS5 header / `times_*.mat` files:
+
+| Leads | Region |
+|---|---|
+| `LF1aCa`, `RF1aCa` | Cornu ammonis (CA fields of the hippocampus) |
+| `LT2aA`, `RT2aA` | Amygdala |
+| `LT2bHa`, `RT2bHa` | Anterior hippocampus (head) |
+| `LT2cHB`, `RT2cHb` | Hippocampal body |
+
+`unit_metadata.csv` `channel` is the 1-based NS5 channel. Channel→lead mapping
+(from the NS5 header labels): 1–8 `LF1aCa`, 9–16 `LT2cHB`, 17–24 `LT2aA`,
+25–32 `LT2bHa`, 33–40 `RF1aCa`, 41–48 `RT2cHb`, 49–56 `RT2aA`, 57–64
+`RT2bHa`; within a lead, contact 01–08 maps to channel `start + contact − 1`.
+
 ---
 
 ## What a "trial" means here

@@ -148,7 +148,9 @@ def spatial_information(rate, occ, min_occ_s=0.5):
     mean = np.sum(p * r)
     if mean <= 0:
         return np.nan
-    return float(np.sum(p * r * np.log2(r / mean)))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        contrib = p * r * np.log2(r / mean)
+    return float(np.sum(np.where(r > 0, contrib, 0.0)))
 
 
 # %%
@@ -222,6 +224,20 @@ def fdr_bh(pvals):
     return np.clip(q, 0, 1)
 
 
+def channel_label(source_file):
+    """Electrode label from a source_file name, e.g. 'times_mLF1aCa01_2285.mat'
+    -> 'mLF1aCa01'."""
+    stem = Path(source_file).stem          # times_mLF1aCa01_2285
+    stem = stem[len("times_"):] if stem.startswith("times_") else stem
+    return stem.rsplit("_", 1)[0]
+
+
+def unit_channel_labels(units):
+    """{unit_id: electrode label} from unit_metadata."""
+    return {int(r["unit_id"]): channel_label(r["source_file"])
+            for _, r in units.iterrows()}
+
+
 # %%
 def main():
     print("Loading game states ...")
@@ -236,6 +252,7 @@ def main():
     y_edges = np.linspace(yrel.min(), yrel.max(), Y_BINS + 1)
 
     units = pd.read_csv(UNIT_META)
+    chan_labels = unit_channel_labels(units)
     spikes = pd.read_csv(SPIKES_UNITS)
     keep = set(units["unit_id"])
     spikes = spikes[spikes["unit_id"].isin(keep)]
@@ -258,6 +275,7 @@ def main():
             peak = centers[np.nanargmax(rate)] if np.isfinite(rate).any() else np.nan
             rows.append({
                 "unit_id": int(uid),
+                "channel": chan_labels.get(int(uid), ""),
                 "axis": axis,
                 "spatial_info_bits": si,
                 "peak_bin": peak,
@@ -274,6 +292,11 @@ def main():
 
     print("\nSaved spatial_tuning_results.csv")
     print(res.groupby("axis")["significant"].sum().to_string())
+    for axis, grp in res.groupby("axis"):
+        sig = grp[grp["significant"]]
+        if len(sig):
+            labels = sorted(set(sig["channel"]))
+            print(f"  axis {axis}: {len(sig)} significant -> {', '.join(labels)}")
 
 
 # %%
@@ -323,3 +346,5 @@ def plot_significant_rate_maps(unit_ids=None, axis="x"):
 
 if __name__ == "__main__":
     main()
+
+# %%

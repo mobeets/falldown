@@ -17,7 +17,9 @@
 #
 # For every unit (0.5 Hz QC floor), compute per-trial firing rates in two
 # windows around the choice moment (pre [-1000,0] ms, post [0,+1000] ms) and
-# test whether firing reliably differs between trial conditions.
+# test whether firing reliably differs between trial conditions. Optionally
+# also computes whole-trial mean firing rate (trial_start_ms -> exit_time_ms,
+# so no spike bleed from neighboring trials).
 #
 # Contrasts:
 #   planning vs agree_optimal   (conflict, chose planning  vs  no-conflict, optimal)
@@ -49,6 +51,7 @@ TRIAL_LABELS = OUT_DIR / "trial_labels.csv"
 DEATH_TIMES = OUT_DIR / "death_times.csv"
 
 WINDOWS = {"pre": (-1000.0, 0.0), "post": (0.0, 1000.0)}
+INCLUDE_WHOLE_TRIAL = True
 N_PERM = 5000
 RNG_SEED = 42
 
@@ -79,6 +82,20 @@ def load_data():
     return units, table, times_by_unit, deaths
 
 
+def channel_label(source_file):
+    """Electrode label from a source_file name, e.g. 'times_mLF1aCa01_2285.mat'
+    -> 'mLF1aCa01'."""
+    stem = Path(source_file).stem          # times_mLF1aCa01_2285
+    stem = stem[len("times_"):] if stem.startswith("times_") else stem
+    return stem.rsplit("_", 1)[0]
+
+
+def unit_channel_labels(units):
+    """{unit_id: electrode label} from unit_metadata."""
+    return {int(r["unit_id"]): channel_label(r["source_file"])
+            for _, r in units.iterrows()}
+
+
 def count_in_window(spike_times, center, lo, hi):
     """Number of spikes in [center+lo, center+hi)."""
     a = np.searchsorted(spike_times, center + lo, side="left")
@@ -105,6 +122,25 @@ def death_rates(times_by_unit, deaths, window_lo, window_hi):
     for uid, ts in times_by_unit.items():
         rates[uid] = np.array(
             [count_in_window(ts, t, window_lo, window_hi) / dur_s for t in dt])
+    return rates
+
+
+def whole_trial_rates(times_by_unit, table):
+    """Per-unit per-trial mean firing rate (Hz) over the full trial
+    [trial_start_ms, exit_time_ms), divided by the actual trial duration.
+
+    Trials are contiguous and non-overlapping, so each spike is counted in
+    exactly one trial's interval and there is no bleed from neighboring
+    trials.
+    """
+    starts = table["trial_start_ms"].to_numpy()
+    exits = table["exit_time_ms"].to_numpy()
+    durs_s = (exits - starts) / 1000.0
+    rates = {}
+    for uid, ts in times_by_unit.items():
+        counts = np.array(
+            [count_in_window(ts, s, 0.0, e - s) for s, e in zip(starts, exits)])
+        rates[uid] = counts / durs_s
     return rates
 
 
@@ -171,6 +207,7 @@ def main():
     print("Loading data ...")
     units, table, times_by_unit, deaths = load_data()
     unit_ids = sorted(times_by_unit.keys())
+    chan_labels = unit_channel_labels(units)
     print(f"  {len(unit_ids)} units, {len(table)} trials, {len(deaths)} deaths")
 
     condition = table.set_index("trial_id")["condition"].to_dict()
@@ -180,26 +217,14 @@ def main():
         print(f"\nWindow {window_name} [{lo:+.0f},{hi:+.0f}] ms")
         rates = trial_rates(times_by_unit, table, lo, hi)
         death_rate = death_rates(times_by_unit, deaths, lo, hi)
-        normal_idx = np.arange(len(table))
+        run_window(rows, window_name, unit_ids, table, rates, deaths,
+                   death_rate=death_rate, chan_labels=chan_labels)
 
-        # per-contrast trial indexes
-        for contrast, cond_a, cond_b in CONTRASTS:
-            ia = table.index[table["condition"] == cond_a].to_numpy()
-            ib = table.index[table["condition"] == cond_b].to_numpy()
-            rows, print_ = run_contrast(
-                rows, contrast, window_name, unit_ids, rates, ia, ib)
-
-        # death vs normal: only meaningful if there are enough genuine deaths.
-        # With a single death (this session), a permutation contrast would be
-        # degenerate (1 window vs the whole session), so we skip it and report
-        # the death-locked firing descriptively instead.
-        if len(deaths) >= 5:
-            rows, print_ = run_contrast(
-                rows, "death_vs_normal", window_name, unit_ids,
-                rates, [None], normal_idx, death_rates=death_rate)
-        else:
-            print(f"    (skipping death_vs_normal: only {len(deaths)} death "
-                  f"moment(s); N<5 is too few for a permutation contrast)")
+    if INCLUDE_WHOLE_TRIAL:
+        print("\nWindow whole_trial [trial_start_ms, exit_time_ms]")
+        rates = whole_trial_rates(times_by_unit, table)
+        run_window(rows, "whole_trial", unit_ids, table, rates, deaths,
+                   death_rate=None, chan_labels=chan_labels)
 
     res = pd.DataFrame(rows)
     res["q_fdr"] = np.nan
@@ -214,14 +239,16 @@ def main():
         death_rows = []
         for window_name, (lo, hi) in WINDOWS.items():
             dr = death_rates(times_by_unit, deaths, lo, hi)
+            baseline = trial_rates(times_by_unit, table, lo, hi)
             for uid in unit_ids:
                 vals = dr[uid]
                 death_rows.append({
                     "unit_id": uid,
+                    "channel": chan_labels.get(uid, "") if chan_labels else "",
                     "window": window_name,
                     "n_deaths": len(vals),
                     "mean_death_rate_Hz": float(np.mean(vals)) if len(vals) else np.nan,
-                    "baseline_mean_rate_Hz": float(np.mean(rates.get(uid, [np.nan]))),
+                    "baseline_mean_rate_Hz": float(np.mean(baseline.get(uid, [np.nan]))),
                 })
         pd.DataFrame(death_rows).to_csv(
             OUT_DIR / "death_locked_rates.csv", index=False)
@@ -229,10 +256,47 @@ def main():
 
     print("\nSaved selectivity_results.csv")
     print(res.groupby(["contrast", "window"])["significant"].sum().to_string())
+    for (contrast, window), grp in res.groupby(["contrast", "window"]):
+        sig = grp[grp["significant"]]
+        if len(sig):
+            labels = sorted(set(sig["channel"]))
+            print(f"  {contrast} / {window}: {len(sig)} significant -> "
+                  f"{', '.join(labels)}")
+
+
+def run_window(rows, window_name, unit_ids, table, rates, deaths,
+               death_rate=None, chan_labels=None):
+    """Run all trial contrasts for a per-trial rate array.
+
+    The death_vs_normal contrast is only added when a death-anchored rate
+    array is supplied (it has no natural anchor for the whole-trial window).
+    """
+    normal_idx = np.arange(len(table))
+
+    # per-contrast trial indexes
+    for contrast, cond_a, cond_b in CONTRASTS:
+        ia = table.index[table["condition"] == cond_a].to_numpy()
+        ib = table.index[table["condition"] == cond_b].to_numpy()
+        rows, _ = run_contrast(rows, contrast, window_name, unit_ids, rates, ia, ib,
+                               chan_labels=chan_labels)
+
+    # death vs normal: only meaningful if there are enough genuine deaths.
+    # With a single death (this session), a permutation contrast would be
+    # degenerate (1 window vs the whole session), so we skip it and report
+    # the death-locked firing descriptively instead.
+    if death_rate is not None and len(deaths) >= 5:
+        rows, _ = run_contrast(
+            rows, "death_vs_normal", window_name, unit_ids,
+            rates, [None], normal_idx, death_rates=death_rate,
+            chan_labels=chan_labels)
+    elif death_rate is not None:
+        print(f"    (skipping death_vs_normal: only {len(deaths)} death "
+              f"moment(s); N<5 is too few for a permutation contrast)")
+    return rows
 
 
 def run_contrast(rows, contrast, window_name, unit_ids, rates, ia, ib,
-                 death_rates=None):
+                 death_rates=None, chan_labels=None):
     """Compute MI + permutation p for one contrast across all units.
 
     ia, ib are trial indexes; when contrast is death_vs_normal, ia is [None]
@@ -248,6 +312,7 @@ def run_contrast(rows, contrast, window_name, unit_ids, rates, ia, ib,
         mi, p = permutation_test(a, b)
         rows.append({
             "unit_id": uid,
+            "channel": chan_labels.get(uid, "") if chan_labels else "",
             "contrast": contrast,
             "window": window_name,
             "n_A": len(a),
@@ -294,3 +359,5 @@ def plot_significant_units_table(contrast="planning_vs_agree_optimal",
 
 if __name__ == "__main__":
     main()
+
+# %%

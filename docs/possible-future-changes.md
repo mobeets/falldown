@@ -7,7 +7,11 @@ estimates effort. Priorities are ranked by insight-to-effort ratio.
 Items that have been implemented are moved to the **Completed** section at
 the bottom. The newest direction is **Neural Data Analysis** — the EMU patient
 has intracranial single-unit recordings synchronized to the task, so the
-roadmap now spans behavior → model → neural.
+roadmap now spans behavior → model → neural. All spike-sorted units come from
+bilateral **mesial temporal lobe depth electrodes** (hippocampus: CA fields,
+anterior hippocampus, hippocampal body; plus amygdala) — see the electrode
+labels in `times_*.mat` — so the neural hypotheses below should be read
+through that hippocampal/amygdalar lens.
 
 ---
 
@@ -31,8 +35,8 @@ population histogram of significant units.
 z-score against a pre-choice baseline, then per-unit signed difference between
 conditions. Permutation test across trials for significance.
 
-**Impact:** Establishes whether any units encode the choice itself (first
-question for a new dataset).
+**Impact:** Establishes whether any hippocampal/amygdalar units encode the
+choice itself (first question for a new dataset).
 
 **Effort:** ~150 lines in `analysis/neural_choice_selectivity.py`.
 
@@ -44,9 +48,11 @@ question for a new dataset).
 **What:** Split trials by whether greedy and planning strategies point to the
 same hole (agree) or different holes (conflict). Compare choice-locked PSTHs
 and RT-locked activity. Tests whether conflict (anterior-cingulate-style
-signature) is visible in this task.
+signature) is visible in this task, or whether hippocampal/amygdalar units
+show their own conflict/agreement modulation.
 
-**Impact:** Directly tests the cognitive-map/planning hypotheses against the
+**Impact:** Directly tests the cognitive-map/planning hypotheses — especially
+hippocampal successor-representation and memory-based accounts — against the
 only neural data we have.
 
 **Effort:** ~100 lines (extends the selectivity script).
