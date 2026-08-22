@@ -4,3 +4,18 @@
 *.ns5
 
 !converted/*
+
+# Ignore raw/archived PDF directories (Graphify reads papers_md/ instead)
+papers_queue/
+papers_archive/
+
+# Dependencies & Environments
+__pycache__/
+.venv/
+venv/
+node_modules/
+.git/
+
+# Generated Logs & Temporary Files
+*.log
+tmp/

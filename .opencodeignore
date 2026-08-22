@@ -5,3 +5,17 @@ analysis/cloud study data/
 
 # Large raw NSx neural recordings (10.7 GB)
 noPHIEMU-0113_subj-YFZ_task-FD_run-01_NSP-2.ns5
+
+# Ignore binary PDFs and archive folders
+papers_queue/
+papers_archive/
+
+# Ignore virtual environments and node modules
+.venv/
+__pycache__/
+node_modules/
+.git/
+
+# Ignore Model Caches & Logs
+.cache/
+*.log

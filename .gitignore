@@ -35,3 +35,17 @@ analysis/figures/schematics.ai
 
 graphify-out/*
 converted/*
+
+# Large Binary Papers (Keep Git repo light)
+papers_queue/*.pdf
+papers_archive/*.pdf
+
+# Model Caches (Marker / HuggingFace downloads)
+.cache/
+torch_cache/
+
+# Graphify Local Database/Cache
+.graphify/
+*.db
+
+.skills/
