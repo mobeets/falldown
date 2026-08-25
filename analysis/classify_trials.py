@@ -29,7 +29,7 @@
 # (before keep-last dedup) and stamped with the time of the last event that
 # preceded them.
 #
-# Output: analysis/spike_data_alignment_output/trial_labels.csv
+# Output: analysis/neural_outputs/trial_labels.csv
 #
 # Run with:
 #   C:\Users\manik\AppData\Local\Programs\Python\Python311\python.exe analysis\classify_trials.py
@@ -41,8 +41,8 @@ import pandas as pd
 from pathlib import Path
 
 # ---------------------------- Configuration ----------------------------
-BEHAVIOR_PATH = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\emu data\YFZ-2026-07-29T21-37-47-781Z-kdyd.json")
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\spike_data_alignment_output")
+BEHAVIOR_PATH = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\data\emu\YFZ-2026-07-29T21-37-47-781Z-kdyd.json")
+OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
 TRIAL_TABLE = OUT_DIR / "trial_table.csv"
 MIN_EXPERIMENT_BLOCK = 4
 # -----------------------------------------------------------------------

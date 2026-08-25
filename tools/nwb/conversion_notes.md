@@ -204,7 +204,7 @@ The JSON data files contain redundant snapshots — the game saves the entire ex
 The NWB conversion includes **all blocks present in the final (latest) snapshot only** — because each snapshot is a complete, self-contained JSON file. If you are converting a directory containing multiple snapshots from the same participant (e.g., `EA4EE5B9...-session1.json`, `EA4EE5B9...-session2.json`), each snapshot becomes a separate `.nwb` file. The merge/dedup logic from `analysis/checking_data_validity.py` is **not** applied during conversion — each NWB file reflects exactly one serialized state.
 
 To get a single clean session from multiple snapshots, either:
-- Use the `analysis/cloud study data/` pre-merged files as input, or
+- Use the `data/cloud_study/` pre-merged files as input, or
 - Run `merge_participant_files()` from `analysis/checking_data_validity.py` on the raw logs first, then convert the merged result.
 
 ---

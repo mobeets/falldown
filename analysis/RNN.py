@@ -37,8 +37,8 @@ def load(fnm):
 
 
 def load_cloud_study_data_2():
-    """Load all participant JSON files from analysis/cloud study data/."""
-    data_dir = Path("analysis/cloud study data")
+    """Load all participant JSON files from data/cloud_study/."""
+    data_dir = Path(__file__).resolve().parent.parent / "data" / "cloud_study"
     participants = {}
     for fpath in sorted(data_dir.glob("*.json")):
         data = load(str(fpath))
@@ -619,10 +619,10 @@ if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore")
 
-    data_dir = Path("analysis/cloud study data")
+    data_dir = Path(__file__).resolve().parent.parent / "data" / "cloud_study"
     json_files = sorted(data_dir.glob("*.json"))
     if not json_files:
-        print("No participant files found in analysis/cloud study data/")
+        print("No participant files found in data/cloud_study/")
     else:
         print("=" * 70)
         print("  FEEDFORWARD vs RNN COMPARISON")

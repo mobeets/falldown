@@ -68,7 +68,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 
 # ---------------------------- Configuration ----------------------------
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\spike_data_alignment_output")
+OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
 BINNED = OUT_DIR / "segmented_spikes_binned.npz"
 TRIAL_TABLE = OUT_DIR / "trial_table.csv"
 TRIAL_LABELS = OUT_DIR / "trial_labels.csv"

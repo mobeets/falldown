@@ -356,7 +356,7 @@ train → evaluate) for all three model variants.
 from analysis.strategy_deeponet import run_model
 model, weights, metrics = run_model(
     model_type='gated',
-    participant_data_paths=["cloud study data/p1.json", ...],
+    participant_data_paths=["data/cloud_study/p1.json", ...],
     num_strategies=3
 )
 

@@ -56,7 +56,7 @@ async def get_index():
 
 @app.get("/favicon.ico")
 async def favicon():
-    return FileResponse("static/favicon.ico")
+    return FileResponse(os.path.join(BASE_DIR, "static", "favicon.ico"))
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

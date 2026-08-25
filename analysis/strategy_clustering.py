@@ -445,7 +445,7 @@ if _SCRIPT_DIR not in sys.path:
 PROJECT_ROOT = os.path.dirname(_SCRIPT_DIR)
 
 # --- Find participant files (resolve relative to project root) ---
-DATA_DIR = os.path.join(_SCRIPT_DIR, "cloud study data")
+DATA_DIR = os.path.join(_SCRIPT_DIR, "..", "data", "cloud_study")
 available_files = sorted(glob.glob(os.path.join(DATA_DIR, "*.json")))
 
 print(f"[diagnostic] Project root: {PROJECT_ROOT}")
@@ -557,7 +557,7 @@ if __name__ == '__main__':
         print(f"  participant_data_dict: {'✓ ' + str(len(participant_data_dict)) + ' participants' if participant_data_dict else '✗ — empty'}")
         print()
         if not available_files:
-            print("  → Fix: ensure 'cloud study data/' exists in the project root")
+            print("  → Fix: ensure 'data/cloud_study/' exists in the project root")
             print(f"          (looking at: {DATA_DIR})")
         elif trained_model is None:
             print("  → Fix: run the execution cells in analysis/strategy_deeponet.py first")

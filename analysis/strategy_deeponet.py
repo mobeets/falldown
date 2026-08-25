@@ -891,7 +891,7 @@ if __name__ == '__main__':
     _PROJECT_ROOT = os.path.dirname(_SCRIPT_DIR)
 
     # --- Find participant JSON files ---
-    DATA_DIR = os.path.join(_SCRIPT_DIR, "cloud study data")
+    DATA_DIR = os.path.join(_SCRIPT_DIR, "..", "data", "cloud_study")
     available_files = sorted(glob.glob(os.path.join(DATA_DIR, "*.json")))
 
     print(f"Found {len(available_files)} participant files in {DATA_DIR}")
@@ -899,7 +899,7 @@ if __name__ == '__main__':
         print(f"  {os.path.basename(f)}")
 
     if len(available_files) == 0:
-        print("ERROR: No participant JSON files found. Place files in 'cloud study data/' "
+        print("ERROR: No participant JSON files found. Place files in 'data/cloud_study/' "
               "in the project root.")
     else:
         participant_paths = available_files

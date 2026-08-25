@@ -2,12 +2,12 @@
 
 This file documents the outputs produced by `analysis/segment_trials.py` for the
 YFZ EMU run
-(`analysis/emu data/YFZ-2026-07-29T21-37-47-781Z-kdyd.json` +
+(`data/emu/YFZ-2026-07-29T21-37-47-781Z-kdyd.json` +
 `spikesort_results/cluster_viewer_results/spikes.mat`). Read this before doing
 any analysis on the segmented spike data so you don't have to reverse-engineer
 the structure.
 
-All outputs live in `analysis/spike_data_alignment_output/`.
+All outputs live in `analysis/neural_outputs/`.
 
 ## Recording site
 
@@ -129,7 +129,7 @@ columns, so `allow_pickle=True` is required):
 
 ```python
 import numpy as np
-z = np.load("analysis/spike_data_alignment_output/segmented_spikes_binned.npz",
+z = np.load("analysis/neural_outputs/segmented_spikes_binned.npz",
             allow_pickle=True)
 binned = z["binned"]            # (137, 910, 160)
 unit_ids = z["unit_ids"]        # axis-0 index

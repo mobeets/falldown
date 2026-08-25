@@ -12,7 +12,7 @@ Each maze will take around five minutes to complete, and we'll aim to get throug
 
 To start the server, run the following in a terminal:
 
-`uv run python server.py`
+`uv run python app/server.py`
 
 To start the task, open a Chrome browser and navigate to `http://0.0.0.0:8000?participantId=SUBJECT_ID`.
 
@@ -20,8 +20,8 @@ This will save all trial data, mouse clicks, and key presses locally to files na
 
 ## Experiment details
 
-- Default params can be found in `configs/default_params.json`, and overrided by appending `&params_name=example` to the url (this will load the config file `configs/example.json`)
-- Default block order can be found in `configs/default_experiment.json`, and overrided by appending `&experiment=experiment` to the url (this will load the experiment file `configs/experiment.json`)
+- Default params can be found in `app/configs/default_params.json`, and overrided by appending `&params_name=example` to the url (this will load the config file `app/configs/example.json`)
+- Default block order can be found in `app/configs/default_experiment.json`, and overrided by appending `&experiment=experiment` to the url (this will load the experiment file `app/configs/experiment.json`)
 
 ## Controls
 
@@ -37,7 +37,7 @@ For patients with a keyboard:
 - Left and right arrow keys control position
 - SPACEBAR to pause
 
-All task controls can be found in `static/task_controls.js`.
+All task controls can be found in `app/static/task_controls.js`.
 
 ## Debugging
 

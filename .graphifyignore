@@ -5,9 +5,16 @@
 
 !converted/*
 
-# Ignore raw/archived PDF directories (Graphify reads papers_md/ instead)
-papers_queue/
-papers_archive/
+# Ignore raw/archived PDF directories (Graphify reads papers/md/ instead)
+papers/queue/
+papers/archive/
+papers/*.pdf
+
+# Converted paper markdown is the graphify source.
+# Re-include it here because .gitignore's `papers/md/*.md` rule would
+# otherwise leak into graphify's merged ignore chain and hide the papers.
+!papers/md/
+!papers/md/*.md
 
 # Dependencies & Environments
 __pycache__/

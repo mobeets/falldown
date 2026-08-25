@@ -1,7 +1,7 @@
 {
   "ns5": "C:\\Users\\manik\\Desktop\\Obsidian\\General Thoughts\\Z Images and Files\\Hennig Lab Project\\falldown\\noPHIEMU-0113_subj-YFZ_task-FD_run-01_NSP-2.ns5",
   "orig_ns5": "C:\\Users\\manik\\Desktop\\Spike Sorting For Hennig Project\\spikesort_results\\EMU-0113_subj-YFZ_task-FD_run-01_NSP-2.ns5",
-  "behavior": "C:\\Users\\manik\\Desktop\\Obsidian\\General Thoughts\\Z Images and Files\\Hennig Lab Project\\falldown\\analysis\\emu data\\YFZ-2026-07-29T21-37-47-781Z-kdyd.json",
+  "behavior": "C:\\Users\\manik\\Desktop\\Obsidian\\General Thoughts\\Z Images and Files\\Hennig Lab Project\\falldown\\data\\emu\\YFZ-2026-07-29T21-37-47-781Z-kdyd.json",
   "spikes": "C:\\Users\\manik\\Desktop\\Spike Sorting For Hennig Project\\spikesort_results\\cluster_viewer_results\\spikes_perChannel.mat",
   "photodiode_row": 65,
   "sampling_rate_hz": 30000.0,

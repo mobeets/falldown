@@ -104,7 +104,7 @@ def generate_levels(num_levels=50, screen_width=600,
 # %%
 levels = generate_levels(num_levels = 10000, screen_width= 1)
 
-with open('trials_new.json', 'w') as f:
+with open('../../data/generated_levels/trials_new.json', 'w') as f:
     json.dump(levels, f, indent=4)
 
 
@@ -193,18 +193,18 @@ def generate_levels(num_levels=50,
 # %%
 levels = generate_levels(num_levels = 10000)
 
-with open('trials_new.json', 'w') as f:
+with open('../../data/generated_levels/trials_new.json', 'w') as f:
     json.dump(levels, f, indent=4)
 
 # %% [markdown]
 # # Run the code from here down in order to re-generate the trials 4/29
 
 # %%
-trials = json.load(open('../configs/default_experiment-7-10.json'))
+trials = json.load(open('../../app/configs/default_experiment-7-10.json'))
 #trials
 
 # %%
-def format_experiment_blocks(filepath='../configs/default_experiment-7-10.json'):
+def format_experiment_blocks(filepath='../../app/configs/default_experiment-7-10.json'):
     # Load the raw data
     with open(filepath, 'r') as f:
         trials = json.load(f)
@@ -342,14 +342,14 @@ for i in range(4, len(formatted_trials)):
 formatted_trials[0]
 
 # %%
-with open('../configs/short_trials_experiment-7-10.json', 'w') as f:
+with open('../../app/configs/short_trials_experiment-7-10.json', 'w') as f:
      json.dump(formatted_trials, f, indent=2)
 
 # %% [markdown]
 # # Adding E.params.startCameraMode
 
 # %%
-trials = json.load(open('../configs/short_trials_experiment.json'))
+trials = json.load(open('../../app/configs/short_trials_experiment.json'))
 
 # %%
 for i in range(4, len(trials)):
@@ -363,7 +363,7 @@ trials = trials[:36]
 trials[35]
 
 # %%
-with open('../configs/emu_experiment_7-29.json', 'w') as f:
+with open('../../app/configs/emu_experiment_7-29.json', 'w') as f:
      json.dump(formatted_trials, f, indent=2)
 
 # %%

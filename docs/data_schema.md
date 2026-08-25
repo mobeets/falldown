@@ -11,31 +11,31 @@ This document describes every JSON data file in the falldown project. It is writ
 | Location | Description |
 |---|---|
 | `logs/*.json` | Raw per-session snapshots. One file = one serialized experiment state saved at a block boundary. Contains duplicated prior blocks (see Multi-Snapshot note below). |
-| `analysis/cloud study data/*.json` | Merged, deduplicated per-participant files from batch 1 (June 2026). |
-| `analysis/cloud study data 2/*.json` | Merged/deduplicated files from batch 2 (July 2026). |
-| `analysis/emu data/*.json` | Pilot/local-testing data (smaller session files). |
+| `data/cloud_study/*.json` | Merged, deduplicated per-participant files from batch 1 (June 2026). |
+| `data/cloud_study/v2/*.json` | Merged/deduplicated files from batch 2 (July 2026). |
+| `data/emu/*.json` | Pilot/local-testing data (smaller session files). |
 
 To see the exact files available:
 
 ```bash
 ls logs/*.json | head -5
-ls "analysis/cloud study data"/*.json | head -5
-ls "analysis/cloud study data 2"/*.json | head -5
+ls "data/cloud_study"/*.json | head -5
+ls "data/cloud_study/v2"/*.json | head -5
 ```
 
 ### Experiment configs (what the participant was asked to do)
 
 | Location | Description |
 |---|---|
-| `configs/*.json` | Game physics params and pre-generated level/block definitions. |
+| `app/configs/*.json` | Game physics params and pre-generated level/block definitions. |
 
 ### Level generation outputs (inputs to config creation)
 
 | Location | Description |
 |---|---|
-| `level_generation/trials_new.json` | Discrete-hole trial structures. |
-| `level_generation/trials_output.json` | Continuous-position trial structures with cost metadata. |
-| `level_generation/stripped_trials_output.json` | Just hole positions, flattened. |
+| `data/generated_levels/trials_new.json` | Discrete-hole trial structures. |
+| `data/generated_levels/trials_output.json` | Continuous-position trial structures with cost metadata. |
+| `data/generated_levels/stripped_trials_output.json` | Just hole positions, flattened. |
 
 ---
 
@@ -315,20 +315,20 @@ May be absent from older files. Contains rendering dimensions computed from the 
 
 ## Experiment Config Files
 
-The config files in `configs/` are arrays of BlockConfig objects (one per block). The available configs and their block counts:
+The config files in `app/configs/` are arrays of BlockConfig objects (one per block). The available configs and their block counts:
 
 ```bash
 python -c "
 import json, os
-for f in sorted(os.listdir('configs')):
+for f in sorted(os.listdir('app/configs')):
     if f.endswith('.json'):
-        with open(f'configs/{f}') as fh:
+        with open(f'app/configs/{f}') as fh:
             d = json.load(fh)
         print(f'{f}: {len(d)} blocks')
 "
 ```
 
-Each config is an array where `config[i]["levels"]` is the pre-generated sequence of hole locations for block `i`. Level generation happens offline in `level_generation/` scripts, not during the experiment.
+Each config is an array where `config[i]["levels"]` is the pre-generated sequence of hole locations for block `i`. Level generation happens offline in `tools/level_generation/` scripts, not during the experiment.
 
 ---
 
@@ -360,7 +360,7 @@ This means:
 2. Every snapshot contains `blocks[0..k]` where `k` is the current block. Earlier blocks appear in every subsequent snapshot.
 3. The **final snapshot** (the last `.json` file written) is the most complete.
 
-The `merge_participant_files()` function in `analysis/checking_data_validity.py` handles deduplication by grouping by `(block_index, trial_index)` and keeping the last occurrence. The merged files in `analysis/cloud study data/` have already been processed this way.
+The `merge_participant_files()` function in `analysis/checking_data_validity.py` handles deduplication by grouping by `(block_index, trial_index)` and keeping the last occurrence. The merged files in `data/cloud_study/` have already been processed this way.
 
 ### When a participant reconnects (WebSocket drops and re-establishes)
 

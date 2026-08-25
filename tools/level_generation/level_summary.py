@@ -284,7 +284,7 @@ def prune_levels(levels):
 
 #%%
 
-out_path = '../configs/default_experiment1.json'
+out_path = '../../app/configs/default_experiment1.json'
 levels_per_block = 300
 
 trials = generate_levels(num_trials=10000)

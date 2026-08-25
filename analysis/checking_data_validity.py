@@ -406,7 +406,7 @@ from collections import defaultdict
 def merge_participant_files(folder_path, participant_id=None, file_glob=None):
     """
     If participant_id is given, matches files with that prefix (old behavior).
-    If file_glob is given (e.g. 'analysis/cloud study data 2/*'), uses glob directly.
+    If file_glob is given (e.g. '../data/cloud_study/v2/*'), uses glob directly.
     Otherwise treats folder_path as a directory and groups files by first 30 chars.
 
     Prints merge statistics including:
@@ -527,7 +527,7 @@ def merge_participant_files(folder_path, participant_id=None, file_glob=None):
 
 
 # %%
-def save_merged_participants(merged_dict, output_dir='cloud study data'):
+def save_merged_participants(merged_dict, output_dir='../data/cloud_study'):
     """
     Save each participant's cleaned merged data as a JSON file in output_dir.
 
@@ -634,18 +634,18 @@ def report_repeated_trials(folder_path, participant_id=None, file_glob=None):
 # %%
 # Merge all JSON files from the cloud study folder into per-participant data
 all_participant_data = merge_participant_files(
-    'cloud study data 2',
-    file_glob='cloud study data 2/*.json'
+    '../data/cloud_study/v2',
+    file_glob='../data/cloud_study/v2/*.json'
 )
 
 # %%
-# Save cleaned versions to /cloud study data/
-#save_merged_participants(all_participant_data, 'cloud study data')
+# Save cleaned versions to ../data/cloud_study/
+#save_merged_participants(all_participant_data, '../data/cloud_study')
 
 # %%
 # Report on repeated trials — shows timestamps side by side
 report_repeated_trials(
-    'cloud study data 2',
+    '../data/cloud_study/v2',
     'EA4EE5B954A749C8BEED8F06A43F582C'
 )
 
@@ -737,7 +737,7 @@ deaths_per_block = plot_deaths_per_block(data)
 plot_y_position_over_time(data, participant_label=prefix)
 
 # %%
-def plot_y_position_for_participant(participant_prefix, data_dir='cloud study data'):
+def plot_y_position_for_participant(participant_prefix, data_dir='../data/cloud_study'):
     """
     Loads a participant by file prefix and plots y-position over time.
     The prefix can be a short label (e.g. 'EA4EE5B9') or a full file path.

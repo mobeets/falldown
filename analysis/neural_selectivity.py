@@ -43,7 +43,7 @@ import pandas as pd
 from pathlib import Path
 
 # ---------------------------- Configuration ----------------------------
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\spike_data_alignment_output")
+OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
 SPIKES_UNITS = OUT_DIR / "spikes_units.csv"
 UNIT_META = OUT_DIR / "unit_metadata.csv"
 TRIAL_TABLE = OUT_DIR / "trial_table.csv"

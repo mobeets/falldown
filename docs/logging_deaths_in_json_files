@@ -18,7 +18,7 @@ the analysis code with no separate log file, no timing correlation, and no heuri
 
 ## Changes Needed
 
-### 1. `static/sketch.js` — increment at the death site
+### 1. `app/static/sketch.js` — increment at the death site
 
 The death happens at line 338-340:
 

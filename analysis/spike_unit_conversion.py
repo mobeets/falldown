@@ -5,7 +5,7 @@ Uses ONLY the already-computed alignment from spike_data_alignment.py:
 - offset model coefficients from alignment_report.json (no NS5 re-read)
 - photodiode flash times from photodiode_flashes.csv (no NS5 re-read)
 
-Outputs (in analysis/spike_data_alignment_output/):
+Outputs (in analysis/neural_outputs/):
   spikes_units.csv            single merged file, one row per spike
                               (unit_id, channel, cluster_id, source_file,
                                spike_time_ns5_ms, spike_time_behavioral_ms)
@@ -22,8 +22,8 @@ from pathlib import Path
 from spike_data_alignment import load_events, align_intervals, offset_at
 
 SPIKES_PATH = Path(r"C:\Users\manik\Desktop\Spike Sorting For Hennig Project\spikesort_results\cluster_viewer_results\spikes.mat")
-BEHAVIOR_PATH = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\emu data\YFZ-2026-07-29T21-37-47-781Z-kdyd.json")
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\spike_data_alignment_output")
+BEHAVIOR_PATH = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\data\emu\YFZ-2026-07-29T21-37-47-781Z-kdyd.json")
+OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
 
 
 def load_event_records(path):

@@ -359,7 +359,7 @@ def plot_rt_vs_distance(choices, step=1):
 #fnm = '../logs//RAH-2026-02-15T15-42-43-790Z-oopr.json'
 #fnm = '../logs/EMU/YFV-2026-02-20T20-13-23-929Z-iel9.json'
 #fnm = 'real_trial1.json'
-fnm = '../analysis/cloud study data/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json'
+fnm = '../data/cloud_study/65D6694BE06947289BE4336BC1DE271A-019e9464-b9d3-798d-aa65-c87d82961db6-019e8386-74e7-7359-827b-6b4e4bc47db9-2026-06-04T21-03-48-346Z-fg8d.json'
 data = load(fnm)
 
 #%% visualize task

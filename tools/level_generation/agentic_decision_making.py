@@ -124,7 +124,7 @@ def generate_levels(num_levels=50, screen_width=1,
 trials = generate_levels(num_levels=10000)
 print(trials[1])
 
-with open('trials_output.json', 'w') as f:
+with open('../../data/generated_levels/trials_output.json', 'w') as f:
     json.dump(trials, f, indent=4)
 
 

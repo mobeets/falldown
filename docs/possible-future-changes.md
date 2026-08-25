@@ -20,7 +20,7 @@ through that hippocampal/amygdalar lens.
 The spike–behavior pipeline is done: `spike_data_alignment.py` (photodiode DTW
 offset), `spike_unit_conversion.py` (unit-level spike times), and
 `segment_trials.py` (per-trial windows aligned to choice time, ±2 s, 137 units
-after QC, 910 trials). See `analysis/spike_data_alignment_output/DATA_STRUCTURE.md`.
+after QC, 910 trials). See `analysis/neural_outputs/DATA_STRUCTURE.md`.
 These are concrete analyses to run on that segmented data; several map onto the
 [`consensus-ai-prompts.md`](consensus-ai-prompts.md) literature questions.
 
@@ -207,7 +207,7 @@ difficulty (Resulaj), and whether evidence is weighted unevenly (Keung).
 **Paper:** Mattar et al 2025 (few rollouts); Keramati et al 2016 (depth-limited
 planning along habit–goal spectrum).
 
-**Status:** Core cost functions live in `level_generation/agentic_decision_making.py`
+**Status:** Core cost functions live in `tools/level_generation/agentic_decision_making.py`
 (`calculate_greedy_cost`, `calculate_planning_cost`, `calculate_agreement`).
 Not yet wired into a per-participant "which depth explains their choice" score
 or a behavioral-agreement figure of merit.
@@ -333,7 +333,7 @@ and participant×model heatmaps.
 **What was done:** Greedy (1-step) and planning (2-step) cost functions plus
 strategy-agreement computation for generated level configurations.
 
-**Where:** `level_generation/agentic_decision_making.py`
+**Where:** `tools/level_generation/agentic_decision_making.py`
 (`calculate_greedy_cost`, `calculate_planning_cost`, `get_trial_features`,
 `calculate_agreement`). The per-participant planning-depth score is still open
 (see main section).
@@ -356,7 +356,7 @@ supervised auxiliary-loss labeling is still open (see main section).
 event DTW offset model (`spike_data_alignment.py`), unit-level spike time
 conversion (`spike_unit_conversion.py`), and per-trial choice-locked
 segmentation with unit QC (`segment_trials.py`). Data structure documented in
-`analysis/spike_data_alignment_output/DATA_STRUCTURE.md`.
+`analysis/neural_outputs/DATA_STRUCTURE.md`.
 
 **Where:** `analysis/spike_data_alignment.py`, `analysis/spike_unit_conversion.py`,
 `analysis/segment_trials.py`.

@@ -144,7 +144,7 @@ To complete it, uncomment the strategy block and run with the full few-shot grid
 ```python
 results_s, summary_s, _, _, _ = run_scaling_study(
     model_type="strategy",
-    data_dir=os.path.join(_SCRIPT_DIR, "cloud study data"),
+    data_dir=os.path.join(_SCRIPT_DIR, "..", "data", "cloud_study"),
     num_states=3,
     subsets_per_size=2,
     seeds=(0,),

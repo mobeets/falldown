@@ -1,8 +1,8 @@
 #%%
 
 import json
-trials_path = '../level_generation/trials_new.json'
-out_path = '../configs/default_experiment-7-10.json'
+trials_path = '../../data/generated_levels/trials_new.json'
+out_path = '../../app/configs/default_experiment-7-10.json'
 trials = json.load(open(trials_path))
 
 levels = []

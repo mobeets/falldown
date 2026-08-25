@@ -372,7 +372,7 @@ def matched_logistic_accuracy(raw_data, test_frac=0.2, fit_fracs=(1.0, 0.5, 0.25
 # ## Main scaling study
 
 # %%
-def run_scaling_study(model_type="cognitive", data_dir="cloud study data",
+def run_scaling_study(model_type="cognitive", data_dir=None,
                       held_out_ids=None, pool_sizes=None,
                       subsets_per_size=3, seeds=(0, 1),
                       num_epochs=100, fit_fracs=(1.0, 0.5, 0.25),
@@ -388,6 +388,8 @@ def run_scaling_study(model_type="cognitive", data_dir="cloud study data",
     print(f"  SCALING STUDY — model={model_type}, held-out fit num_states={num_states}")
     print("=" * 70)
 
+    if data_dir is None:
+        data_dir = os.path.join(_SCRIPT_DIR, "..", "data", "cloud_study")
     parts = load_participants(data_dir)
     if not parts:
         raise FileNotFoundError(f"No participant JSON files in {data_dir}")
@@ -565,7 +567,7 @@ if __name__ == "__main__":
     # CognitiveDeepONet — full study
     results, summary, pool_sizes, held_out_names, baselines = run_scaling_study(
         model_type="cognitive",
-        data_dir=os.path.join(_SCRIPT_DIR, "cloud study data"),
+        data_dir=os.path.join(_SCRIPT_DIR, "..", "data", "cloud_study"),
         subsets_per_size=3,
         seeds=(0, 1),
         num_epochs=100,
@@ -576,7 +578,7 @@ if __name__ == "__main__":
     # HMM-gated StrategyDeepONet — same loop, held-out fit is a GLM-HMM on basis features
     results_s, summary_s, _, _, _ = run_scaling_study(
          model_type="strategy",
-         data_dir=os.path.join(_SCRIPT_DIR, "cloud study data"),
+         data_dir=os.path.join(_SCRIPT_DIR, "..", "data", "cloud_study"),
          num_states=3,
          subsets_per_size=2,
          seeds=(0,),
