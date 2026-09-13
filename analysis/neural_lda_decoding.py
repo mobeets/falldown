@@ -34,6 +34,8 @@
 #   agree            greedy & planning optima agree (no conflict) vs disagree
 #   planning_optimal chose the 2-step-optimal hole vs not (efficiency)
 #   move_dir         ball moved left vs right between entry and choice levels
+#   move_dir_vx      dominant sign(ball_vx) over [choice-1000, choice] ms
+#                    (motion-based left/right; added alongside move_dir)
 #   condition        4-class: planning / greedy / agree_optimal / lapse
 #   planning_vs_greedy        within-disagree choice policy
 #   agree_optimal_vs_lapse    within-agree decision quality
@@ -57,6 +59,7 @@
 #   C:\Users\manik\AppData\Local\Programs\Python\Python311\python.exe analysis\neural_lda_decoding.py
 
 # %%
+import json
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -68,11 +71,17 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 
 # ---------------------------- Configuration ----------------------------
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
+from neural_common import get_run, out_dir
+_RUN = get_run()
+OUT_DIR = out_dir(_RUN.run_id)
 BINNED = OUT_DIR / "segmented_spikes_binned.npz"
 TRIAL_TABLE = OUT_DIR / "trial_table.csv"
 TRIAL_LABELS = OUT_DIR / "trial_labels.csv"
 UNIT_META = OUT_DIR / "unit_metadata.csv"
+BEHAVIOR_PATH = _RUN.behavior_path
+
+VX_WINDOW_LO, VX_WINDOW_HI = -1000.0, 0.0   # ms relative to choice
+VX_MIN_COVERAGE_MS = 250.0                  # min moving-time to classify a trial
 
 WINDOWS = {"pre": (-1000.0, 0.0), "post": (0.0, 1000.0), "whole": None}
 REPS = ["rate", "pca"]
@@ -104,6 +113,60 @@ def unit_channel_labels(units):
     """{unit_id: electrode label} from unit_metadata."""
     return {int(r["unit_id"]): channel_label(r["source_file"])
             for _, r in units.iterrows()}
+
+
+# %%
+def _load_vx_track():
+    """Sorted (time, ball_vx) across experiment blocks (behavioral clock)."""
+    with open(BEHAVIOR_PATH, encoding="utf-8") as fh:
+        data = json.load(fh)
+    t, v = [], []
+    for b in data["blocks"]:
+        bi = b.get("block_index")
+        if bi is None or bi < 4:
+            continue
+        gs = b.get("game_states", {})
+        if not gs:
+            continue
+        t.append(np.asarray(gs["time"]))
+        v.append(np.asarray(gs["ball_vx"]))
+    t = np.concatenate(t)
+    v = np.concatenate(v)
+    o = np.argsort(t)
+    return t[o], v[o]
+
+
+def add_move_dir_vx(labels):
+    """Add a 'move_dir_vx' column (+1 = going right, -1 = going left,
+    0 = unclassified) to a labels DataFrame.
+
+    The per-trial direction is the time-weighted dominant sign of ball_vx over
+    [choice-1000, choice] ms (the ball approaches the chosen hole there). The
+    game is digital-input (vx is -max, 0, or +max), so the sign is essentially
+    unambiguous whenever there is motion. Trials with less than
+    VX_MIN_COVERAGE_MS of moving samples are left unclassified.
+    """
+    trials = pd.read_csv(TRIAL_TABLE)
+    lab = labels.merge(trials[["trial_id", "choice_time_ms"]], on="trial_id")
+    t_all, vx_all = _load_vx_track()
+    dirs = np.zeros(len(lab), dtype=int)
+    choice = lab["choice_time_ms"].to_numpy()
+    for i, c in enumerate(choice):
+        a = np.searchsorted(t_all, c + VX_WINDOW_LO, side="left")
+        b = np.searchsorted(t_all, c + VX_WINDOW_HI, side="left")
+        if a >= b:
+            continue
+        tseg, vseg = t_all[a:b], vx_all[a:b]
+        dt = np.diff(np.concatenate([tseg, [c + VX_WINDOW_HI]]))
+        dt = np.maximum(dt, 0.0)
+        moving = np.abs(vseg) > 1e-9
+        cov = dt[moving].sum()
+        if cov < VX_MIN_COVERAGE_MS:
+            continue
+        s = np.sum(np.sign(vseg) * dt) / cov
+        dirs[i] = 1 if s > 0 else -1
+    lab["move_dir_vx"] = dirs
+    return lab.drop(columns=["choice_time_ms"])
 
 
 # %%
@@ -159,6 +222,8 @@ def build_label_vectors(labels):
     """{name: (y, idx)}. y is always full trial length; positions outside a
     hypothesis's trial subset hold -1. idx selects the hypothesis's rows
     (None = all trials). Callers use y[idx] / X[idx]."""
+    if "move_dir_vx" not in labels.columns:
+        labels = add_move_dir_vx(labels)
     n = len(labels)
     out = {}
     out["side"] = (labels["choice_hole"] >= 6).astype(int).to_numpy(), None
@@ -172,6 +237,14 @@ def build_label_vectors(labels):
     y = np.full(n, -1, dtype=int)
     y[keep] = ((md[keep] + 1) // 2).astype(int)
     out["move_dir"] = y, keep
+
+    # dominant sign(ball_vx) in the pre-choice window (motion-based; 92%
+    # agreement with move_dir on the trials both classify)
+    mdv = labels["move_dir_vx"].to_numpy()
+    keep = mdv != 0
+    y = np.full(n, -1, dtype=int)
+    y[keep] = ((mdv[keep] + 1) // 2).astype(int)
+    out["move_dir_vx"] = y, keep
 
     cond_order = {"planning": 0, "greedy": 1, "agree_optimal": 2, "lapse": 3}
     out["condition"] = labels["condition"].map(cond_order).to_numpy(), None
@@ -335,7 +408,7 @@ def main():
     print(f"\nSaved neural_lda_decoding_results.csv ({len(res)} rows)")
 
     # ---------------- cross-decoding (one window to bound runtime) ----------
-    binary = ["side", "agree", "planning_optimal", "move_dir",
+    binary = ["side", "agree", "planning_optimal", "move_dir", "move_dir_vx",
               "planning_vs_greedy", "agree_optimal_vs_lapse"]
     lo, hi = _window_bounds(WINDOWS[CROSS_WINDOW])
     X_feats = {
@@ -416,7 +489,8 @@ def main():
     for hname in binary:
         y, idx = label_dict[hname]
         Xs = X if idx is None else X[idx]
-        vecs[hname] = fit_loadings(Xs, y)[0]
+        ys = y if idx is None else y[idx]
+        vecs[hname] = fit_loadings(Xs, ys)[0]
     sim_rows = []
     names = list(vecs)
     for i, a in enumerate(names):

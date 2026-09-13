@@ -20,10 +20,12 @@ import scipy.io as sio
 from pathlib import Path
 
 from spike_data_alignment import load_events, align_intervals, offset_at
+from neural_common import get_run, out_dir
 
-SPIKES_PATH = Path(r"C:\Users\manik\Desktop\Spike Sorting For Hennig Project\spikesort_results\cluster_viewer_results\spikes.mat")
-BEHAVIOR_PATH = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\data\emu\YFZ-2026-07-29T21-37-47-781Z-kdyd.json")
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
+_RUN = get_run()
+SPIKES_PATH = _RUN.spikes_mat
+BEHAVIOR_PATH = _RUN.behavior_path
+OUT_DIR = out_dir(_RUN.run_id)
 
 
 def load_event_records(path):

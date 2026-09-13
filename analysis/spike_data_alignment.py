@@ -46,21 +46,26 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+from neural_common import get_run, out_dir
+
 # %%
 # ---------------------------- Configuration ----------------------------
-NS5_PATH = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\noPHIEMU-0113_subj-YFZ_task-FD_run-01_NSP-2.ns5")
-ORIG_NS5_PATH = Path(r"C:\Users\manik\Desktop\Spike Sorting For Hennig Project\spikesort_results\EMU-0113_subj-YFZ_task-FD_run-01_NSP-2.ns5")
-BEHAVIOR_PATH = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\data\emu\YFZ-2026-07-29T21-37-47-781Z-kdyd.json")
-SPIKES_PATH = Path(r"C:\Users\manik\Desktop\Spike Sorting For Hennig Project\spikesort_results\cluster_viewer_results\spikes_perChannel.mat")
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
+_RUN = get_run()
+NS5_PATH = _RUN.ns5_path
+ORIG_NS5_PATH = _RUN.orig_ns5_path
+BEHAVIOR_PATH = _RUN.behavior_path
+SPIKES_PATH = _RUN.spikes_perchannel_mat
+OUT_DIR = out_dir(_RUN.run_id)
 
 SAMPLING_RATE = 30000.0          # Hz
-N_CHANNELS = 78                  # analog channels in NS5
-PHOTODIODE_ROW = 65              # 1-indexed row of the photodiode channel
-ROOM_MIC2_ROW = 68               # 1-indexed row of RoomMic2 (audio clicks)
-HEADER_SIZE = 8 + 306 + 78 * 66  # magic + basic header + extended header
+# NS5 geometry comes from the run registry so each session's file is read
+# correctly (yfz_1: 78 ch / 72,348,374 frames; yfz_2: 73 ch / 62,368,991).
+N_CHANNELS = _RUN.n_channels     # analog channels in NS5
+PHOTODIODE_ROW = _RUN.photodiode_row  # 1-indexed row of the photodiode channel
+ROOM_MIC2_ROW = _RUN.room_mic2_row    # 1-indexed row of RoomMic2; None if absent
+HEADER_SIZE = 8 + 306 + N_CHANNELS * 66  # magic + basic header + extended header
 DATA_HEADER_SIZE = 13            # packet header: 1 + uint64 ts + uint32 samples
-N_FRAMES = 72_348_374
+N_FRAMES = _RUN.n_frames
 CHUNK_FRAMES = 2_000_000         # frames per streaming read
 
 FLASH_THRESHOLD = 18000          # photodiode amplitude separating flash from baseline
@@ -229,7 +234,7 @@ def audio_click_delta(flash_ms):
     click should land within ~100 ms of every flash. Read from the ORIGINAL
     NS5 (mics were zeroed in the de-identified copy).
     """
-    if not ORIG_NS5_PATH.exists():
+    if ROOM_MIC2_ROW is None or not ORIG_NS5_PATH.exists():
         return None
     mic = read_channel(ORIG_NS5_PATH, ROOM_MIC2_ROW).astype(np.float64)
     rect = np.abs(mic)
@@ -285,6 +290,14 @@ def convert_spikes(mat_path, coeff, out_dir):
 # ------------------------------- Main ----------------------------------
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    if not NS5_PATH.is_file():
+        raise SystemExit(
+            f"NS5 not found for run {_RUN.run_id!r}: "
+            f"{_RUN.ns5 or '<unset in neural_common.RUNS>'}\n"
+            "Set RUNS[...].ns5 in analysis/neural_common.py to the de-identified "
+            "NS5 path, then re-run."
+        )
 
     print("Reading photodiode channel from NS5 ...")
     trace = read_channel(NS5_PATH, PHOTODIODE_ROW)
@@ -342,6 +355,9 @@ def main():
         "behavior": str(BEHAVIOR_PATH),
         "spikes": str(SPIKES_PATH),
         "photodiode_row": PHOTODIODE_ROW,
+        "room_mic2_row": ROOM_MIC2_ROW,
+        "n_channels": N_CHANNELS,
+        "n_frames": N_FRAMES,
         "sampling_rate_hz": SAMPLING_RATE,
         "flash_threshold": FLASH_THRESHOLD,
         "flash_min_dur_ms": FLASH_MIN_DUR_MS,

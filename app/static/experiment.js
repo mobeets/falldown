@@ -16,7 +16,7 @@ function loadConfig() {
     assignmentId: 'unknown',
     projectId: 'unknown',
     params_name: 'emu_research_params',
-    experiment: 'emu_experiment_7-29'
+    experiment: 'short_trials_experiment_nodrift'
   };
 
   // Merge defaults with URL params

@@ -42,8 +42,11 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+from neural_common import get_run, out_dir
+_RUN = get_run()
+
 # ---------------------------- Configuration ----------------------------
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
+OUT_DIR = out_dir(_RUN.run_id)
 SPIKES_UNITS = OUT_DIR / "spikes_units.csv"
 UNIT_META = OUT_DIR / "unit_metadata.csv"
 TRIAL_TABLE = OUT_DIR / "trial_table.csv"
@@ -116,6 +119,9 @@ def trial_rates(times_by_unit, table, window_lo, window_hi):
 
 def death_rates(times_by_unit, deaths, window_lo, window_hi):
     """Per-unit per-death firing rate (Hz) anchored at death_time_ms."""
+    if "death_time_ms" not in deaths.columns:
+        # no genuine deaths in this session -> empty per-unit rate arrays
+        return {uid: np.array([]) for uid in times_by_unit}
     dt = deaths["death_time_ms"].to_numpy(dtype=float)
     dur_s = (window_hi - window_lo) / 1000.0
     rates = {}

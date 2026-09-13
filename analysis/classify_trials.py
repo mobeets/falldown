@@ -41,8 +41,10 @@ import pandas as pd
 from pathlib import Path
 
 # ---------------------------- Configuration ----------------------------
-BEHAVIOR_PATH = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\data\emu\YFZ-2026-07-29T21-37-47-781Z-kdyd.json")
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
+from neural_common import get_run, out_dir
+_RUN = get_run()
+BEHAVIOR_PATH = _RUN.behavior_path
+OUT_DIR = out_dir(_RUN.run_id)
 TRIAL_TABLE = OUT_DIR / "trial_table.csv"
 MIN_EXPERIMENT_BLOCK = 4
 # -----------------------------------------------------------------------
@@ -190,9 +192,13 @@ def main():
             "condition": info["condition"],
         })
     labels = pd.DataFrame(rows)
+    labels["run_id"] = _RUN.run_id
+    labels["participant_id"] = _RUN.participant
 
     deaths = find_deaths()
     death_df = pd.DataFrame(deaths)
+    death_df["run_id"] = _RUN.run_id
+    death_df["participant_id"] = _RUN.participant
     death_df.to_csv(OUT_DIR / "death_times.csv", index=False)
 
     labels.to_csv(OUT_DIR / "trial_labels.csv", index=False)

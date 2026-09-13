@@ -1,13 +1,29 @@
 # Spike–Trial Segmentation Data Structure
 
 This file documents the outputs produced by `analysis/segment_trials.py` for the
-YFZ EMU run
+first analyzed YFZ EMU run
 (`data/emu/YFZ-2026-07-29T21-37-47-781Z-kdyd.json` +
 `spikesort_results/cluster_viewer_results/spikes.mat`). Read this before doing
 any analysis on the segmented spike data so you don't have to reverse-engineer
 the structure.
 
-All outputs live in `analysis/neural_outputs/`.
+## Per-run output layout
+
+Every recording session is analyzed independently and its outputs live in its
+own directory, `analysis/neural_outputs/<run_id>/`. This run is `yfz_1` (the
+first YFZ session). The run registry in `analysis/neural_common.py` maps each
+`run_id` to its participant, behavioral JSON, NS5 files, and spike-sort
+directory, and every analysis script resolves its inputs/outputs through it
+(pass `--run <run_id>`, or set `NEURAL_RUN`, to target a specific session).
+
+- The structure described below is identical for every run; only the numbers
+  (trial count, unit count) differ.
+- Per-run CSVs carry `run_id` and `participant_id` columns so results from
+  multiple sessions can be combined without `trial_id` collisions.
+- Units are **not** matched across runs; per-session decoders are the unit of
+  replication.
+
+All outputs for this run live in `analysis/neural_outputs/yfz_1/`.
 
 ## Recording site
 
@@ -181,6 +197,56 @@ chosen = trials["choice_hole"][5]   # 0–11
 - 1,514,339 segmented spikes
 - Median trial duration ≈ 2250 ms; median window coverage ≈ 57%
 - Raw (`raw.pkl`) and binned (`npz`) spike totals match exactly
+
+---
+
+# Entry-anchored dataset (`segmented_spikes_entrylocked_binned.npz`)
+
+Built by `analysis/neural_entry_locked.py` for the pre-decision analyses
+(`analysis/neural_entry_decoding.py`, `analysis/neural_entry_continuous.py`).
+
+**Motivation.** Everything above anchors t = 0 at the **choice pass**. A
+choice-anchored `pre [-1000,0]` window is *heterogeneous*: it spans the whole
+approach for slow trials (planning: entry→choice rt ≈ 950 ms median) but
+extends *before the entry pass* for fast trials (agree_optimal: rt ≈ 267 ms).
+To measure the decision interval cleanly we re-bin the **same spikes** anchored
+at the **entry pass** (t = 0 = passing the 1-hole entry level of the 1-2-1
+sequence). Windows then run from entry forward and are kept *before* the
+choice pass, so they cannot re-import the post-choice kinematic confound.
+
+**How it is built.** Not from the choice-anchored npz (per-trial offsets would
+leave no common time grid). Instead `neural_entry_locked.py` re-derives
+per-unit spike trains from the same source as `segment_trials.py`
+(`spikes.mat` + `neuron_data.json` firing-rate QC via `load_units`) and
+re-runs the identical binning loop with `anchor = entry_time_ms`. It keeps the
+same 25 ms bins, `[-2000, +2000]` window, and `truncated` NaN semantics.
+
+**Parity gate.** `python analysis\neural_entry_locked.py --check-parity`
+rebuilds the *choice*-anchored array with the same code and asserts it matches
+`segmented_spikes_binned.npz` on every covered bin (counts AND coverage
+pattern). It passed exactly for `yfz_1` — the only thing that changed is the
+anchor.
+
+**Layout** (identical schema to the choice-anchored npz):
+`binned (122, 910, 160)` (counts rel entry), `unit_ids`, `trial_ids`,
+`bin_centers` (rel entry; t = 0 is the entry pass), embedded `trial_table` /
+`unit_metadata` records, `window_ms`, `bin_width_ms`, `mode="truncated"`, plus
+`anchor="entry"` provenance. The embedded `trial_table` also carries `rt_ms`
+(choice − entry) and `ball_time_ms` (exit − choice) for convenience.
+
+**NaN semantics and eligibility (important).** Same as the choice-anchored
+npz: NaN = bin outside that trial's actual `[trial_start, exit]` span. Because
+the entry pass is *inside* the trial span, bins in `[0, rt_ms)` (the
+decision/approach interval) are always covered. Windows `[0, W]` may only use
+trials with `rt_ms >= W` — otherwise the window would run past the choice pass
+and mix in post-choice kinematics. This eligibility is **condition-dependent**
+(greedy ≈ 417 ms, agree_optimal ≈ 267 ms median rt), so analyses report `n`
+per window and include rt-matched controls.
+
+**Key numbers (this run):** 910 trials, 122 units, 160 bins; 1,498,074
+segmented spikes in the entry-anchored `[-2000, +2000]` window (slightly fewer
+than the 1,514,339 choice-anchored because the anchor sits later within each
+trial, so the window clips more of the pre-entry tail).
 
 ---
 

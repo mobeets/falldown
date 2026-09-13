@@ -37,9 +37,12 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+from neural_common import get_run, out_dir
+_RUN = get_run()
+
 # ---------------------------- Configuration ----------------------------
-BEHAVIOR_PATH = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\data\emu\YFZ-2026-07-29T21-37-47-781Z-kdyd.json")
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
+BEHAVIOR_PATH = _RUN.behavior_path
+OUT_DIR = out_dir(_RUN.run_id)
 SPIKES_UNITS = OUT_DIR / "spikes_units.csv"
 UNIT_META = OUT_DIR / "unit_metadata.csv"
 TRIAL_TABLE = OUT_DIR / "trial_table.csv"

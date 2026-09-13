@@ -36,10 +36,12 @@ import scipy.io as sio
 from pathlib import Path
 
 # ---------------------------- Configuration ----------------------------
-BEHAVIOR_PATH = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\data\emu\YFZ-2026-07-29T21-37-47-781Z-kdyd.json")
-SPIKES_PATH = Path(r"C:\Users\manik\Desktop\Spike Sorting For Hennig Project\spikesort_results\cluster_viewer_results\spikes.mat")
-NEURON_DATA_PATH = Path(r"C:\Users\manik\Desktop\Spike Sorting For Hennig Project\spikesort_results\cluster_viewer_results\neuron_data.json")
-OUT_DIR = Path(r"C:\Users\manik\Desktop\Obsidian\General Thoughts\Z Images and Files\Hennig Lab Project\falldown\analysis\neural_outputs")
+from neural_common import get_run, out_dir
+_RUN = get_run()
+BEHAVIOR_PATH = _RUN.behavior_path
+SPIKES_PATH = _RUN.spikes_mat
+NEURON_DATA_PATH = _RUN.neuron_data_json
+OUT_DIR = out_dir(_RUN.run_id)
 
 BIN_WIDTH_MS = 25.0           # default bin width (parameter of segment_trials)
 WINDOW_MS = (-2000.0, 2000.0) # window around choice time (t=0)
@@ -250,6 +252,8 @@ def main():
 
     print("Building trial table ...")
     trials = build_trial_table(BEHAVIOR_PATH)
+    trials["run_id"] = _RUN.run_id
+    trials["participant_id"] = _RUN.participant
     print(f"  {len(trials)} sequences (trials) in experiment blocks")
     print(f"  median trial duration: "
           f"{(trials['exit_time_ms'] - trials['trial_start_ms']).median():.0f} ms")
@@ -258,6 +262,8 @@ def main():
     unit_ids, spike_times, unit_meta = load_units(SPIKES_PATH, NEURON_DATA_PATH)
     print(f"  {len(unit_ids)} units pass QC (firing rate >= "
           f"{MIN_FIRING_RATE_HZ} Hz)")
+    unit_meta["run_id"] = _RUN.run_id
+    unit_meta["participant_id"] = _RUN.participant
     unit_meta.to_csv(OUT_DIR / "unit_metadata.csv", index=False)
 
     print("Segmenting spikes into per-trial windows ...")
