@@ -14,6 +14,7 @@
 
 # %%
 import json
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -632,57 +633,247 @@ def report_repeated_trials(folder_path, participant_id=None, file_glob=None):
 
 
 # %%
-# Merge all JSON files from the cloud study folder into per-participant data
-all_participant_data = merge_participant_files(
-    '../data/cloud_study/v2',
-    file_glob='../data/cloud_study/v2/*.json'
-)
+# ---------------------- Validity check (all participants) --------------
+# Run once to check every merged participant in a folder:
+#
+#     check_validity("data/logs_sorted/short_trials_experiment_nodrift")
+#
+# It reads each `*_cleaned.json`, computes per-participant validity metrics
+# (blocks/trials, completion vs. the experiment config, deaths, task
+# engagement, unexpected drift), prints a table, and returns it as a DataFrame.
+
+
+def _repo_root():
+    return Path(__file__).resolve().parent.parent
+
+
+def _resolve_folder(folder_path):
+    """Accept a path relative to the cwd or to the repo root."""
+    p = Path(folder_path)
+    if p.exists():
+        return p
+    alt = _repo_root() / folder_path
+    return alt if alt.exists() else p
+
+
+def _participant_validity(data, name, expected=None, min_p_closer=0.55,
+                          min_decisions=20):
+    """Compute validity metrics for one merged participant (pre-loaded data)."""
+    blocks = data.get("blocks", [])
+
+    # experimental blocks have >4 levels; practice/calibration have <=4
+    exp_blocks = [b for b in blocks if len(b.get("trials", [])) > 4]
+    n_trials = sum(len(b.get("trials", [])) for b in blocks)
+    n_exp_trials = sum(len(b.get("trials", [])) for b in exp_blocks)
+
+    # deaths: empty trials in experimental blocks, skipping the first 4
+    # calibration trials of each block (mirrors plot_deaths_per_block)
+    deaths = 0
+    for b in exp_blocks:
+        for j, t in enumerate(b.get("trials", [])):
+            if j >= 4 and not t.get("events"):
+                deaths += 1
+
+    # engagement: on 2-hole choice trials, did they choose the closer hole?
+    closer = farther = 0
+    for b in blocks:
+        prev_hole = None
+        for t in b.get("trials", []):
+            evs = t.get("events", [])
+            if not evs:
+                continue
+            chosen = evs[0].get("holeUsed")
+            holes = t.get("hole_locations")
+            if (prev_hole is not None and holes is not None and len(holes) == 2
+                    and chosen in holes):
+                d0, d1 = abs(holes[0] - prev_hole), abs(holes[1] - prev_hole)
+                if d0 != d1:
+                    if (chosen == holes[0]) == (d0 < d1):
+                        closer += 1
+                    else:
+                        farther += 1
+            prev_hole = chosen
+    n_dec = closer + farther
+    p_closer = (closer / n_dec) if n_dec else float("nan")
+
+    # unexpected drift: any event recorded in camera mode 1 (drift)
+    drift_levels = sum(1 for b in blocks for t in b.get("trials", [])
+                       for ev in t.get("events", []) if ev.get("modeIndex", 0) == 1)
+
+    times = [ev["time"] for b in blocks for t in b.get("trials", [])
+             for ev in t.get("events", []) if "time" in ev]
+    median_rt = float(np.median(np.diff(times))) if len(times) > 1 else float("nan")
+
+    # completion is reported separately from data usability
+    complete = None
+    if expected and expected.get("exp_blocks"):
+        complete = len(exp_blocks) >= expected["exp_blocks"]
+
+    issues = []
+    if n_dec < min_decisions:
+        issues.append(f"too few decisions ({n_dec})")
+    elif p_closer < min_p_closer:
+        issues.append("low engagement")
+    if drift_levels:
+        issues.append("unexpected drift")
+
+    return {
+        "participant": name,
+        "blocks": len(blocks),
+        "exp_blocks": len(exp_blocks),
+        "complete": "" if complete is None else ("yes" if complete else "no"),
+        "trials": n_trials,
+        "exp_trials": n_exp_trials,
+        "deaths": deaths,
+        "decisions": n_dec,
+        "p_closer": round(p_closer, 3) if p_closer == p_closer else None,
+        "median_rt_ms": round(median_rt, 1) if median_rt == median_rt else None,
+        "drift_levels": drift_levels,
+        "valid": "yes" if not issues else "no",
+        "issues": "; ".join(issues),
+    }
+
+
+# ------------------------------- plots ---------------------------------
+# One figure of each validity plot, per participant.
+
+def _save_fig(fig, path, dpi=120):
+    """Save `fig` (or the current figure) if it has content; True on save."""
+    if fig is None:
+        fig = plt.gcf()
+    if fig is None or not fig.get_axes():
+        return False
+    fig.savefig(path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    return True
+
+
+def _participant_plots(data, name, out_dir):
+    """Write one of each validity plot for a participant. Returns {plot: path}."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    made = {}
+
+    # suppress plt.show() so plotting never blocks or pops up windows
+    _orig_show = plt.show
+    plt.show = lambda *a, **k: None
+    try:
+        def _do(key, fn, *args, **kwargs):
+            try:
+                fig = fn(*args, **kwargs)
+                if _save_fig(fig, out_dir / f"{key}.png"):
+                    made[key] = str(out_dir / f"{key}.png")
+            except Exception as e:
+                print(f"    [{name}] {key} failed: {e}")
+
+        _do("trials_per_block", plot_trials_per_block, data)
+        _do("deaths_per_block", plot_deaths_per_block, data)
+        _do("switch_distribution", plot_switch_distribution, data)
+        _do("y_position_over_time", plot_y_position_over_time, data,
+            participant_label=name)
+
+        choices = None
+        try:
+            choices = compare_greedy_vs_rollout(data)
+        except Exception as e:
+            print(f"    [{name}] choices failed: {e}")
+
+        if choices is not None and len(choices):
+            _do("psychometric", plot_psychometric_curve,
+                choices[:, 0] - choices[:, 1], choices[:, -1])
+            _do("rt_residuals", plot_rt_residuals_histogram, choices,
+                rt_regression_type="minimum")
+    finally:
+        plt.show = _orig_show
+        plt.close("all")
+    return made
+
+
+def check_validity(folder_path, experiment_config=None, pattern="*_cleaned.json",
+                   min_p_closer=0.55, min_decisions=20,
+                   make_plots=True, plot_dir=None):
+    """Check the validity of every merged participant in `folder_path` in one call.
+
+    `experiment_config` defaults to `app/configs/<folder name>.json` when that
+    file exists, which supplies the expected number of experimental blocks.
+
+    When `make_plots` is True, one of each validity plot (trials/block,
+    deaths/block, switch distribution, y-position, psychometric curve, RT
+    residuals) is written to `<plot_dir>/<participant>/`; `plot_dir` defaults
+    to `<folder>/validity_plots`.
+
+    Returns the per-participant results as a pandas DataFrame.
+    """
+    folder = _resolve_folder(folder_path)
+    files = sorted(folder.glob(pattern))
+    if not files:
+        print(f"No files matching {pattern!r} in {folder}")
+        return pd.DataFrame()
+
+    if experiment_config is None:
+        cand = _repo_root() / "app" / "configs" / f"{folder.name}.json"
+        experiment_config = cand if cand.exists() else None
+
+    expected = None
+    if experiment_config:
+        cfg = json.load(open(experiment_config, encoding="utf-8"))
+        exp_blocks = [b for b in cfg if len(b.get("levels", [])) > 4]
+        expected = {
+            "exp_blocks": len(exp_blocks),
+            "exp_trials": sum(len(b.get("levels", [])) for b in exp_blocks),
+        }
+
+    if plot_dir is None:
+        plot_dir = folder / "validity_plots"
+    plot_dir = Path(plot_dir)
+
+    rows = []
+    for f in files:
+        data = json.load(open(f, encoding="utf-8"))
+        name = f.stem.replace("_cleaned", "")
+        row = _participant_validity(data, name, expected,
+                                    min_p_closer, min_decisions)
+        if make_plots:
+            made = _participant_plots(data, name, plot_dir / name)
+            row["plots"] = len(made)
+        rows.append(row)
+    df = pd.DataFrame(rows)
+
+    print(f"\n=== Validity check: {len(df)} participant(s) in {folder} ===")
+    if experiment_config:
+        print(f"Expected (from {Path(experiment_config).name}): "
+              f"{expected['exp_blocks']} experimental blocks, "
+              f"{expected['exp_trials']} levels")
+    print(df.to_string(index=False))
+    n_valid = int((df["valid"] == "yes").sum())
+    n_complete = int((df["complete"] == "yes").sum())
+    print(f"\n{n_valid}/{len(df)} usable (engagement/drift ok); "
+          f"{n_complete}/{len(df)} complete")
+    if make_plots:
+        print(f"Plots written to {plot_dir}")
+    return df
+
 
 # %%
-# Save cleaned versions to ../data/cloud_study/
-#save_merged_participants(all_participant_data, '../data/cloud_study')
+# Legacy exploratory demo (preserved; call exploratory_demo() manually).
+def exploratory_demo(data_dir='../data/cloud_study/v2'):
+    all_participant_data = merge_participant_files(
+        data_dir, file_glob=os.path.join(data_dir, '*.json'))
+    # save_merged_participants(all_participant_data, data_dir)
+    report_repeated_trials(data_dir, 'EA4EE5B954A749C8BEED8F06A43F582C')
+    prefixes = list(all_participant_data.keys())
+    prefix = prefixes[4] if prefixes else None
+    data = all_participant_data[prefix] if prefix else {'blocks': []}
+    print(f"Analyzing participant: {prefix}")
+    choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
+    plot_rt_residuals_histogram(choices, rt_regression_type='minimum')
+    plot_switch_distribution(data)
+    plot_psychometric_curve(choices[:, 0] - choices[:, 1], choices[:, -1])
+    plot_trials_per_block(data)
+    plot_deaths_per_block(data)
+    plot_y_position_over_time(data, participant_label=prefix)
+    return data
 
-# %%
-# Report on repeated trials — shows timestamps side by side
-report_repeated_trials(
-    '../data/cloud_study/v2',
-    'EA4EE5B954A749C8BEED8F06A43F582C'
-)
-
-# %% [markdown]
-# # Output
-
-# %%
-# Pick a participant from the merged data to analyze
-prefixes = list(all_participant_data.keys())
-prefix = prefixes[4] if prefixes else None
-data = all_participant_data[prefix] if prefix else {'blocks': []}
-print(f"Analyzing participant: {prefix}")
-
-# %%
-#data['blocks'][0]['trials']
-
-# %%
-#for block in data['blocks']:
-#    print(block['block_index'])
-
-# %%
-choices = compare_greedy_vs_rollout(data, only_use_disagreements=False)
-histogram = plot_rt_residuals_histogram(choices, rt_regression_type='minimum')
-
-# %%
-plot_switch_distribution(data)
-
-# %%
-#choices = get_choices(data)
-X = choices[:,0] - choices[:,1]
-# X = choices[:,2] - choices[:,3]
-y = choices[:,-1]
-plot_psychometric_curve(X, y)
-
-
-# %%
-trials_per_block = plot_trials_per_block(data)
 
 # %%
 def plot_deaths_per_block(data, fig=None):
@@ -730,13 +921,6 @@ def plot_deaths_per_block(data, fig=None):
 
 
 # %%
-deaths_per_block = plot_deaths_per_block(data)
-
-# %%
-# Plot y-position over time for the current participant
-plot_y_position_over_time(data, participant_label=prefix)
-
-# %%
 def plot_y_position_for_participant(participant_prefix, data_dir='../data/cloud_study'):
     """
     Loads a participant by file prefix and plots y-position over time.
@@ -750,3 +934,10 @@ def plot_y_position_for_participant(participant_prefix, data_dir='../data/cloud_
     fnm = matches[0]
     data = load(fnm)
     plot_y_position_over_time(data, participant_label=participant_prefix)
+
+
+# %%
+# Run the validity check on all participants in the nodrift study (one call).
+check_validity("data/logs_sorted/short_trials_experiment_nodrift")
+
+# %%
