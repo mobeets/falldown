@@ -316,6 +316,25 @@ def eligibility_mask(rt_ms, window_ms, min_rt_ms=0.0):
     return rt_ms >= max(W, min_rt_ms)
 
 
+def pca_features_entry(binned, bin_centers, lo, hi, n_components=30):
+    """(n_trials, n_components) PCA-reduced time-resolved counts on the
+    entry-anchored grid (fixed windows only; the variable-length approach
+    window is rate-only). Mirrors `neural_lda_decoding.pca_features`.
+    """
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+
+    mask = _window_bin_mask(bin_centers, lo, hi)
+    sel = binned[:, :, mask]                     # (n_units, n_trials, n_bins)
+    X = np.where(np.isnan(sel), 0.0, sel)
+    n_trials = binned.shape[1]
+    X = np.moveaxis(X, 0, 1).reshape(n_trials, -1)
+    sc = StandardScaler().fit(X)
+    pca = PCA(n_components=min(n_components, X.shape[1]),
+              random_state=42).fit(sc.transform(X))
+    return pca.transform(sc.transform(X))
+
+
 # %%
 if __name__ == "__main__":
     import sys

@@ -200,3 +200,78 @@ def out_dir(run_id: str | None = None) -> Path:
 
 def out_path(name: str, run_id: str | None = None) -> Path:
     return out_dir(run_id) / name
+
+
+# %% [markdown]
+# ## Cross-run / region helpers (multi-run neural analyses)
+#
+# These are used by `aggregate_sessions.py`, `neural_death_threat.py`, and
+# `neural_region_decoding.py`. Region mapping is the channel -> lead table from
+# `analysis/neural_outputs/DATA_STRUCTURE.md` (no patient-specific electrode
+# localization is used).
+
+# %%
+RUN_ORDER = ["yfz_1", "yfz_2", "yga_1", "yga_2"]
+
+AGG_DIR = _REPO_ROOT / "analysis" / "neural_outputs" / "aggregate"
+
+# electrode lead -> mesial-temporal region
+REGION_BY_LEAD = {
+    "LF1aCa": "CA", "RF1aCa": "CA",
+    "LT2aA": "amygdala", "RT2aA": "amygdala",
+    "LT2bHa": "anterior_hippocampus", "RT2bHa": "anterior_hippocampus",
+    "LT2cHB": "hippocampal_body", "RT2cHb": "hippocampal_body",
+}
+
+# 1-based NS5 channel -> lead (8 contacts per lead), from the NS5 header
+_CHANNEL_LEADS = [
+    (1, "LF1aCa"), (9, "LT2cHB"), (17, "LT2aA"), (25, "LT2bHa"),
+    (33, "RF1aCa"), (41, "RT2cHb"), (49, "RT2aA"), (57, "RT2bHa"),
+]
+
+
+def lead_from_channel(channel: int) -> str:
+    """NS5 channel number (1-64) -> electrode lead, e.g. 1 -> 'LF1aCa'."""
+    ch = int(channel)
+    lead = None
+    for start, name in _CHANNEL_LEADS:
+        if start <= ch <= start + 7:
+            lead = name
+    return lead or ""
+
+
+def lead_from_label(label: str) -> str:
+    """Electrode label (e.g. 'mLF1aCa01') -> lead ('LF1aCa')."""
+    s = label[1:] if label.startswith("m") else label
+    for lead in REGION_BY_LEAD:
+        if s.startswith(lead):
+            return lead
+    return ""
+
+
+def region_from_channel(channel: int) -> str:
+    return REGION_BY_LEAD.get(lead_from_channel(channel), "")
+
+
+def region_from_label(label: str) -> str:
+    return REGION_BY_LEAD.get(lead_from_label(label), "")
+
+
+def unit_regions(unit_metadata) -> dict:
+    """{unit_id: region} from a unit_metadata DataFrame (channel -> lead)."""
+    out = {}
+    for _, r in unit_metadata.iterrows():
+        out[int(r["unit_id"])] = region_from_channel(r["channel"])
+    return out
+
+
+def load_run_results(run_id: str, filename: str):
+    """Read a per-run result CSV, or None if it does not exist."""
+    import pandas as pd
+    p = out_dir(run_id) / filename
+    if not p.exists():
+        return None
+    try:
+        return pd.read_csv(p)
+    except Exception:
+        return None

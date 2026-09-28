@@ -77,7 +77,7 @@ import pandas as pd
 from pathlib import Path
 
 from neural_entry_locked import load_entry_binned, rate_features_entry, \
-    approach_rate_features
+    approach_rate_features, pca_features_entry
 
 from neural_lda_decoding import (
     RNG_SEED, PERM_FOLDS, build_label_vectors,
@@ -223,6 +223,48 @@ def main():
         print(f"  approach/{hname}: acc {r['acc_mean']:.3f} "
               f"(chance {r['chance']:.2f}, p {r['perm_p']:.3f}, "
               f"n={keep.sum()})")
+
+    # ---------------- fixed post-entry windows (PCA rep) ----------------
+    # The variable-length approach window stays rate-only; PCA is only defined
+    # on the fixed post-entry / pre-entry windows.
+    transform_pca = make_transform("pca")
+    pca_rows = []
+    for W in FIXED_WINDOWS_MS:
+        elig = rt >= W
+        Xp = pca_features_entry(binned, bin_centers, 0.0, W)
+        for hname in DECODE_HYPOTHESES + DIRECTION_CONTROLS:
+            y, idx = label_pack(lv, hname)
+            keep = elig & idx_mask(idx, n_trials)
+            if keep.sum() < 20:
+                pca_rows.append({"window": f"entry+{W:.0f}",
+                                 "hypothesis": hname,
+                                 "n_trials": int(keep.sum()),
+                                 "acc_mean": np.nan, "acc_std": np.nan,
+                                 "chance": np.nan, "perm_p": np.nan,
+                                 "note": "too few eligible trials"})
+                continue
+            r = decode_hypothesis(y[keep], Xp[keep], transform_pca)
+            pca_rows.append({"window": f"entry+{W:.0f}", "hypothesis": hname,
+                             "n_trials": int(keep.sum()), "note": None, **r})
+            print(f"  PCA entry+{W:.0f}/{hname}: acc {r['acc_mean']:.3f} "
+                  f"(p {r['perm_p']:.3f}, n={keep.sum()})")
+    Xp_pre = pca_features_entry(binned, bin_centers, *PRE_ENTRY_WINDOW)
+    fullcov = (lab["entry_time_ms"].to_numpy(float)
+               - lab["trial_start_ms"].to_numpy(float)) >= 500.0
+    for hname in DECODE_HYPOTHESES:
+        y, idx = label_pack(lv, hname)
+        keep = idx_mask(idx, n_trials) & fullcov
+        if keep.sum() < 20:
+            continue
+        r = decode_hypothesis(y[keep], Xp_pre[keep], transform_pca)
+        pca_rows.append({"window": "pre-entry[-500,0]", "hypothesis": hname,
+                         "n_trials": int(keep.sum()), "note": None, **r})
+        print(f"  PCA pre-entry/{hname}: acc {r['acc_mean']:.3f} "
+              f"(p {r['perm_p']:.3f}, n={keep.sum()})")
+    pca_res = pd.DataFrame(pca_rows)
+    pca_res["rep"] = "pca"
+    pca_res.to_csv(OUT_DIR / "entry_locked_lda_results_pca.csv", index=False)
+    print(f"\nSaved entry_locked_lda_results_pca.csv ({len(pca_res)} rows)")
 
     # ---------------- pre-entry control window ----------------
     X_pre = fixed_rate_matrix(binned, bin_centers, *PRE_ENTRY_WINDOW)

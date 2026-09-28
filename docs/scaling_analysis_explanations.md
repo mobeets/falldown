@@ -8,14 +8,28 @@ correctly.
 
 ## The mean held-out accuracy table
 
-Example output:
+Actual saved output (from `analysis/scaling_cognitive_summary.csv`; the saved
+grid uses `fit_frac ∈ {1.0, 0.25, 0.1}`):
 
 ```
---- Mean held-out accuracy by N and fit_frac ---
-  fit_frac=1.0: N1=0.753, N2=0.747, N4=0.758, N6=0.772, N8=0.769, N12=0.773
-  fit_frac=0.5: N1=0.751, N2=0.745, N4=0.753, N6=0.769, N8=0.764, N12=0.767
-  fit_frac=0.25: N1=0.734, N2=0.736, N4=0.730, N6=0.766, N8=0.757, N12=0.762
+--- Mean held-out accuracy by N and fit_frac (cognitive) ---
+  fit_frac=1.0 : N1=0.754, N2=0.747, N4=0.758, N6=0.772, N8=0.769, N12=0.773
+  fit_frac=0.25: N1=0.734, N2=0.736, N4=0.730, N6=0.766, N8=0.758, N12=0.762
+  fit_frac=0.1 : N1=0.717, N2=0.724, N4=0.730, N6=0.753, N8=0.742, N12=0.757
 ```
+
+Strategy (`scaling_strategy_summary.csv`; an earlier version of this doc said
+this "still to run", which is out of date — it is complete):
+
+```
+--- Mean held-out accuracy by N and fit_frac (strategy) ---
+  fit_frac=1.0 : N1=0.764, N2=0.776, N4=0.754, N6=0.769, N8=0.775, N12=0.777
+  fit_frac=0.25: N1=0.721, N2=0.725, N4=0.726, N6=0.734, N8=0.731, N12=0.737
+  fit_frac=0.1 : N1=0.714, N2=0.705, N4=0.693, N6=0.695, N8=0.714, N12=0.704
+```
+
+Per-participant matched-logistic reference (mean **0.780**): 32FC… 0.826,
+96CA… 0.779, EC07… 0.734.
 
 ### What each number means
 
@@ -38,8 +52,9 @@ N=4 → 6.
 
 ### Reading across fit_frac (the few-shot question)
 
-- At N=1, cutting the new participant's data 4× costs ~2 points (0.753 → 0.734).
-- At N=12, the same cut costs only ~1 point (0.773 → 0.762).
+- At N=1, cutting the new participant's data 10× costs ~3.7 points
+  (0.754 → 0.717, cognitive).
+- At N=12, the same cut costs only ~1.6 points (0.773 → 0.757).
 
 So a basis trained on more participants **partly compensates for having less of the new
 participant's own data** — transfer substitutes for within-participant data. This is the
@@ -132,29 +147,22 @@ generalize.
 
 ---
 
-## Addendum — Strategy DeepONet still to run
+## Addendum — status of the strategy scaling
 
-The strategy (HMM-gated `StrategyDeepONet`) scaling study has **not yet been run with
-lower `fit_frac` values**. In `analysis/scaling_analysis.py`, the strategy call in the
-`__main__` block is currently commented out and configured with `fit_fracs=(1.0,)`
-only.
+> **Correction (current).** The strategy (HMM-gated `StrategyDeepONet`) scaling study
+> **has been run** with the full `fit_frac` grid; its results are in
+> `analysis/scaling_strategy_summary.csv` (table above) and
+> `analysis/figures/scaling_accuracy_strategy.png`. The earlier note that it was
+> "still to run" was stale.
 
-To complete it, uncomment the strategy block and run with the full few-shot grid, e.g.:
+Re-running the study is **not possible in the current environments**: it requires
+`torch` and `ssm` together, and neither `.venv` (torch) nor `.venv-analysis`
+(torch absent) has both. To refresh the *figures* from the saved CSVs without
+retraining, run `analysis/scaling_figures.py`, which regenerates
+`scaling_accuracy_cognitive.png` and `scaling_accuracy_strategy.png` from the
+summary CSVs.
 
-```python
-results_s, summary_s, _, _, _ = run_scaling_study(
-    model_type="strategy",
-    data_dir=os.path.join(_SCRIPT_DIR, "..", "data", "cloud_study"),
-    num_states=3,
-    subsets_per_size=2,
-    seeds=(0,),
-    num_epochs=100,
-    fit_fracs=(1.0, 0.5, 0.25),   # add the lower fit_fracs
-)
-summary_s.to_csv("scaling_strategy_summary.csv", index=False)
-```
-
-Expected runtime is substantially slower than the cognitive study (~30–60 min for the
-full grid) because each strategy pool model is trained on sequences via the Markov-chain
-NLL objective. The held-out fit for the strategy model is a GLM-HMM on the frozen basis
-features (`num_states=3`, fit via `ssm`).
+The held-out fit for the strategy model is a GLM-HMM on the frozen basis features
+(`num_states=3`, fit via `ssm`). The cognitive run used `seeds=(0,1)`,
+`subsets_per_size=3`, `num_epochs=100`; the strategy run used `seeds=(0,)`,
+`subsets_per_size=2`.

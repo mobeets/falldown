@@ -1,0 +1,31 @@
+# Analysis environment dependencies (Linux / macOS / Windows).
+#
+# `ssm` is the Linderman-lab GLM-HMM (not the PyPI package) and its legacy
+# setup.py imports numpy + Cython at build time, so it must be installed with
+# `--no-build-isolation` after numpy/Cython are present. torch is installed
+# from the CPU wheel index by setup_env.sh to avoid pulling the CUDA stack.
+# Just run:  bash analysis/setup_env.sh
+#
+# Core analysis stack (behaviour, timing, cross-dataset)
+numpy==1.26.4
+pandas==3.0.5
+scipy==1.17.1
+statsmodels==0.15.0
+matplotlib==3.11.2
+scikit-learn==1.9.1
+seaborn==0.13.2
+tqdm==4.70.1
+joblib==1.6.0
+patsy==1.0.3
+formulaic==1.2.2
+
+# Neural / decoding extras
+numba==0.67.0
+llvmlite==0.49.0
+dPCA==1.0.5
+numexpr==2.14.2
+cython==3.3.0
+autograd==1.5
+pmdarima
+torch
+ssm @ git+https://github.com/lindermanlab/ssm.git@eb6c8aa

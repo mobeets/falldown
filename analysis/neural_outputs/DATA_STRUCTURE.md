@@ -93,7 +93,7 @@ rebuilds the sequences from the canonical `block_config.levels` rhythm.
 | `choice_hole` | The hole index the participant chose on the choice level |
 | `hole_locations` | JSON string of the choice level's two hole indices |
 
-### `unit_metadata.csv` — one row per unit (137 rows, after QC)
+### `unit_metadata.csv` — one row per unit (122 rows, after QC)
 
 | Column | Meaning |
 |---|---|
@@ -101,7 +101,7 @@ rebuilds the sequences from the canonical `block_config.levels` rhythm.
 | `channel` | Recording channel |
 | `cluster_id` | Sorted cluster id within the channel (1–8) |
 | `source_file` | Original `times_*.mat` file the unit came from |
-| `firing_rate_hz` | Firing rate from `neuron_data.json` (units < 0.1 Hz dropped) |
+| `firing_rate_hz` | Firing rate from `neuron_data.json` (units < 0.5 Hz dropped) |
 
 ### `segmented_spikes_raw.pkl` — lossless per-trial spike times
 
@@ -115,17 +115,19 @@ raw = {(unit_id, trial_id): np.ndarray}   # float64, ms relative to choice (t=0)
 - Values are the spike times **relative to that trial's `choice_time_ms`**,
   i.e. choice = 0, positive = after choice, negative = before.
 - Only non-empty (unit, trial) pairs appear (102,107 of them).
-- 1,521,368 spikes total (this run).
+- 1,521,368 spikes total in the raw pkl (pre-window); 1,514,339 of them fall
+  inside the ±2 s window and enter `binned` (the 7,029 difference are spikes
+  outside the window).
 
 ### `segmented_spikes_binned.npz` — binned counts + embedded metadata
 
 ```
-binned          (137, 910, 160)  float64   counts per (unit, trial, bin)
-unit_ids        (137,)   int64
+binned          (122, 910, 160)  float64   counts per (unit, trial, bin)
+unit_ids        (122,)   int64
 trial_ids       (910,)   int64
 bin_centers     (160,)   float64  bin center time in ms, relative to choice
 trial_table     (910,)   numpy.record   same columns as trial_table.csv
-unit_metadata   (137,)   numpy.record   same columns as unit_metadata.csv
+unit_metadata   (122,)   numpy.record   same columns as unit_metadata.csv
 window_ms       [-2000., 2000.]
 bin_width_ms    25.0
 mode            "truncated"
@@ -147,7 +149,7 @@ columns, so `allow_pickle=True` is required):
 import numpy as np
 z = np.load("analysis/neural_outputs/segmented_spikes_binned.npz",
             allow_pickle=True)
-binned = z["binned"]            # (137, 910, 160)
+binned = z["binned"]            # (122, 910, 160)
 unit_ids = z["unit_ids"]        # axis-0 index
 trial_ids = z["trial_ids"]      # axis-1 index
 bin_centers = z["bin_centers"]  # axis-2 time (ms)
