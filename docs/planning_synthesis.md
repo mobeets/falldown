@@ -233,9 +233,24 @@ choice-independent planning-relevant code is the conflict/geometry signal.**
    example: within p = 0.51, i.e. block/participant-level. Also check algebraic
    redundancy first — `conflict_mag = plan_advantage + greedy_advantage`
    exactly, so these three must never be fitted together.
-7. **Report split-half reliability for any participant-level summary**, and test
+   7. **Report split-half reliability for any participant-level summary**, and test
    sequential structure **two-sided**. The one-sided "excess stay" test missed a
    real negative lag-1 dependence (alternation) in this dataset.
+   8. **Control for window coverage / censoring.** A fixed post-choice window
+   (e.g. `[0,+1000]` ms) with zero-padded features lets a decoder read *how long
+   the trial was in flight* — the duration itself. `rt_exec`, `step2` and
+   `chosen_cost` decodes are essentially this artifact (coverage alone predicts
+   them at r=0.49–0.75; restricting to fully-in-flight trials collapses them to
+   ~0). Always re-check duration/length decodes with (a) fully-in-flight trials,
+   (b) coverage as a nuisance, or (c) duration-normalized rates; see
+   `analysis/neural_coverage_control.py`, `fig_coverage_control.png`.
+   **Even stronger (Part 10, `analysis/neural_splice.py`, `fig_splice.png`):**
+   rebuilding the windows from the *continuous* spike train (next trial in the
+   leftover, no zero-padding) eliminates the duration/length decodes **and**
+   `conflict_mag` (0.17→0.01); restoring zero-padding (ablation) brings them
+   back. So `conflict_mag` is representation-dependent, not coverage-clean, and
+   no duration/geometry decode survives the continuous representation. Treat the
+   segmentation/padding choice as a first-class confound.
 
 ## 7. Open questions and limitations
 

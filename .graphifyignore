@@ -19,6 +19,7 @@ papers/*.pdf
 # Dependencies & Environments
 __pycache__/
 .venv/
+.venv-marker/
 venv/
 node_modules/
 .git/
@@ -26,3 +27,8 @@ node_modules/
 # Generated Logs & Temporary Files
 *.log
 tmp/
+
+# Figure index tree: symlinks to analysis/**/*.png plus the generated index.
+# The originals under analysis/ are the graphify source; ingesting the symlink
+# tree would double every figure.
+figures/

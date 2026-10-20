@@ -132,6 +132,270 @@ representation. This closes the rate-only caveat noted in
 
 ---
 
+## Part 5 — Entry-anchored 250 ms sweep and pass-timing decode
+
+Scripts `analysis/neural_entry_250ms_sweep.py` and
+`analysis/neural_pass_timing.py` (all four runs). Two independent questions:
+**(5.1)** how informative is a single 250 ms window about the comparison labels,
+at different positions relative to the entry and choice passes; and **(5.2/5.3)**
+can the population tell *when* the ball passes a layer. Outputs in
+`analysis/neural_outputs/aggregate/` (`entry_250ms_sweep.csv`,
+`choice_250ms_sweep.csv`, `entry_250ms_phase.csv`, `pass_event_detection.csv`,
+`pass_event_transfer.csv`, `pass_time_regression.csv`, `pass_time_window.csv`).
+
+### 5.1 Single-250 ms-window comparison sweep
+
+One 250 ms window (10 native 25 ms bins) swept over centers −300…+1000 ms in
+50 ms steps, every position scored on the trials whose span contains it
+(per-window eligibility), LDA balanced accuracy for `planning_vs_greedy`,
+`agree`, `agree_optimal_vs_lapse`, `planning_optimal`, `side`, `move_dir`, and
+`condition`.
+
+- **Entry-anchored, every label is at chance across the whole sweep** (peak
+  mean-over-runs 0.51–0.53). A single 250 ms window relative to entry carries no
+  reliable comparison information at any position.
+- The **choice-anchored overlay** (dashed, shifted by the median `rt` ≈ 416 ms)
+  shows the familiar post-choice rise: `planning_vs_greedy` climbs toward
+  0.7–0.8 at the +650…+1000 ms post-choice edge in yfz_1/yfz_2/yga_1. Because
+  `rt` varies, a fixed entry-anchored window is pre-choice for some trials and
+  post-choice for others; the phase strip (`entry_250ms_phase.csv`) makes this
+  explicit — entries past ≈ +550 ms are predominantly post-choice. So the
+  window's informativeness is entirely the committed-trajectory (consequence)
+  signal, consistent with `neural_decoding_confounds.md` §8.
+
+### 5.2 Pass-event detection (2A)
+
+Per-`(trial, bin)` samples, positive if within ±50 ms of a pass; LDA balanced
+accuracy under **GroupKFold by trial** (no within-trial leakage), matched
+non-pass count, 100-shuffle permutation. Mean over runs:
+
+| anchor | target pass | balanced acc | perm p |
+|---|---|---|---|
+| entry | choice | 0.500 | 0.55 (ns) |
+| entry | **exit** | **0.571** | **0.000** |
+| entry | entry (control) | 0.503 | 0.45 (ns) |
+| choice | entry | 0.503 | 0.35 (ns) |
+| choice | **exit** | **0.572** | **0.000** |
+| choice | choice (control) | 0.502 | 0.41 (ns) |
+
+- The population carries a clear, replicable signature for the **exit/goal
+  pass** (0.57, p < 0.001, 4/4 runs, both anchors), but **not** for the entry or
+  choice passes (≈ chance).
+- The lag × lag temporal-generalization matrix (`fig_pass_event_transfer.png`)
+  is diagonal — a time-locked event signature, not a phase/clock code.
+- **Caveat:** the exit pass is late-trial, so this is plausibly end-of-sequence
+  movement/kinematics — a positive control, not evidence of a plan.
+
+### 5.3 Pass-time regression (2B)
+
+- **B1 (per-bin trace):** predicting the pass time (`rt` for the choice pass,
+  `rt_exec` for the exit pass) from each bin's population vector
+  (leave-block-out ridge) gives weak, noisy correlations (|r| ≈ 0.10–0.17) with
+  no consistent monotonic "clock" ramp across runs; isolated bins reach p < 0.05
+  in individual runs but neither sign nor location replicates.
+- **B2 (window `rt_resid`):** reusing the 250 ms windows, the kinematic residual
+  `rt_resid` (geometry/movement/position/prior-`rt` projected out) decodes at
+  ≈ 0, and the `both` control tracks `none` (`fig_pass_time_controls.png`). **No
+  non-kinematic timing signal survives.**
+
+**Bottom line:** the population reports *when the ball exits the maze* (a
+kinematic/end-of-trial signal) and carries neither a pre-decision timing code for
+the entry/choice pass nor a non-kinematic pass-time signal.
+
+---
+
+## Part 6 — Exit-hole targeting: timing (Test 2), path geometry (Test 3), selectivity (Test 4)
+
+Scripts `analysis/neural_exit_timing.py` and `analysis/neural_exit_selectivity.py`
+(all four runs). The exit (goal) hole is forced and single, so "which exit" is
+not a decision; these tests ask what the population encodes about **getting to
+the exit**. Figures: `fig_exit_prospective.png`, `fig_exit_direction.png`,
+`fig_exit_lag_matched.png`, `fig_exit_geometry.png`, `fig_exit_selectivity.png`.
+
+### Test 2 — exit-time / direction decode (entry pre-choice vs choice)
+50 ms windows, 0–1900 ms offsets, trials ≥80 per window.
+- **Neither anchor predicts the exit time strongly**: mean peak |CV corr| ≈
+  **0.11** for entry (pre-choice) and ≈ **0.10** for choice (`fig_exit_prospective.png`),
+  and the lag-to-exit-matched comparison shows no frame advantage
+  (`fig_exit_lag_matched.png`).
+- **Exit direction is at chance** (balanced acc ≈ 0.50) for both anchors
+  (`fig_exit_direction.png`).
+- No evidence for a prospective exit-time ("clock") or anticipatory direction
+  code — consistent with `docs/neural_multi_run_findings.md` §5.3 and the
+  pre-decision null.
+
+### Test 3 — chosen-path-to-exit value / geometry
+Standard windows (pre / post / whole), PCA rep, controls none/target/both.
+- **`conflict_mag` is robust**: whole-window CV corr ≈ **+0.26** under the full
+  `both` control (matches the known confound-resistant effect), and survives a
+  **within-fixed-geometry** residualization (chosen 1/2-step partialled out)
+  (`fig_exit_geometry.png`).
+- `greedy_advantage` ≈ +0.13; the **signed** `model_conflict` and
+  `plan_advantage` are weak (~0.03). So the population encodes the **magnitude**
+  of the greedy/planning disagreement (the path-to-exit value/geometry), not the
+  signed plan.
+
+### Test 4 — per-unit / per-region selectivity (exit vs planning vs motor)
+Modulation-index + permutation + BH-FDR; planning/side counts from the existing
+`selectivity_results.csv` / `left_right_selectivity_results.csv`.
+- **Exit-pass selectivity is the most prevalent**: 77 / 75 / 27 / 31 selective
+  units (yfz_1 / yfz_2 / yga_1 / yga_2), **more than side** (17 / 14 / 1 / 1) and
+  far more than planning (4 / 2 / 0 / 0) (`fig_exit_selectivity.png`).
+- Read: the exit pass engages a broad population — plausibly end-of-trial
+  kinematics — rather than a planning computation.
+
+**Bottom line (Part 6):** the population does not carry a prospective exit-time
+or direction code; it robustly encodes the **magnitude of the path-to-exit
+disagreement** (`conflict_mag`) and is broadly engaged by the exit **passage**
+(kinematic). This is the consequence/geometry account, extended to the exit hole.
+
+---
+
+## Part 7 — Decoder geometry: shared axes, step decomposition, timing/motion
+
+Script `analysis/neural_decoder_geometry.py` (all four runs). Figures:
+`fig_decoder_geometry.png`, `fig_step_decomposition.png`,
+`fig_motion_robustness.png`; CSVs `decoder_geometry.csv`,
+`step_decomposition.csv`, `motion_robustness.csv`.
+
+### Decoder-axis cosines (rate, post window; mean over runs)
+- `chosen_cost` ≈ `step2` (remaining distance to goal) **cos 0.87**, and ≈
+  `rt_exec` (exit time from choice) **0.66**; `step2` ≈ `rt_exec` **0.81**. So the
+  "planning-cost" decoder is largely the **remaining-distance / exit-traversal
+  axis** (exit-hole kinematics).
+- `conflict_mag` is **distinct**: 0.45 with `chosen_cost`, only **0.15** with
+  `rt_exec`; cross-decoding is ~0. The option-disagreement code does not reduce
+  to the traversal axis.
+- `rt_dec` ≈ `step1` (first-hop distance) **0.75**; `step1` is otherwise weakly
+  aligned.
+
+### Step decomposition + timing control (PCA; rate in parentheses)
+- `step1` (first hop): weak — **0.05** (rate) / ~0.1 (pca).
+- `step2` (remaining): strong — **0.32** (rate) / **0.54–0.86** (pca).
+- `chosen_cost`: 0.16 (rate) / 0.32–0.66 (pca).
+- **Partialling out overall timing (`rt_exec`) collapses it**: `chosen_cost |
+  rt_exec` = **−0.01** (rate) / **0.05–0.26** (pca); `step2 | rt_exec` = 0.07
+  (rate) / 0.10–0.49 (pca). So the chosen-cost decode is *mostly* overall
+  post-choice timing, with only a small residue.
+
+### Motion-interruption robustness
+Trials with post-choice velocity sign-changes / stops (interrupted) vs not:
+- `chosen_cost` decodes **equally on interrupted trials** (≈ the full-sample
+  value) — so it is not merely smooth, monotone timing.
+- **But** after partialling `[rt_exec, n_sign, stop_frac, tortuosity]`, decoding
+  drops to **0.03–0.18** (`cpc|-timing-motion`).
+
+**Bottom line (Part 7):** the "planning-cost" decode is essentially the
+remaining path length / exit traversal time (exit-hole kinematics), not an
+independent route-value signal — it survives movement interruptions but not the
+timing control. `conflict_mag` is the more separable axis (option-disagreement
+magnitude), only moderately overlapping the chosen-cost/traversal axis.
+
+---
+
+## Part 8 — HEADLINE CAVEAT: window coverage / censoring
+
+Script `analysis/neural_coverage_control.py` (all four runs); figure
+`fig_coverage_control.png`. A fixed post-choice window that can outlast a short
+trial (e.g. `[0,+1000]` ms, processed with zero-padded PCA) lets the decoder
+read **how long the trial was still in flight** — i.e. `rt_exec` itself. Mean
+over runs:
+
+| target | raw | inflight-only | rate | coverage-ctrl | coverage alone |
+|---|---|---|---|---|---|
+| `rt_exec` | 0.62 | **0.00** | 0.29 | 0.22 | 0.69 |
+| `step2` | 0.67 | **0.03** | 0.32 | 0.26 | 0.75 |
+| `chosen_cost` | 0.45 | **0.05** | 0.16 | 0.22 | 0.49 |
+| **`conflict_mag`** | 0.20 | — | 0.04 | **0.21** | −0.07 |
+
+- **Duration/length decodes (`rt_exec`, `step2`, `chosen_cost`) are largely the
+  coverage artifact** — the coverage scalar alone predicts them as well as the
+  neural features, and restricting to fully-in-flight trials collapses them.
+  This supersedes any claim that the population "encodes the chosen path's
+  remaining geometry / cost": that decode is censoring.
+- **`conflict_mag` passes the coverage-scalar control** (0.21), but **Part 10
+  shows it collapses under the continuous (spliced) representation** (0.17→0.01)
+  and is ~0 with rate features. So it is not fully coverage-clean — it is
+  **representation-dependent** and needs a decisive test before being called
+  robust.
+- Applies equally to the post-choice `planning_vs_greedy` decode (its r=0.87
+  with ball time is the same censoring).
+
+Treat this as a headline caveat: any duration/length target from a fixed window
+must be re-checked with fully-in-flight trials, coverage as a nuisance, or
+duration-normalized rates.
+
+---
+
+## Part 9 — Change of mind (CoM)
+
+Script `analysis/neural_com.py`; figures `fig_com_event.png`,
+`fig_com_presence.png`. A CoM is a `user_input` direction reversal; the
+**second** reversal within a layer (reverse, then reverse back) is the event;
+first reversal logged as a higher-power contrast. Layers run separately
+(approach entry→choice; traverse choice→exit).
+
+Base rates: approach ≥1 reversal 22%, ≥2 = 4%; traverse ≥1 87%, ≥2 = 4%.
+
+- **Event-locked signal: null.** Balanced accuracy ≈ 0.47–0.52 for first and
+  second reversals, both layers, all runs (perm p n.s.). The second-reversal
+  events are rare (n = 16–60/run).
+- **Presence decoding: null.** Decoding "≥2 reversals" from layer activity:
+  raw rate ≈ 0, raw PCA ≈ 0.01–0.10, coverage-controlled ≈ 0; random-effects
+  (DL) pooled mean ≈ 0 with I² = 0.
+- **Interpretation:** no neural signature of a change of mind, event-locked or
+  as a state — consistent with the rapid, no-deliberation regime and the
+  pre-decision null.
+
+## Part 10 — Splice segmentation (zero-padding vs continuous)
+
+Script `analysis/neural_splice.py`; figure `fig_splice.png`. Rebuilt a
+**continuous** representation from `segmented_spikes_raw.pkl` (each trial's
+window taken from the global spike train, so post-exit bins contain the *next*
+trial's activity = "splice") and compared to the truncated (zero-padded) npz.
+Mean PCA CV corr:
+
+| target | truncated | **spliced** | ablation (zero-pad) | missplice | shift |
+|---|---|---|---|---|---|
+| `rt_exec` | 0.61 | **0.00** | 0.61 | −0.04 | 0.02 |
+| `step2` | 0.63 | **0.00** | 0.61 | −0.04 | −0.01 |
+| `chosen_cost` | 0.43 | **0.02** | 0.42 | −0.02 | 0.01 |
+| `conflict_mag` | 0.17 | **0.01** | 0.18 | 0.00 | −0.01 |
+
+(`ablation` = spliced with leftover bins restored to zero-padding; `missplice`/
+`shift` = leftover from a random/t+2 trial.)
+
+- **The duration/length decodes are the zero-padding cue**: they vanish when the
+  window is made continuous (spliced), and reappear when zero-padding is
+  restored (ablation). The leftover *content* is irrelevant (missplice/shift ≈ 0).
+- **`conflict_mag` also collapses under splicing** (0.17→0.01) — so even the
+  "coverage-clean" continuous signal was specific to the zero-padded PCA
+  template. In the rate representation `conflict_mag` is ~0 either way (0.06
+  truncated, 0.01 spliced). The `conflict_mag` result should therefore be
+  treated as **representation-dependent** until a decisive test is run.
+- **Headline:** results depend on the segmentation/padding choice; the
+  continuous representation removes the censoring cue and leaves no duration or
+  geometry decoding that survives.
+
+**100 ms-bin replication (`analysis/neural_rebin100.py`, `fig_rebin100.png`).**
+Rebuilding at 100 ms bins reproduces the same pattern and extends it:
+
+| target | truncated (100 ms) | spliced | coverage-ctrl | coverage alone |
+|---|---|---|---|---|
+| `rt_exec` | 0.68 | 0.02 | 0.30 | 0.68 |
+| `step2` | 0.70 | −0.00 | 0.33 | 0.73 |
+| `chosen_cost` | 0.49 | −0.01 | 0.27 | 0.47 |
+| `conflict_mag` | 0.23 | 0.00 | 0.24 | −0.09 |
+| **`planning_vs_greedy`** | **0.95** | **0.50 (chance)** | — | — |
+
+So at 100 ms the duration/length decodes remain the coverage cue, `conflict_mag`
+is again representation-dependent, and the **post-choice `planning_vs_greedy`
+decode collapses to chance under the continuous representation** (0.95→0.50) —
+i.e. it too was the coverage/template artifact (planning trials short, greedy
+long).
+
+---
+
 ## Confound audit (`analysis/neural_confound_audit.py`)
 
 We cannot prove the absence of confounds, but we can test each conclusion's
@@ -705,6 +969,11 @@ what the quantity represents about the recorded population.
   rate features are used per region.
 - All sessions are all-drift, so there is no follow-vs-drift contrast; threat is
   continuous plus discrete death events.
+- Part 5 pass-event detection uses ±50 ms and a randomly matched non-pass set;
+  the exit-pass signature is late-trial and cannot be separated from
+  end-of-sequence kinematics, and the 250 ms sweep mixes pre/post-choice trials
+  because `rt` varies (mitigated by the phase strip and the choice-anchored
+  overlay).
 
 ## Reproducing
 
@@ -716,6 +985,12 @@ python analysis/neural_bursty_unit_sensitivity.py --run yfz_1
 python analysis/neural_entry_decoding.py --run yfz_1
 python analysis/neural_confound_audit.py             # all runs
 python analysis/neural_figures.py                    # all runs
+python analysis/neural_entry_250ms_sweep.py          # all runs
+python analysis/neural_pass_timing.py                # all runs
+python analysis/neural_exit_timing.py                # all runs (tests 2-3)
+python analysis/neural_exit_selectivity.py           # all runs (test 4)
+python analysis/neural_decoder_geometry.py           # all runs (Part 7)
+python analysis/build_figure_index.py                # refresh figures/
 ```
 
 Aggregate outputs land in `analysis/neural_outputs/aggregate/`; per-run outputs

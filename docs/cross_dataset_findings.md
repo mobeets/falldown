@@ -258,6 +258,18 @@ deviation (`_w`), a block mean within participant (`_b`), and a participant mean
   slopes (split-half SB = 0.52). The robust estimate is the within-participant
   GEE **+0.30 (p = 0.03)**, which is stable under block-height and threat
   controls; the pooled cross-block GEE is n.s. (`planning_reanalysis_block.py`).
+- **Block-level scatter** (`analysis/planning_block_conflict_scatter.py`,
+  `planning_block_measures.csv`, `fig_planning_block_conflict_scatter.png`):
+  346 blocks from all 18 cloud participants, `x = mean(conflict)` (the binary
+  disagree rate), three planning measures (P(plan|conflict), the raw per-block
+  `−beta_plan`, the normalized planning weight). Pooled slopes are **negative**
+  for all three (p = 0.001 / 0.052 / 0.004) but this is a Simpson effect driven
+  by experiment/threat differences. Within-participant: P(plan) slope is
+  **+0.02 (p = 0.82, n.s.)**, raw coefficient **−0.65 (p = 0.03)**, weight −0.16
+  (p = 0.19). The within-P(plan) slope is **filter-sensitive**: **+0.24
+  (p = 0.05)** over all 527 blocks but drops to +0.02 once blocks need ≥8
+  conflict trials, so the "environment sensitivity" is carried by noisy
+  few-conflict blocks (consistent with its low split-half reliability 0.52).
 - EMU: the same slope is on average **−0.01** (range −0.17 to +0.16) — the EMU
   sessions do **not** show the cloud within-session environment sensitivity.
 - **Coefficient space** (`xd_environment_weight.csv`): the

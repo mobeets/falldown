@@ -409,6 +409,48 @@ condition, which is precisely why the fixed windows are the cleaner test.
 
 ---
 
+## 8b. HEADLINE CAVEAT — window coverage / censoring
+
+A fixed post-choice window (e.g. `[0, +1000]` ms) processed with `pca_features`
+**pads NaN->0**. Trials that exit early (short `rt_exec`) therefore have mostly
+zero bins in the window, while long trials have activity throughout. The decoder
+can read **how long the trial was still in flight** — which *is* the duration.
+
+Diagnostic (`analysis/neural_coverage_control.py`, `coverage_control.csv`,
+`fig_coverage_control.png`), mean over the four runs:
+
+| target | raw | inflight-only (`rt_exec>=1000`) | rate rep | coverage-controlled | coverage alone |
+|---|---|---|---|---|---|
+| `rt_exec` | 0.62 | **−0.00** | 0.29 | 0.22 | **0.69** |
+| `step2` (remaining) | 0.67 | **0.03** | 0.32 | 0.26 | **0.75** |
+| `chosen_cost` | 0.45 | **0.05** | 0.16 | 0.22 | **0.49** |
+| `step1` | 0.23 | 0.07 | 0.05 | 0.05 | −0.36 |
+| **`conflict_mag`** | 0.20 | 0.03 (selection) | 0.04 | **0.21** | **−0.07** |
+
+Reading:
+- **`rt_exec`, `step2`, `chosen_cost` decodability is essentially the coverage
+  artifact**: the coverage scalar alone predicts them as well as the neural
+  features (0.49–0.75), and restricting to fully-in-flight trials collapses the
+  decode to ~0. The "strong" post-choice / remaining-geometry decodes reported
+  elsewhere in this project are inflated by fixed-window censoring.
+- **`conflict_mag` survives the coverage-scalar control** (0.21 ≈ raw 0.20), but
+  it is **not representation-independent**: rebuilding the windows from the
+  continuous spike train with no zero-padding (Part 10, `neural_splice.py`,
+  `fig_splice.png`) drops it to 0.01, and it is ~0 in the rate representation.
+  So `conflict_mag` is **representation-dependent** — do not treat it as a clean,
+  assumption-free signal until a decisive test is run.
+- `step1` (first hop) is not a coverage artifact but is weak.
+
+**Consequence:** any duration/length-like target decoded from a fixed window
+that can outlast short trials (`rt_exec`, `step2`, `chosen_cost`, post-choice
+`planning_vs_greedy`) must be re-checked with (a) fully-in-flight trials,
+(b) coverage as a nuisance, or (c) duration-normalized rate features. The
+`planning_vs_greedy × ball_time` r = 0.87 association is the same censoring
+mechanism: planning trials (~438 ms) and greedy trials (~1455 ms) occupy very
+different fractions of a fixed window.
+
+---
+
 ## 9. Reproducibility
 
 All scripts run with
