@@ -37,6 +37,12 @@ os.makedirs(LOG_DIR, exist_ok=True)
 # ---------------------
 app = FastAPI()
 
+@app.middleware("http")
+async def disable_task_cache(request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
+
 # Serve static files (index.html, sketch.js, ws_logger.js, etc.)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 

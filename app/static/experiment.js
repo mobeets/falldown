@@ -16,7 +16,7 @@ function loadConfig() {
     assignmentId: 'unknown',
     projectId: 'unknown',
     params_name: 'emu_research_params',
-    experiment: 'short_trials_experiment_nodrift'
+    experiment: 'interleaved_experiment_600_blocks'
   };
 
   // Merge defaults with URL params
@@ -59,9 +59,14 @@ function loadConfig() {
   const experiment_path = `configs/${experiment}.json`;
   
   // In preload(), loadJSON() returns the parsed JSON synchronously
-  const params = loadJSON(params_path);
-  const block_configs = loadJSON(experiment_path);
+  const params = loadJSON(`${params_path}?v=20261117d`);
+  const block_configs = loadJSON(`${experiment_path}?v=20261117d`);
 
+  params.startCameraMode = 0;
+  params.modeSwitchRates = [0, 0];
+  for (const block of Object.values(block_configs)) {
+    block.params = {...block.params, startCameraMode: 0};
+  }
   return {subject_id, params_path, experiment_path, params, block_configs};
 }
 

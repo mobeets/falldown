@@ -101,7 +101,40 @@ function newGame(restartGame = false, goBack = false, trialIndex = 0, gameOver =
   if(gameOver == true){gameMode = DRIFT_DEATH;} else{gameMode = READY_MODE;}
 
   // Set ball position
-  ball.x = levelWidth/2;
+  const spawnDesign = trial_block.block_config.design;
+  ball.x = spawnDesign && spawnDesign.spawn_segment !== undefined
+    ? levelStartX + (spawnDesign.spawn_segment + 0.5) * levelWidth / E.params.nSegments
+    : levelWidth/2;
+  // Apply clearance to tutorials and legacy configurations as well.
+  const occupiedColumns = new Set(trial_block.block_config.levels.flat());
+  const segmentWidth = levelWidth / E.params.nSegments;
+  const safeSpawns = Array.from({length: E.params.nSegments}, (_, i) => i)
+    .filter(i => !occupiedColumns.has(i))
+    .map(i => levelStartX + (i + 0.5) * segmentWidth);
+  if (!safeSpawns.length) {
+    // Legacy long blocks can collectively use every column. The spawn must
+    // at least be over solid ground on the first platform.
+    for (let i = 0; i < E.params.nSegments; i++) {
+      if (!trial_block.block_config.levels[0].includes(i)) {
+        safeSpawns.push(levelStartX + (i + 0.5) * segmentWidth);
+      }
+    }
+  }
+  if (!safeSpawns.length) throw new Error('No solid platform column available for spawning');
+  const desiredSpawn = ball.x;
+  ball.x = safeSpawns.reduce((a, b) => Math.abs(b - desiredSpawn) < Math.abs(a - desiredSpawn) ? b : a);
+  if (trial_block.block_config.levels[0].some(h =>
+      ball.x + ball.r > levelStartX + h * segmentWidth &&
+      ball.x - ball.r < levelStartX + (h + 1) * segmentWidth)) {
+    throw new Error('Unsafe spawn overlaps an entry hole');
+  }
+  ball.xprev = ball.x;
+  ball.yprev = 100;
+  trial_block.spawn = {x: ball.x, y: 100, time: performance.now()};
+  trial_block.first_movement = null;
+  wsLogger.log('block spawn', {block_index: trial_block.block_index,
+    block_count: trial_block.block_count, spawn: trial_block.spawn,
+    design: spawnDesign});
   ball.y = 100;
   ball.vx = 0;
   ball.vy = 0;
@@ -109,7 +142,7 @@ function newGame(restartGame = false, goBack = false, trialIndex = 0, gameOver =
   cameraYTarget = 0;
   modeSwitchCooldown = E.params.minLevelsPerMode;
   
-  cameraMode = trial_block.block_config.params.startCameraMode;
+  cameraMode = 0; // Follow mode for every block, including tutorials and retries.
   if (cameraMode === undefined) {
     cameraMode = E.params.startCameraMode;
   }
@@ -133,15 +166,7 @@ function newGame(restartGame = false, goBack = false, trialIndex = 0, gameOver =
 }
 
 function checkForModeSwitch(modeIndex, modeSwitchRate) {
-  let doModeSwitch = false;
-  if (modeSwitchCooldown > 0) {
-    modeSwitchCooldown--;
-  } else {
-    doModeSwitch = random() < modeSwitchRate;
-    if (doModeSwitch) modeSwitchCooldown = E.params.minLevelsPerMode;
-  }
-  if (doModeSwitch) modeIndex = int(!modeIndex);
-  return {modeIndex, doModeSwitch};
+  return {modeIndex: 0, doModeSwitch: false};
 }
 
 function decisionEvent(level) {
@@ -164,19 +189,20 @@ function draw() {
   checkUserButtonPresses();
 
   if (gameMode == PLAY_MODE) {
+    const movementSpeed = E.params.maxBallAccelScale * ballAccel;
 
     if (user.moveLeft) {
       if (E.params.isMomentum === true || E.params.isMomentum === undefined) {
         ball.vx -= ballAccel;
       } else {
-        ball.vx = -E.params.maxBallAccelScale*ballAccel;
+        ball.vx = -movementSpeed;
       }
       trial_block.log_user_input(-1);
     } else if (user.moveRight) {
       if (E.params.isMomentum === true || E.params.isMomentum === undefined) {
         ball.vx += ballAccel;
       } else {
-        ball.vx = E.params.maxBallAccelScale*ballAccel;
+        ball.vx = movementSpeed;
       }
       trial_block.log_user_input(1);
     } else {
@@ -185,9 +211,16 @@ function draw() {
       }
     }
 
-    ball.vx = constrain(ball.vx, -E.params.maxBallAccelScale*ballAccel, E.params.maxBallAccelScale*ballAccel);
+    ball.vx = constrain(ball.vx, -movementSpeed, movementSpeed);
     trial_block.log_states(ball); // logs ball and camera states
     ball.update();
+    if (trial_block.first_movement === null && ball.x !== ball.xprev) {
+      trial_block.first_movement = {time: performance.now(), x: ball.x,
+        direction: ball.x > ball.xprev ? 'right' : 'left'};
+      wsLogger.log('first horizontal movement', {
+        block_index: trial_block.block_index, block_count: trial_block.block_count,
+        movement: trial_block.first_movement});
+    }
 
     // Set y offset based on camera mode
     /*
