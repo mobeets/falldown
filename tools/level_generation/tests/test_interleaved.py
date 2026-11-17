@@ -113,8 +113,8 @@ class InterleavedTests(unittest.TestCase):
                     self.assertEqual(m['intended_entry_direction'], 'left' if m['spawn_segment'] > lv[0][0] else 'right')
                     group = (m['structure'], m['condition'])
                     if m['structure'] == '1-2-2-1':
-                        self.assertIn(m['n_paths'], (2, 3, 4))
-                        group = (m['structure'], 'random')
+                        self.assertIn(m['n_paths'], (3, 4))
+                        group = (m['structure'], m['n_paths'])
                     groups.setdefault(group, []).append(1 if m['spawn_offset_segments'] > 0 else -1)
                 for sides in groups.values():
                     self.assertEqual(sum(sides), 0)
@@ -123,9 +123,7 @@ class InterleavedTests(unittest.TestCase):
         blocks = task.generate(600)
         mazes = [b for b in blocks if b['design']['structure'] == '1-2-2-1']
         counts = Counter(b['design']['n_paths'] for b in mazes)
-        self.assertEqual(set(counts), {2,3,4})
-        self.assertTrue(any(max(b['levels'][2]) < min(b['levels'][1]) for b in mazes))
-        self.assertTrue(any(min(b['levels'][2]) > max(b['levels'][1]) for b in mazes))
+        self.assertEqual(counts, {3: 100, 4: 100})
         self.assertTrue(any(min(b['levels'][1]) < min(b['levels'][2]) < max(b['levels'][1]) for b in mazes))
         # Hole 9 is blocked by hole 6 when moving right from 1.
         lv = [[1], [3,5], [6,9], [2]]
@@ -134,6 +132,19 @@ class InterleavedTests(unittest.TestCase):
         self.assertEqual(m['paths'][0]['holes'], [1,3,6,2])
         for predictions in task.horizon_features(lv)['horizon_predictions'].values():
             self.assertEqual(predictions, [[1,3,6,2]])
+
+    def test_practices_and_visibility(self):
+        blocks = task.experiment_blocks(task.generate(12))
+        self.assertEqual(len(blocks), 18)
+        self.assertTrue(all(b['phase'] == 'practice' for b in blocks[:6]))
+        self.assertTrue(all(b['phase'] == 'test' for b in blocks[6:]))
+        self.assertEqual([b['design']['n_paths'] for b in blocks[4:6]], [3,4])
+        for height in (300,600,1080):
+            spacing = height / 8
+            for b in blocks:
+                self.assertLess((2 + len(b['levels']) - 1)*spacing, height)
+        for i in range(0,12,12):
+            self.assertEqual(Counter(b['design']['n_paths'] for b in blocks[6+i:6+i+12] if b['design']['structure']=='1-2-2-1'), {3:2,4:2})
 
     def test_reproducibility_and_invalid_counts(self):
         self.assertEqual(self.blocks, task.generate(300))

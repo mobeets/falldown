@@ -5,6 +5,7 @@ Counts must be multiples of 12: each shuffled packet contains four forced,
 four two-path (2 agree / 2 conflict), and four randomized 1-2-2-1 trials (actual reachable path count is recorded).
 """
 import argparse
+import copy
 from collections import Counter, defaultdict
 from itertools import combinations, product
 import json
@@ -172,7 +173,10 @@ def generate(n, seed=20261116, segments=12):
     pools = candidate_pools(segments, seed)
     for key in pools:
         pools[key] = [lv for lv in pools[key] if not any(set(a) & set(b) for a, b in zip(lv, lv[1:])) and any(v not in sum(lv, []) for v in range(lv[0][0])) and any(v not in sum(lv, []) for v in range(lv[0][0]+1, segments))]
-    packet_template = PACKET[:8] + [('1-2-2-1', 'random')] * 4
+    random_trials = pools.pop(('1-2-2-1', 'random'))
+    for count in (3, 4):
+        pools[('1-2-2-1', str(count))] = [lv for lv in random_trials if len(legal_paths(lv)) == count]
+    packet_template = PACKET[:8] + [('1-2-2-1', str(c)) for c in (3,4) for _ in range(2)]
     required = Counter(packet_template)
     for key, count in required.items():
         needed = count * (n // len(PACKET))
@@ -193,7 +197,7 @@ def generate(n, seed=20261116, segments=12):
             meta = describe(levels)
             meta.update(horizon_features(levels))
             meta.update(condition=condition(meta), trial_id=len(blocks), packet_index=packet_index,
-                        seed=seed, n_segments=segments, design_version='interleaved_v7')
+                        seed=seed, n_segments=segments, design_version='interleaved_v8')
             side = spawn_sides[key].pop()
             entry = levels[0][0]
             occupied = set(sum(levels, []))
@@ -207,6 +211,30 @@ def generate(n, seed=20261116, segments=12):
     return blocks
 
 
+def experiment_blocks(blocks):
+    """Four legacy tutorials, two new practices, then the test schedule."""
+    source = ROOT / 'app/configs/emu_experiment_300_blocks.json'
+    practice = json.loads(source.read_text())[:4]
+    for count in (3, 4):
+        block = copy.deepcopy(next(b for b in blocks if b['design']['structure'] == '1-2-2-1' and b['design']['n_paths'] == count))
+        block['design'].update(trial_id=None, packet_index=None, practice_id=count-3)
+        block['params']['pre_instructions'] = [
+            'Practice: this maze has two platforms with two holes each.',
+            'Look ahead and complete the maze as quickly as possible.']
+        practice.append(block)
+    for block in practice:
+        block['params']['startCameraMode'] = 0
+        block['phase'] = 'practice'
+    test = copy.deepcopy(blocks)
+    for block in test:
+        block['phase'] = 'test'
+    test[0]['params']['pre_instructions'] = [
+        f'Now we can begin. There are {len(test)} mazes in total.',
+        'Mazes have different numbers of possible paths.',
+        'Complete each maze as quickly as possible.']
+    return practice + test
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--n', type=int, default=600)
@@ -215,19 +243,9 @@ def main():
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
     blocks = generate(args.n, args.seed, args.segments)
-    # Retain the existing four tutorial blocks: their fixed indices are used
-    # by the browser's instruction checks.
-    source = ROOT / 'app/configs/emu_experiment_300_blocks.json'
-    practice = json.loads(source.read_text())[:4]
-    for block in practice:
-        block['params']['startCameraMode'] = 0
-    blocks[0]['params']['pre_instructions'] = [
-        f'Now we can begin. There are {args.n} mazes in total.',
-        'Mazes have different numbers of possible paths.',
-        'Complete each maze as quickly as possible.']
     output = args.output or ROOT / f'app/configs/interleaved_experiment_{args.n}_blocks.json'
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(practice + blocks, indent=2) + '\n')
+    output.write_text(json.dumps(experiment_blocks(blocks), indent=2) + '\n')
     print(f'Wrote {output}: {dict(Counter((b["design"]["structure"], b["design"]["condition"]) for b in blocks))}')
 
 

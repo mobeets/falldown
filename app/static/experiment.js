@@ -59,8 +59,8 @@ function loadConfig() {
   const experiment_path = `configs/${experiment}.json`;
   
   // In preload(), loadJSON() returns the parsed JSON synchronously
-  const params = loadJSON(`${params_path}?v=20261117g`);
-  const block_configs = loadJSON(`${experiment_path}?v=20261117g`);
+  const params = loadJSON(`${params_path}?v=20261117i`);
+  const block_configs = loadJSON(`${experiment_path}?v=20261117i`);
 
   params.startCameraMode = 0;
   params.modeSwitchRates = [0, 0];

@@ -71,7 +71,7 @@ function setup() {
   deltaScrollSpeed = (maxScrollSpeed - initScrollSpeed) / (E.params.scrollSpeedSecsToMax * E.params.FPS);
 
   // set level spacing so that the same number of levels are visible
-  levelSpacing = height / E.params.nLevelsVisible;
+  levelSpacing = height / (E.params.nLevelsVisible + 2);
 
   let gapSize = levelWidth / E.params.nSegments;
   ball = new Ball(levelWidth/2, 100, 0.1*gapSize);
@@ -129,13 +129,14 @@ function newGame(restartGame = false, goBack = false, trialIndex = 0, gameOver =
     throw new Error('Unsafe spawn overlaps an entry hole');
   }
   ball.xprev = ball.x;
-  ball.yprev = 100;
-  trial_block.spawn = {x: ball.x, y: 100, time: performance.now()};
+  const spawnY = Math.min(100, levelSpacing);
+  ball.yprev = spawnY;
+  trial_block.spawn = {x: ball.x, y: spawnY, time: performance.now()};
   trial_block.first_movement = null;
   wsLogger.log('block spawn', {block_index: trial_block.block_index,
     block_count: trial_block.block_count, spawn: trial_block.spawn,
     design: spawnDesign});
-  ball.y = 100;
+  ball.y = spawnY;
   ball.vx = 0;
   ball.vy = 0;
   cameraY = 0;
@@ -153,11 +154,11 @@ function newGame(restartGame = false, goBack = false, trialIndex = 0, gameOver =
   levels = [];
   levelIndex = 0;
   let prevTrial;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < E.params.nLevelsVisible; i++) {
     trial = trial_block.next_trial();
     if (trial === undefined) continue;
 
-    let y = height/2 + i * levelSpacing;
+    let y = (2 + i) * levelSpacing;
     levelIndex++;
 
     levels.push(new Level(levelIndex, E.params.nSegments, levelWidth, levelHeight, trial, levelStartX, y, cameraMode, E.params.modeRectColors[cameraMode], false));
@@ -254,7 +255,7 @@ function draw() {
 
     if (cameraMode === 0) {
 
-      cameraY = 0.25 * (ball.y - targetScreenY) + 0.75 * cameraY;
+      cameraY = Math.max(0, 0.25 * (ball.y - targetScreenY) + 0.75 * cameraY);
       cameraYTarget = cameraY;
     } else if (cameraMode === 1) {
       

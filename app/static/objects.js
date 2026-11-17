@@ -57,6 +57,16 @@ class RectSegment {
   }
 
   collidesWith(ball) {
+    // Resolve a downward crossing before testing side overlap. A fast fall
+    // can put the center inside the platform slab in one frame; treating
+    // that as a side collision kills horizontal motion at segment seams.
+    if (ball.vy >= 0 && ball.yprev + ball.r <= this.y + 0.001 &&
+        ball.y + ball.r >= this.y &&
+        ball.x >= this.x && ball.x <= this.x + this.w) {
+      ball.y = this.y - ball.r;
+      ball.vy = 0;
+      return true;
+    }
     const hit = collideRectCircle(this.x, this.y, this.w, this.h, ball.x, ball.y, ball.r * 2);
     if (hit.colliding) {
       let prevBallX = ball.x;
@@ -93,7 +103,7 @@ collideRectCircle = function (rx, ry, rw, rh, cx, cy, diameter) {
   }else if (cy > ry+rh){ testY = ry+rh; yEdge = 1; }   // bottom edge
 
   // // get distance from closest edges
-  var distance = this.dist(cx,cy,testX,testY)
+  var distance = dist(cx,cy,testX,testY)
 
   // if the distance is less than the radius, collision!
   if (distance <= diameter/2) {
