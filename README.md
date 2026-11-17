@@ -23,7 +23,8 @@ This will save all trial data, mouse clicks, and key presses locally to files na
 The default is now 600 interleaved single-trial mazes: 200 each of 1-1-1,
 1-2-1, and 1-2-2-1, after four tutorial blocks. See
 [Interleaved trial design](docs/interleaved_trials.md) for condition balancing,
-saved path metadata, regeneration, and reaction-time analysis notes.
+saved path metadata, regeneration, and reaction-time analysis notes. The randomized
+1-2-2-1 layouts can have two to four physically reachable routes.
 
 - Default params can be found in `app/configs/default_params.json`, and overrided by appending `&params_name=example` to the url (this will load the config file `app/configs/example.json`)
 - Default block order can be found in `app/configs/default_experiment.json`, and overrided by appending `&experiment=experiment` to the url (this will load the experiment file `app/configs/experiment.json`)

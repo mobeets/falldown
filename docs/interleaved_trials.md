@@ -1,124 +1,74 @@
-# Interleaved trial-based experiment
+# Interleaved trial-based experiment (v7)
 
-The default task now loads `interleaved_experiment_600_blocks.json`, with the
-existing four tutorial blocks followed by 600 one-maze-per-block test trials.
-Use the existing `emu_research_params` (12 segments). To select it explicitly:
+The default `interleaved_experiment_600_blocks` has four tutorials followed by
+600 test mazes: 200 each of 1-1-1, 1-2-1, and 1-2-2-1. Each shuffled packet of
+12 contains four of each structure. Structure describes holes per platform,
+not the number of physically reachable routes.
 
-`http://localhost:8000?participantId=SUBJECT_ID&experiment=interleaved_experiment_600_blocks&params_name=emu_research_params`
+## Random placement and reachability
 
-Each randomly shuffled 12-trial packet contains:
+In 1-2-2-1 mazes, both hole pairs are independently proposed across the full
+12-segment grid. Neither pair must straddle its parent or contain the other
+pair. Layouts remain subject to no neighboring aligned holes, at least one solid segment between holes on each platform, safe spawn
+columns on both sides of entry, uniqueness, and seeded sampling. Each 1-2-2-1 maze must have 2–4 reachable paths. There are no
+quotas within that range or for distinct planning predictions. Two-path 1-2-1 mazes
+retain their original straddling rule and 50/50 agreement/conflict balance.
 
-| Structure | Trials per packet | Policy conditions |
-| --- | ---: | --- |
-| 1-1-1 | 4 | One forced route; no choice comparison |
-| 1-2-1 | 4 | Two agree, two conflict |
-| 1-2-2-1 | 4 | Three distinct horizon predictions; balanced optimal first-choice direction |
+A move reaches only the nearest gap in its direction; a farther gap behind it
+is blocked. Paths, costs, and horizon predictions all use this rule. In the
+default 600-trial configuration, the 200 randomized 1-2-2-1 trials contain:
 
-Every four-path trial gives one-, two-, and three-level planning three distinct,
-untied complete-route predictions. Each model minimizes horizontal travel over
-its next H transitions and replans at each platform. The full planner's first
-choice is balanced left/right, two each per packet. The previous four agreement
-quotas are replaced: in the default seed, agreement conditions are 189
-conflict/agree, 4 conflict/conflict, and 7 agree/conflict. These are descriptive
-labels along the optimal route, not balanced factors.
+| Reachable paths | Trials |
+| --- | ---: |
+| 2 | 131 |
+| 3 | 55 |
+| 4 | 14 |
 
-Version `interleaved_v3` adds `horizon_predictions`, `horizon_states` (preferred
-actions, ties, and action excess cost at every position), and
-`route_horizon_annotations` (whole-route and per-action compatible horizons).
-The fourth route matches none of the three fixed-horizon models. Its individual
-choices remain labeled; this does not establish switching or a fourth depth.
-One- and two-path trials also receive these fields, including shared predictions.
+Across all 600 trials, there are 200 one-path, 331 two-path, 55 three-path,
+and 14 four-path mazes. These are realized seeded counts, not imposed quotas.
 
-Greedy minimizes the next horizontal movement. Planning minimizes total
-horizontal movement to the goal, in segment units. Scheduled choice trials
-exclude tied optimal routes and greedy ties on both the greedy and optimal
-routes. Unchosen alternatives can still tie in cost; every path and cost is
-recorded. The second hole pair strictly surrounds the first pair so neither
-intermediate gap blocks access to a purported alternative: all four routes
-are physically available. Geometry is sampled without replacement within
-each condition with a reproducible seed.
+## Planning metadata
 
-Each test block has a `design` object, saved automatically under
-`block_config.design` in block logs and experiment JSON. It includes structure,
-condition, trial/packet IDs, seed, path count, all path hole sequences and
-costs, optimal routes, greedy route, greedy regret, best-versus-second cost
-gap, tie flags, and per-choice policy holes and margins along the optimal route.
-Existing level events retain timestamps, hole used, ball position, and block
-and level indices; join these to the block design to analyze observed choices
-and reaction times. Level indices in the metadata are zero-based.
+Each test block saves `block_config.design` with version `interleaved_v7`,
+structure, actual `n_paths`, all reachable routes and costs, optimal paths,
+greedy route and regret, ties, condition, and seed/trial/packet identifiers.
+`horizon_predictions` lists complete routes predicted by one-, two-, and
+three-transition lookahead, replanning at each platform. `horizon_states`
+records preferred actions and excess costs for legal actions from each state.
+`route_horizon_annotations` records whole-route and per-action compatibility.
+Predictions may coincide or tie; three distinct routes are no longer required.
+The descriptive agreement conditions compare greedy and full planning along
+one recorded optimal route; inspect tie flags and actual reachable actions
+before interpreting these as decision conflicts. Forced choices can agree
+trivially. Horizontal travel cost is measured in segment units.
 
-The packets balance intended exposures; retries and back-navigation remain
-recorded as additional block attempts and should be handled explicitly in
-analysis. Historical analysis scripts that assume every trial spans three
-levels need adaptation before analyzing this configuration.
+## Spawn and runtime behavior
 
-Path count alone does not isolate evaluation time: four-path mazes have an
-extra level and different travel demands. Analyze movement onset or choice
-latency separately from total completion time, and control for path length,
-initial ball-to-entry distance, choice distance, and policy cost gaps. This
-generator records those geometries and costs but does not match their
-distributions across structures. The forced baseline still requires motor
-control and anticipation.
+Spawns use the nearest column clear of every hole on the assigned side of
+entry. Side is balanced within packet and structure (and agreement condition
+for 1-2-1). Actual offsets can exceed one segment and are logged. Retries keep
+the assignment. Runtime verifies spawn clearance; legacy blocks using all
+columns fall back to solid ground above entry. Spawn coordinates and first
+actual horizontal movement are logged separately for each block attempt.
 
-Regenerate with Python (standard library only):
+The original horizontal speed is restored. There is no airborne travel limiter.
+Every block uses the follow camera, with drift and mode switching disabled.
+Task scripts and configurations carry cache versions, and the server sends
+no-store headers.
+
+## Testing and regeneration
 
 ```sh
+uv run python app/server.py
 python3 tools/level_generation/generating_levels_interleaved.py
-# Exact balance requires a positive multiple of 12 (e.g. 504 rather than 500).
-python3 tools/level_generation/generating_levels_interleaved.py --n 504 --seed 20261116
-python3 -m unittest discover -s tools/level_generation/tests -p 'test_interleaved.py'
+python3 tools/level_generation/generating_levels_interleaved.py --n 12
+python3 -m unittest discover -s tools/level_generation/tests -p test_interleaved.py
 ```
 
-The generator preserves the original tutorial blocks and writes a separate
-configuration, leaving historical experiment configurations available by URL.
+[Short test: four tutorials plus 12 trials](http://localhost:8000/?participantId=TEST_RANDOM_LAYOUT&experiment=interleaved_experiment_12_blocks&params_name=emu_research_params&v=20261117g)
 
-## Alignment and spawn controls
-
-Neighboring platforms never share a hole column in v3 test trials; columns may
-recur farther apart. The grid remains 12 segments. Spawn is one segment left
-or right of the entry center, balanced per packet within structure and policy
-condition (optimal first-choice direction for four-path mazes). The assignment
-is seeded and retained on retries. Tutorials and older configs retain their
-existing spawn behavior.
-
-Design records `spawn_segment`, `entry_segment`, `spawn_offset_segments`, and
-`intended_entry_direction`. Each block attempt logs `spawn` with actual pixel
-coordinates and timestamp, and `first_movement` with the first nonzero horizontal
-displacement during active play. No movement leaves that field null. Dedicated
-spawn and movement events also appear in JSONL logs. Movement direction is
-measured independently of the intended direction toward entry.
-
-For a short test (four tutorials plus twelve test trials), start the server with
-`uv run python app/server.py`, then open:
-
-[Short local test](http://localhost:8000/?participantId=TEST_INTERLEAVED&experiment=interleaved_experiment_12_blocks&params_name=emu_research_params)
-
-## Spawn clearance and slower movement (v4)
-
-Test spawns use the nearest unused column on the assigned side of entry, clear
-of holes on every platform. Offsets may exceed one segment and remain logged;
-side balance is preserved. Tutorials also select an unused column at runtime.
-Horizontal speed in EMU parameters is halved (scale 5 instead of 10).
-`requirePlatformLanding` limits cumulative airborne horizontal travel to half
-the distance from takeoff to the nearest passable opening on the next platform.
-The remaining movement must occur after landing. This geometry-based control
-also covers the initial fall and resets on each block attempt. It changes
-airborne steering, so timing analyses must distinguish these v4 sessions.
-The regenerated 600-trial condition counts are 192 conflict/agree and 8
-agree/conflict for four-path trials; horizon distinctions remain required.
-
-## Runtime correction: follow camera and explicit speed
-
-All loaded blocks, including tutorials, now use follow mode (0); mode switches
-are disabled. Horizontal movement is explicitly limited to 0.75 segments per
-second at the configured frame rate, independent of the legacy acceleration
-scale. Spawn selection checks the actual entry-hole rectangles with ball radius
-clearance. Generated trials avoid all hole columns; legacy blocks that use every
-column select solid ground on the entry platform instead, or fail explicitly
-if none exists. Config requests and scripts carry a new cache version, and the
-server disables HTTP caching. Restart the server and reload an existing tab to
-pick up the corrected runtime.
-
-Horizontal speed has been restored to the original acceleration-based cap: `maxBallAccelScale=10` times `ballAccel`. The 0.75-segments/second override has been removed. Spawn clearance, airborne landing controls, and follow-only camera behavior remain enabled.
-
-The airborne travel limiter has been removed to restore continuous horizontal movement during falls and landings. Original horizontal speed, safe spawns, and follow-only camera behavior remain. Landing before the next hole is no longer enforced.
+Use `interleaved_experiment_600_blocks` in the URL for the full experiment.
+Counts must be positive multiples of 12. Historical configurations and logs
+retain their original designs. Analyze movement onset separately from total
+time, account for route lengths and spawn offsets, and handle retries explicitly.
+Older analysis scripts assuming three levels per maze require adaptation.
